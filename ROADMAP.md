@@ -11,7 +11,7 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
 
 - [x] M1.1 Shofe v1: prepare, transcribe, plan, render, 5 stilova, glazba, hook, 4 formata
 - [x] M1.2 pytest testovi + probne snimke (sintetski govor, mock transkript)
-- [ ] M1.3 CI: GitHub Actions na Linuxu i Windowsu (pytest) + dimni test prave transkripcije (whisper tiny); popraviti sve što na Windowsu padne
+- [x] M1.3 CI: GitHub Actions na Linuxu i Windowsu (pytest) + dimni test prave transkripcije (whisper tiny); popraviti sve što na Windowsu padne (#1)
 - [ ] M1.4 `requirements.txt` za proizvod, `VERSION`, verzija u `doctor.py`; install.ps1 instalira iz `requirements.txt`
 - [ ] M1.5 Karta videa v1: `analyze.py` → `analiza.json` (tišine, glasnoća po odsječku, tempo govora, mutni/tamni kadrovi, promjene scene); SKILL.md: Claude iz transkripta dopisuje teme i najjače trenutke
 - [ ] M1.6 Govornici (diarizacija) na CPU-u, permisivna licenca; istraži opcije, zapiši u ODLUKE.md; test na sintetskom dvoglasju

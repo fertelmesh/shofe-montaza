@@ -2,6 +2,14 @@
 
 Svaka značajna odluka: datum, odluka, zašto, alternative, izvori. Najnovije na vrhu.
 
+## 2026-11-25 — Zvuk za transkripciju dekodira naš ffmpeg, ne PyAV
+- Odluka: `transcribe.py` sam dekodira zvuk ffmpegom (mono, 16 kHz, float32) i predaje faster-whisperu numpy niz.
+- Zašto: prvi CI je pao — svježa instalacija daje faster-whisper 1.2.1 + av 19.0.2, a av je izbacio argument `metadata_errors` koji faster-whisper koristi (`TypeError: open() got an unexpected keyword argument`). Marko bi s novom instalacijom dobio istu grešku. ffmpeg ionako mora postojati, a sam faster-whisper u kodu preporučuje ffmpeg izravno. Time PyAV više nije bitan za rad.
+- Alternative: prikovati `av<17` (krhko, ruši se kad faster-whisper podigne donju granicu; na Windowsu možda nema gotovog kotača za Python 3.13+); čekati popravak u faster-whisperu (neizvjesno).
+- Uz to: CI sada pokreće pravu transkripciju (whisper tiny) i na Windowsu, plus jednom tjedno, da se ovakvi kvarovi paketa uoče prije Marka. Akcije podignute na verzije s Node 24 (checkout@v5, setup-python@v6, cache@v5).
+- Nova razvojna ovisnost: numpy (BSD-3-Clause), već dolazi s faster-whisperom.
+- Izvori: https://github.com/SYSTRAN/faster-whisper/issues/719 , https://github.com/PyAV-Org/PyAV/issues/1559 , https://pypi.org/project/av/ , https://github.com/actions/checkout/pull/2248
+
 ## 2026-11-25 — Agent radi samostalno
 - Odluka (Marko): agent sam odlučuje prema istraživanju, sam spaja promjene kad CI prođe, radi u krugovima svaka 2 sata. Kontrolne točke su pregledi s demom, ne zaustavljanje.
 
