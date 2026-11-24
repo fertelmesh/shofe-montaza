@@ -25,9 +25,26 @@ jobs:
       - name: ffmpeg (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      # Gyan build, isti kao kod Marka (winget Gyan.FFmpeg), s GitHub izdanja; choco samo kao rezerva
       - name: ffmpeg (Windows)
         if: runner.os == 'Windows'
-        run: choco install ffmpeg -y --no-progress
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP "ffmpeg"
+          gh release download --repo GyanD/codexffmpeg --pattern "*-essentials_build.zip" --dir $dir
+          $zip = Get-ChildItem $dir -Filter "*-essentials_build.zip" | Select-Object -First 1
+          if ($zip) {
+            Expand-Archive $zip.FullName -DestinationPath $dir
+            $bin = Get-ChildItem $dir -Recurse -Filter "ffmpeg.exe" | Select-Object -First 1
+            Add-Content $env:GITHUB_PATH $bin.DirectoryName
+          } else {
+            Write-Host "Gyan build nije skinut, pokušavam choco"
+            choco install ffmpeg -y --no-progress
+          }
+      - name: ffmpeg postoji
+        run: ffmpeg -version
       - name: Python paketi
         run: python -m pip install -r requirements-dev.txt
       - name: Testovi
@@ -54,12 +71,33 @@ jobs:
       - name: ffmpeg (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      # Gyan build, isti kao kod Marka (winget Gyan.FFmpeg), s GitHub izdanja; choco samo kao rezerva
       - name: ffmpeg (Windows)
         if: runner.os == 'Windows'
-        run: choco install ffmpeg -y --no-progress
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP "ffmpeg"
+          gh release download --repo GyanD/codexffmpeg --pattern "*-essentials_build.zip" --dir $dir
+          $zip = Get-ChildItem $dir -Filter "*-essentials_build.zip" | Select-Object -First 1
+          if ($zip) {
+            Expand-Archive $zip.FullName -DestinationPath $dir
+            $bin = Get-ChildItem $dir -Recurse -Filter "ffmpeg.exe" | Select-Object -First 1
+            Add-Content $env:GITHUB_PATH $bin.DirectoryName
+          } else {
+            Write-Host "Gyan build nije skinut, pokušavam choco"
+            choco install ffmpeg -y --no-progress
+          }
+      - name: ffmpeg postoji
+        run: ffmpeg -version
       # iste verzije kao kod Marka: najnovije što pip nađe iz requirements.txt
       - run: python -m pip install -r requirements-dev.txt -r requirements.txt
       - run: python -m pip list
+      - name: doctor.py (sve što Marko treba)
+        env:
+          PYTHONUTF8: "1"
+        run: python shofe-montaza/scripts/doctor.py
       - name: Dimni test transkripcije (whisper tiny)
         env:
           SHOFE_WHISPER_TEST: "1"

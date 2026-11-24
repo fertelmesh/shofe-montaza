@@ -11,6 +11,7 @@ Jedan unos po krugu, najnoviji na dnu.
 - Prvi CI: testovi montaže prolaze na Linuxu i Windowsu; pala je prava transkripcija. Uzrok: nova verzija paketa av (19) ne radi s faster-whisperom 1.2.1 — svaka svježa instalacija (i Markova) dobila bi grešku pri transkripciji.
 - Popravak: `transcribe.py` sam dekodira zvuk ffmpegom (mono 16 kHz) i predaje ga whisperu; PyAV više nije bitan. Odluka u ODLUKE.md.
 - CI: dimni test transkripcije (whisper tiny) sada i na Windowsu, provjerava jezik hr i vremena riječi; pokreće se i svakog ponedjeljka da uhvati pokvarene nove pakete. Novi testovi `tests/test_audio.py` (putanja s razmakom i č/ć/ž, snimka bez zvuka).
+- Windows CI je pao jer choco nije mogao skinuti ffmpeg (njihov server). Sada CI skida Gyan build s GitHuba (isti kao winget Gyan.FFmpeg kod Marka), choco je rezerva; dodan korak `doctor.py` koji provjerava sve što Shofe treba.
 - Testovi lokalno: 11 prošlo, 1 preskočen (model se u sandboxu ne može skinuti; provjera u CI-ju).
 - Za Marka: ako si već instalirao Shofe i transkripcija pada s „metadata_errors", ponovno pokreni INSTALIRAJ.bat nakon ovog spajanja.
 - Sljedeće: M1.4 (requirements.txt, VERSION, verzija u doctor.py, install.ps1 iz requirements.txt).
