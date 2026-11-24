@@ -1,0 +1,76 @@
+"""Provjera i popravak okruženja.
+
+  python doctor.py            provjeri sve
+  python doctor.py --popravi  instaliraj što nedostaje (ffmpeg preko wingeta, faster-whisper preko pipa)
+"""
+import argparse
+import os
+import subprocess
+import sys
+
+from common import FONTS_DIR, STYLES_DIR, find_tool, ffmpeg_major
+
+OK, BAD = "[OK]", "[!!]"
+
+
+def check_ffmpeg():
+    p = find_tool("ffmpeg")
+    if not p or not find_tool("ffprobe"):
+        return False, "ffmpeg/ffprobe nije pronađen"
+    out = subprocess.run([p, "-hide_banner", "-filters"], capture_output=True, text=True).stdout
+    enc = subprocess.run([p, "-hide_banner", "-encoders"], capture_output=True, text=True).stdout
+    missing = [f for f in ("subtitles", "loudnorm", "sidechaincompress", "afftdn", "zscale") if f" {f} " not in out]
+    if "libx264" not in enc:
+        missing.append("libx264")
+    if missing:
+        return False, f"ffmpeg {ffmpeg_major()} nema: {', '.join(missing)} (instaliraj puni build: winget install Gyan.FFmpeg)"
+    return True, f"ffmpeg {ffmpeg_major()} ({p})"
+
+
+def check_whisper():
+    try:
+        import faster_whisper
+        return True, f"faster-whisper {faster_whisper.__version__}"
+    except ImportError:
+        return False, "faster-whisper nije instaliran"
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--popravi", action="store_true")
+    a = ap.parse_args()
+
+    checks = {
+        "python": (sys.version_info >= (3, 9), f"Python {sys.version.split()[0]}"),
+        "ffmpeg": check_ffmpeg(),
+        "whisper": check_whisper(),
+        "fontovi": (len(list(FONTS_DIR.glob("*.ttf"))) >= 3, f"{len(list(FONTS_DIR.glob('*.ttf')))} fontova"),
+        "stilovi": (len(list(STYLES_DIR.glob("*.json"))) >= 1, f"{len(list(STYLES_DIR.glob('*.json')))} stilova"),
+    }
+    for k, (ok, msg) in checks.items():
+        print(f"{OK if ok else BAD} {k}: {msg}")
+
+    if a.popravi:
+        if not checks["whisper"][0]:
+            print("\nInstaliram faster-whisper...")
+            subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "faster-whisper"])
+        if not checks["ffmpeg"][0]:
+            if os.name == "nt":
+                print("\nInstaliram ffmpeg preko wingeta...")
+                subprocess.run(["winget", "install", "-e", "--id", "Gyan.FFmpeg",
+                                "--accept-source-agreements", "--accept-package-agreements"])
+                print("Ako ffmpeg i dalje nije pronađen, zatvori i ponovno otvori Claude (novi PATH).")
+            else:
+                print("\nInstaliraj ffmpeg: brew install ffmpeg (Mac) ili sudo apt install ffmpeg (Linux)")
+        print("\nPonovna provjera:")
+        os.execv(sys.executable, [sys.executable, __file__])
+
+    bad = [k for k, (ok, _) in checks.items() if not ok]
+    if bad:
+        print(f"\nNedostaje: {', '.join(bad)}. Pokreni: python doctor.py --popravi")
+        sys.exit(1)
+    print("\nSve spremno za montažu.")
+
+
+if __name__ == "__main__":
+    main()

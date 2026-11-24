@@ -1,0 +1,29 @@
+{
+  "naziv": "Kino",
+  "opis": "Filmski izgled: hladnije sjene, topla koža, vinjeta, rijetki razmaknuti titlovi. Za priče, atmosferu, festival.",
+  "font": "Montserrat SemiBold",
+  "velicina": 56,
+  "velika_slova": true,
+  "nacin": "linija",
+  "max_rijeci": 6,
+  "max_znakova": 34,
+  "razmak": 4,
+  "boja_teksta": "#F4EFE6",
+  "boja_isticanja": "#E8B04B",
+  "obrub": 0,
+  "sjena": 2,
+  "pozicija": "dolje",
+  "zoom": "nema",
+  "boja_slike": "kino",
+  "rezanje": [
+    0.1,
+    0.25
+  ],
+  "hook_font": "Montserrat SemiBold",
+  "hook_velicina": 50,
+  "hook_boja": "#111111",
+  "hook_pozadina": "#F4EFE6",
+  "hook_velika_slova": true,
+  "traka_napretka": false,
+  "zvuk_ciscenje": true
+}

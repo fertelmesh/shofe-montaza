@@ -1,0 +1,31 @@
+{
+  "naziv": "Sunčani",
+  "opis": "Velika debela slova, trenutna riječ zasvijetli žuto, topla slika, česti zumovi. Za brze, energične reelove.",
+  "font": "Montserrat Black",
+  "velicina": 100,
+  "velika_slova": true,
+  "nacin": "karaoke",
+  "max_rijeci": 3,
+  "max_znakova": 22,
+  "boja_teksta": "#FFFFFF",
+  "boja_isticanja": "#FFC21A",
+  "boja_naglaska": "#FF8A1F",
+  "obrub": 7,
+  "boja_obruba": "#000000",
+  "sjena": 3,
+  "pop": 1.06,
+  "otkrivanje": false,
+  "pozicija": "dolje",
+  "zoom": "jako",
+  "boja_slike": "toplo",
+  "rezanje": [
+    0.04,
+    0.1
+  ],
+  "hook_font": "Montserrat Black",
+  "hook_velicina": 72,
+  "hook_boja": "#111111",
+  "hook_pozadina": "#FFC21A",
+  "traka_napretka": false,
+  "zvuk_ciscenje": true
+}

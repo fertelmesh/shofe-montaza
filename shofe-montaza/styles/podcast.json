@@ -1,0 +1,30 @@
+{
+  "naziv": "Podcast",
+  "opis": "Za isječke Sunčani4M: 4-5 riječi, riječi se pojavljuju dok se izgovaraju, narančasto isticanje, blagi zumovi.",
+  "font": "Montserrat ExtraBold",
+  "velicina": 72,
+  "velika_slova": false,
+  "nacin": "karaoke",
+  "max_rijeci": 5,
+  "max_znakova": 30,
+  "boja_teksta": "#FFFFFF",
+  "boja_isticanja": "#FF7A00",
+  "obrub": 5,
+  "boja_obruba": "#000000",
+  "sjena": 2,
+  "pop": 1.0,
+  "otkrivanje": true,
+  "pozicija": "dolje",
+  "zoom": "blago",
+  "boja_slike": "zivo",
+  "rezanje": [
+    0.06,
+    0.14
+  ],
+  "hook_font": "Montserrat Black",
+  "hook_velicina": 62,
+  "hook_boja": "#FFFFFF",
+  "hook_pozadina": "#FF7A00",
+  "traka_napretka": false,
+  "zvuk_ciscenje": true
+}

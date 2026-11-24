@@ -1,0 +1,29 @@
+{
+  "naziv": "Udarno",
+  "opis": "Jedna ogromna riječ u sredini kadra, iskače na svaki slog, agresivni zumovi i traka napretka. Za viralne hookove.",
+  "font": "Anton",
+  "velicina": 170,
+  "velika_slova": true,
+  "nacin": "rijec",
+  "max_rijeci": 1,
+  "max_znakova": 14,
+  "boja_teksta": "#FFFFFF",
+  "boja_isticanja": "#3DFF6E",
+  "boja_naglaska": "#3DFF6E",
+  "obrub": 9,
+  "boja_obruba": "#000000",
+  "sjena": 0,
+  "pozicija": "sredina",
+  "zoom": "jako",
+  "boja_slike": "zivo",
+  "rezanje": [
+    0.03,
+    0.08
+  ],
+  "hook_font": "Anton",
+  "hook_velicina": 84,
+  "hook_boja": "#000000",
+  "hook_pozadina": "#3DFF6E",
+  "traka_napretka": true,
+  "zvuk_ciscenje": true
+}

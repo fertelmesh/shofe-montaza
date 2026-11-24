@@ -1,0 +1,27 @@
+{
+  "naziv": "Čisto",
+  "opis": "Mirni titlovi u rečenicama na tamnoj podlozi, bez zumova, prirodne boje. Za ozbiljnije teme, SF klima savjete, YouTube.",
+  "font": "Montserrat SemiBold",
+  "velicina": 56,
+  "velika_slova": false,
+  "nacin": "linija",
+  "max_rijeci": 8,
+  "max_znakova": 44,
+  "boja_teksta": "#FFFFFF",
+  "boja_isticanja": "#FFC21A",
+  "pozadina": true,
+  "boja_pozadine": "#000000A8",
+  "pozicija": "dolje",
+  "zoom": "nema",
+  "boja_slike": "neutralno",
+  "rezanje": [
+    0.08,
+    0.18
+  ],
+  "hook_font": "Montserrat ExtraBold",
+  "hook_velicina": 58,
+  "hook_boja": "#111111",
+  "hook_pozadina": "#FFFFFF",
+  "traka_napretka": false,
+  "zvuk_ciscenje": true
+}
