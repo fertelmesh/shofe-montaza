@@ -24,7 +24,14 @@ def test_transcribe_tiny(tmp_path):
     shutil.copy(FIX / "klip2.mp4", clips / "klip2.mp4")
     proj = tmp_path / "p"
     for cmd in (["prepare.py", clips, "--out", proj], ["transcribe.py", proj, "--model", "tiny"]):
-        r = subprocess.run([sys.executable, str(SCRIPTS / cmd[0]), *map(str, cmd[1:])], capture_output=True, text=True)
+        r = subprocess.run([sys.executable, str(SCRIPTS / cmd[0]), *map(str, cmd[1:])],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
         assert r.returncode == 0, r.stderr
-    words = json.loads((proj / "transcript.json").read_text(encoding="utf-8"))["words"]
+    t = json.loads((proj / "transcript.json").read_text(encoding="utf-8"))
+    words = t["words"]
+    assert t["language"] == "hr"
     assert len(words) >= 5
+    # vremena riječi: rastu, unutar trajanja snimke (~9,2 s)
+    starts = [w["s"] for w in words]
+    assert starts == sorted(starts)
+    assert all(0 <= w["s"] <= w["e"] <= 10.0 for w in words)

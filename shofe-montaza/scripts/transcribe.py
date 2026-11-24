@@ -6,10 +6,30 @@ Prvo pokretanje skida model (~1,6 GB za large-v3-turbo), poslije radi bez intern
   python transcribe.py shofe_projekt --model medium      (brže, malo lošije)
 """
 import argparse
+import subprocess
 import time
 from pathlib import Path
 
-from common import SKILL_DIR, die, fmt_time, save_json
+from common import SKILL_DIR, die, ffmpeg, fmt_time, save_json
+
+SAMPLE_RATE = 16000
+
+
+def load_audio(path, sr=SAMPLE_RATE):
+    """Decode audio with our own ffmpeg to mono float32 at `sr` Hz.
+
+    faster-whisper's own decoder uses PyAV, whose API changes between releases
+    (av 17+ dropped `metadata_errors`, breaking faster-whisper 1.2.x). ffmpeg is
+    already a hard requirement, so we decode here and pass a numpy array.
+    """
+    import numpy as np
+
+    cmd = [ffmpeg(), "-nostdin", "-hide_banner", "-loglevel", "error", "-i", str(path),
+           "-map", "0:a:0", "-ac", "1", "-ar", str(sr), "-f", "s16le", "-acodec", "pcm_s16le", "-"]
+    r = subprocess.run(cmd, capture_output=True)
+    if r.returncode != 0:
+        die(f"ffmpeg ne može pročitati zvuk iz {path}: {r.stderr.decode('utf-8', 'replace').strip()[-300:]}")
+    return np.frombuffer(r.stdout, np.int16).astype(np.float32) / 32768.0
 
 
 def vocabulary_prompt():
@@ -53,10 +73,11 @@ def main():
         die("faster-whisper nije instaliran. Pokreni: python doctor.py --popravi")
 
     t0 = time.time()
+    audio = load_audio(src)
     model, dev = load_model(a.model, a.device)
     print(f"Model {a.model} na {dev} učitan ({time.time() - t0:.0f}s). Transkribiram...")
     segs, info = model.transcribe(
-        str(src),
+        audio,
         language=None if a.jezik == "auto" else a.jezik,
         word_timestamps=True,
         vad_filter=True,
