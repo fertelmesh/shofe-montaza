@@ -1,14 +1,15 @@
 """Provjera i popravak okruženja.
 
   python doctor.py            provjeri sve
-  python doctor.py --popravi  instaliraj što nedostaje (ffmpeg preko wingeta, faster-whisper preko pipa)
+  python doctor.py --popravi  instaliraj što nedostaje (ffmpeg preko wingeta, Python pakete iz requirements.txt)
+  python doctor.py --verzija  samo ispiši verziju Shofea
 """
 import argparse
 import os
 import subprocess
 import sys
 
-from common import FONTS_DIR, STYLES_DIR, find_tool, ffmpeg_major
+from common import FONTS_DIR, REQUIREMENTS, STYLES_DIR, find_tool, ffmpeg_major, version
 
 OK, BAD = "[OK]", "[!!]"
 
@@ -38,7 +39,12 @@ def check_whisper():
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--popravi", action="store_true")
+    ap.add_argument("--verzija", action="store_true")
     a = ap.parse_args()
+
+    print(f"Shofe {version()}")
+    if a.verzija:
+        return
 
     checks = {
         "python": (sys.version_info >= (3, 9), f"Python {sys.version.split()[0]}"),
@@ -52,8 +58,8 @@ def main():
 
     if a.popravi:
         if not checks["whisper"][0]:
-            print("\nInstaliram faster-whisper...")
-            subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "faster-whisper"])
+            print("\nInstaliram Python pakete...")
+            subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "-r", str(REQUIREMENTS)])
         if not checks["ffmpeg"][0]:
             if os.name == "nt":
                 print("\nInstaliram ffmpeg preko wingeta...")
@@ -63,7 +69,8 @@ def main():
             else:
                 print("\nInstaliraj ffmpeg: brew install ffmpeg (Mac) ili sudo apt install ffmpeg (Linux)")
         print("\nPonovna provjera:")
-        os.execv(sys.executable, [sys.executable, __file__])
+        # ne os.execv: na Windowsu razbija putanje s razmacima
+        sys.exit(subprocess.run([sys.executable, __file__]).returncode)
 
     bad = [k for k, (ok, _) in checks.items() if not ok]
     if bad:

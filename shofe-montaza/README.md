@@ -12,6 +12,8 @@ Sve radi na tvom računalu: transkripcija je besplatna i bez interneta (nakon pr
 
 Treba ti Claude desktop s plaćenim planom (Pro je dovoljan) i Code dio aplikacije.
 
+**Nova verzija Shofea:** raspakiraj novu mapu i opet dvoklik na **INSTALIRAJ.bat** — prepisat će stari skill i nadograditi pakete. Koju verziju imaš piše u prvom retku provjere (ili reci Claudeu „koja je verzija Shofea"). Ako na kraju instalacije piše crveno „Nešto nedostaje", zatvori prozor i pokreni INSTALIRAJ.bat još jednom.
+
 ## Korištenje
 
 U Claude desktopu otvori **Code**, odaberi mapu u kojoj su klipovi i napiši npr.:

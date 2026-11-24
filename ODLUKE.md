@@ -2,6 +2,12 @@
 
 Svaka značajna odluka: datum, odluka, zašto, alternative, izvori. Najnovije na vrhu.
 
+## 2026-11-25 — Verzije i popis paketa proizvoda
+- Odluka: `shofe-montaza/VERSION` (semver, počinje 0.2.0 jer je v1 montaža bila 0.1), ispisuje je `doctor.py`. Python paketi proizvoda u `shofe-montaza/requirements.txt` (kopira se sa skillom); iz njega instaliraju `install.ps1` i `doctor.py --popravi`; korijenski `requirements.txt` samo upućuje na njega.
+- Granice verzija: `faster-whisper>=1.1,<2` — gornja granica jer bi nova glavna verzija mogla promijeniti API; tjedni CI s najnovijim paketima javlja kvar prije Marka. Ne prikivamo točne verzije: na Windowsu bi to s novim Pythonom značilo da nema gotovih paketa.
+- `doctor.py --popravi` više ne koristi `os.execv` (na Windowsu razbija putanje s razmacima).
+- Alternative: lock datoteka (pip-tools/uv) — previše za Markovu instalaciju dvoklikom; verzija u kodu umjesto datoteke — teže za čitanje izvan Pythona.
+
 ## 2026-11-25 — Zvuk za transkripciju dekodira naš ffmpeg, ne PyAV
 - Odluka: `transcribe.py` sam dekodira zvuk ffmpegom (mono, 16 kHz, float32) i predaje faster-whisperu numpy niz.
 - Zašto: prvi CI je pao — svježa instalacija daje faster-whisper 1.2.1 + av 19.0.2, a av je izbacio argument `metadata_errors` koji faster-whisper koristi (`TypeError: open() got an unexpected keyword argument`). Marko bi s novom instalacijom dobio istu grešku. ffmpeg ionako mora postojati, a sam faster-whisper u kodu preporučuje ffmpeg izravno. Time PyAV više nije bitan za rad.

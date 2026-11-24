@@ -15,3 +15,11 @@ Jedan unos po krugu, najnoviji na dnu.
 - Testovi lokalno: 11 prošlo, 1 preskočen (model se u sandboxu ne može skinuti; provjera u CI-ju).
 - Za Marka: ako si već instalirao Shofe i transkripcija pada s „metadata_errors", ponovno pokreni INSTALIRAJ.bat nakon ovog spajanja.
 - Sljedeće: M1.4 (requirements.txt, VERSION, verzija u doctor.py, install.ps1 iz requirements.txt).
+
+## 2026-11-25 00:45 — M1.4 verzija i popis paketa
+- PR #1 (M1.3) spojen: CI zelen na Linuxu i Windowsu, prava transkripcija (whisper tiny) prolazi i na Windowsu.
+- Novo: `shofe-montaza/VERSION` (0.2.0), `doctor.py` ispisuje verziju (`--verzija` samo nju); `shofe-montaza/requirements.txt` (faster-whisper, numpy) iz kojeg instaliraju `install.ps1` i `doctor.py --popravi`.
+- `install.ps1` na kraju javlja crveno ako nešto nedostaje i vraća kod greške; CI ga sada pokreće na Windowsu u Windows PowerShellu 5.1 kao INSTALIRAJ.bat.
+- Popravak: `doctor.py --popravi` više ne puca na putanjama s razmakom (bez `os.execv`).
+- Testovi lokalno: 15 prošlo, 1 preskočen.
+- Sljedeće: M1.5 karta videa (`analyze.py`).

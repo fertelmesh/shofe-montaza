@@ -39,11 +39,17 @@ if (-not (Test-Cmd "ffmpeg")) {
     Write-Host "[3/4] ffmpeg postoji"
 }
 
-# 4) Transkripcija
-Write-Host "[4/4] Instaliram faster-whisper (lokalna transkripcija)..."
-& $py -m pip install --upgrade --quiet faster-whisper
+# 4) Python paketi (transkripcija itd.) iz requirements.txt
+Write-Host "[4/4] Instaliram Python pakete (lokalna transkripcija)..."
+& $py -m pip install --upgrade --quiet -r (Join-Path $dst "requirements.txt")
 
 Write-Host ""
 & $py (Join-Path $dst "scripts\doctor.py")
+$doctor = $LASTEXITCODE
 Write-Host ""
-Write-Host "Gotovo. Zatvori i ponovno otvori Claude desktop, otvori Code u mapi s klipovima i napisi: montiraj ovo" -ForegroundColor Green
+if ($doctor -eq 0) {
+    Write-Host "Gotovo. Zatvori i ponovno otvori Claude desktop, otvori Code u mapi s klipovima i napisi: montiraj ovo" -ForegroundColor Green
+} else {
+    Write-Host "Nesto nedostaje (vidi [!!] gore). Zatvori i ponovno otvori ovaj prozor pa pokreni INSTALIRAJ.bat jos jednom." -ForegroundColor Red
+}
+exit $doctor
