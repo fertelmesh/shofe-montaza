@@ -1,0 +1,4 @@
+# Python paketi koje Shofe treba (install.ps1 i doctor.py --popravi instaliraju iz ove datoteke).
+# Licence: faster-whisper MIT, numpy BSD-3-Clause.
+faster-whisper>=1.1,<2
+numpy>=1.24

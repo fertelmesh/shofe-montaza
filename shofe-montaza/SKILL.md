@@ -11,7 +11,7 @@ On Windows use forward slashes and quote every path: `python "<skill>/scripts/re
 
 ## First edit of a video
 
-1. **Check setup** (once per session): `python "<skill>/scripts/doctor.py"`. If anything is `[!!]`, run it with `--popravi`, and if ffmpeg was just installed tell the user to restart Claude.
+1. **Check setup** (once per session): `python "<skill>/scripts/doctor.py"`. If anything is `[!!]`, run it with `--popravi`, and if ffmpeg was just installed tell the user to restart Claude. The first line shows the Shofe version (`doctor.py --verzija` prints only that); tell it to the user when they ask which version they have or report a bug. Python packages come from `<skill>/requirements.txt`.
 2. **Prepare clips**: `python "<skill>/scripts/prepare.py" <clips or folder> --out shofe_projekt [--format 9:16|16:9|1:1|4:5]`
    - Clips are joined in the given order (a folder → sorted by file name). Ask about the order only if the names don't make it obvious.
    - Default 9:16. Use 16:9 for "YouTube"/"dugi video". Landscape clips get centre-cropped; adjust with `--crop-x 0.3` (0 left … 1 right) after checking a frame.

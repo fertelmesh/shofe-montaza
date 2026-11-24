@@ -11,6 +11,14 @@ from pathlib import Path
 SKILL_DIR = Path(__file__).resolve().parent.parent
 FONTS_DIR = SKILL_DIR / "fonts"
 STYLES_DIR = SKILL_DIR / "styles"
+REQUIREMENTS = SKILL_DIR / "requirements.txt"
+
+
+def version():
+    try:
+        return (SKILL_DIR / "VERSION").read_text(encoding="utf-8").strip()
+    except OSError:
+        return "?"
 
 # Windows konzola zna pasti na č/ć/š/ž/đ
 for _s in (sys.stdout, sys.stderr):
