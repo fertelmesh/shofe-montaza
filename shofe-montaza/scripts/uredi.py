@@ -13,6 +13,11 @@ Po sadržaju (Claude pronađe dio u transcript.txt i citira ga doslovno):
   python uredi.py shofe_projekt zadrzi --odsjecak 5-7 | --rijeci 40-62 | --tema "cijena"
   python uredi.py shofe_projekt dodaj --odsjecak 3                   vrati izbačeni dio (npr. drugi pokušaj)
 
+Skraćivanje (izbacuje najmanje važne cijele misli, nikad pola rečenice):
+  python uredi.py shofe_projekt skrati 60 --proba        popis misli s važnošću i što bi ostalo
+  python uredi.py shofe_projekt skrati 1:00 --ocjene "3:5,7-9:1" --obavezno "Pratite SF klimu"
+  python uredi.py shofe_projekt skrati za 15             kraće za 15 s
+
 Vremena su ona koja korisnik vidi u zadnjem renderiranom videu (reel_vN.mp4), jer on gleda taj video.
 --verzija N  → vremena iz reel_vN;  --trenutno → vremena prema trenutnom edit.json (sljedeći render).
 Rezovi se poravnaju na granice riječi (riječ ide van ako joj je sredina u dijelu), nikad usred riječi.
@@ -29,13 +34,14 @@ import copy
 from common import die, fmt_time, load_json, save_json
 from render import align_tokens, build_cuts, resolve_style, to_out
 import sadrzaj
+import skrati as sk
 
 TIME = r"\d+(?::\d{1,2}){0,2}(?:[.,]\d+)?s?"
 RANGE = re.compile(rf"(?:od\s+)?({TIME})\s*(?:-|do)\s*({TIME})")
 NAREDBE = {"makni": "makni", "izrezi": "makni", "izreži": "makni", "obrisi": "makni", "obriši": "makni",
            "zadrzi": "zadrzi", "zadrži": "zadrzi", "popis": "popis", "vrati": "vrati", "ponisti": "vrati",
            "poništi": "vrati", "dodaj": "dodaj", "ubaci": "dodaj", "trazi": "trazi", "traži": "trazi",
-           "nadji": "trazi", "nađi": "trazi"}
+           "nadji": "trazi", "nađi": "trazi", "skrati": "skrati", "skrati_na": "skrati"}
 
 
 # ---------------------------------------------------------------- vrijeme
@@ -352,6 +358,127 @@ def cmd_sadrzaj(proj, naredba, words, edit, pj, a):
     print(f"Sljedeće: python render.py {proj.name} --kadar ... ili render")
 
 
+# ---------------------------------------------------------------- skrati na N sekundi
+def parse_target(args, cur_dur):
+    """['60'] | ['1:00'] | ['na', '60'] | ['za', '15'] → ciljno trajanje u sekundama."""
+    text = " ".join(args).lower().replace("sekundi", "").replace("sek", "").strip()
+    m = re.fullmatch(rf"(na|za)?\s*({TIME})", text)
+    if not m:
+        raise ValueError(f"ne razumijem trajanje '{' '.join(args)}' (primjer: skrati 60, skrati 1:00, skrati za 15)")
+    t = parse_time(m.group(2))
+    if m.group(1) == "za":
+        t = cur_dur - t
+    if t <= 0:
+        raise ValueError("ciljno trajanje mora biti veće od nule")
+    return t
+
+
+def _quote_thoughts(words, edit, misli, quotes, what):
+    """Citati → brojevi misli koje ih sadrže."""
+    if not quotes:
+        return set()
+    tr = sadrzaj.Transkript(words, corrected_forms(words, edit))
+    out = set()
+    for q in quotes:
+        i, j = sadrzaj.by_quote(tr, q)
+        hit = {m.n for m in misli if set(m.idx) & set(range(i, j + 1))}
+        if not hit:
+            raise sadrzaj.Greska(f"{what} „{q}“: taj dio već nije u videu")
+        out |= hit
+    return out
+
+
+def cmd_skrati(proj, words, edit, pj, a):
+    cur_tl, cur_dur = timeline(words, edit, pj)
+    if not cur_tl:
+        die("u videu nema govora")
+    if not a.vremena:
+        die("na koliko? primjer: python uredi.py projekt skrati 60  (ili 1:00, ili: skrati za 15)")
+    try:
+        N = parse_target(a.vremena, cur_dur)
+    except ValueError as e:
+        die(str(e))
+    if cur_dur <= N + 1e-3:
+        print(f"Video već traje {fmt_time(cur_dur)}, što je unutar {fmt_time(N)}. Ništa za skratiti.")
+        return
+    speed = float(edit.get("brzina") or 1.0)
+    pre, post = resolve_style(edit).get("rezanje", [0.05, 0.12])
+    misli, lanci = sk.build_thoughts(words, sorted(w["i"] for w in cur_tl), pre + post)
+    an = load_json(proj / "analiza.json") if (proj / "analiza.json").exists() else None
+    try:
+        ocjene = sk.parse_ocjene(a.ocjene, len(misli))
+        obavezno = _quote_thoughts(words, edit, misli, a.obavezno, "obavezno")
+        nebitno = _quote_thoughts(words, edit, misli, a.nebitno, "nebitno")
+    except sadrzaj.Greska as e:
+        die(str(e))
+    sk.score(misli, words, an, ocjene, obavezno, nebitno)
+
+    # procjena trajanja misli nije točna do okvira (rubovi rezova, spojeni rezovi) → proračun se
+    # podešava dok pravo trajanje gotovog videa ne bude tik ispod cilja
+    budget = N * speed
+    lo_b, hi_b = 0.0, float("inf")
+    best, seen = None, {}
+    for _ in range(10):
+        keep = sk.choose(misli, lanci, budget)
+        if not keep:
+            lo_b = budget
+            if hi_b == float("inf"):
+                break
+            budget = (lo_b + hi_b) / 2
+            continue
+        key = frozenset(keep)
+        if key not in seen:
+            target = sorted(i for k in keep for i in misli[k].idx)
+            e2, _ = apply_target(words, edit, pj, target, f"skrati na {fmt_time(N)}")
+            seen[key] = (e2, timeline(words, e2, pj)[1])
+        e2, dur = seen[key]
+        if dur <= N + 1e-3:
+            if best is None or dur > best[2]:
+                best = (keep, e2, dur)
+            if N - dur <= max(0.5, 0.01 * N):
+                break
+            lo_b = budget
+        else:
+            hi_b = budget
+        nxt = budget * N / max(dur, 0.1)
+        if not lo_b < nxt < hi_b:
+            nxt = (lo_b + hi_b) / 2 if hi_b < float("inf") else budget * 1.1
+        if abs(nxt - budget) < 0.05:
+            break
+        budget = nxt
+    if best is None:
+        need = sum(m.trajanje for m in misli if m.obavezno) / speed
+        if obavezno and need > N:
+            die(f"obavezni dijelovi sami traju ~{need:.0f} s, više od {N:.0f} s")
+        shortest = min(m.trajanje for m in misli) / speed
+        die(f"u {fmt_time(N)} ne stane ni jedna cijela misao (najkraća ima ~{shortest:.1f} s)")
+    keep, edit2, new_dur = best
+
+    dep = {k for lanac in lanci for k in lanac[1:]}
+    vt = {w["i"]: w["s"] for w in cur_tl}
+    print(f"Skrati na {fmt_time(N)}: {len(misli)} misli u videu ({fmt_time(cur_dur)}). "
+          f"Vrijeme u trenutnom videu; važnost 1–5; X = ide van; ^ = ne može bez prethodne.")
+    for k, m in enumerate(misli):
+        mark = "   " if k in keep else " X "
+        link = "^" if k in dep else " "
+        txt = m.tekst if len(m.tekst) <= 70 else m.tekst[:67] + "…"
+        why = f" ({', '.join(m.razlog)})" if m.razlog else ""
+        print(f"{mark}#{m.n:<3}{link} {fmt_time(vt[m.idx[0]])}  {(m.do - m.od) / speed:4.1f}s  {m.vaznost:.1f}{why}  {txt}")
+    out = [m for k, m in enumerate(misli) if k not in keep]
+    print(f"Van: {len(out)} misli, {sum(m.do - m.od for m in out) / speed:.1f} s govora.")
+    print(f"Trajanje: {fmt_time(cur_dur)} → {fmt_time(new_dur)} (cilj {fmt_time(N)}, {new_dur - cur_dur:+.1f} s)")
+    if new_dur < N * 0.85 and N - new_dur > 3:
+        print("  napomena: kraće od cilja jer se misli ne režu na pola; za više materijala daj više ocjene "
+              "ili --obavezno, ili skrati na veći broj")
+    if a.proba:
+        print("(proba: edit.json nije promijenjen)")
+        return
+    save_history(proj, f"skrati na {fmt_time(N)}")
+    save_json(proj / "edit.json", edit2)
+    print(f"Upisano u edit.json. Poništi: python uredi.py {proj.name} vrati")
+    print(f"Sljedeće: python render.py {proj.name}")
+
+
 # ---------------------------------------------------------------- glavno
 def reference_edit(proj, edit, a):
     """Prema kojoj verziji se čitaju vremena: zadnji render (ono što je korisnik gledao)."""
@@ -393,8 +520,9 @@ def cmd_popis(words, edit, pj, label):
 def main():
     ap = argparse.ArgumentParser(description="Montaža po naredbi s vremenima iz gotovog videa")
     ap.add_argument("projekt")
-    ap.add_argument("naredba", help="makni | zadrzi | dodaj | trazi | popis | vrati")
-    ap.add_argument("vremena", nargs="*", help="npr. 1:20-1:45 (vrijeme u gotovom videu); za trazi: riječi")
+    ap.add_argument("naredba", help="makni | zadrzi | dodaj | trazi | skrati | popis | vrati")
+    ap.add_argument("vremena", nargs="*",
+                    help="npr. 1:20-1:45 (vrijeme u gotovom videu); za trazi: riječi; za skrati: 60 / 1:00 / za 15")
     g = ap.add_argument_group("po sadržaju (umjesto vremena)")
     g.add_argument("--od", help="doslovni citat iz transkripta: početak dijela (ili cijeli dio bez --do)")
     g.add_argument("--do", help="doslovni citat: kraj dijela (traži se iza --od)")
@@ -403,6 +531,10 @@ def main():
     g.add_argument("--odsjecak", help="brojevi odsječaka iz transcript.txt, npr. 5 ili 5-7,9")
     g.add_argument("--tema", help="tema iz analiza.json: broj ili riječi iz naslova")
     g.add_argument("--cijele-recenice", action="store_true", help="proširi odabir na cijele rečenice")
+    k = ap.add_argument_group("skrati")
+    k.add_argument("--ocjene", help="Claudeove ocjene važnosti misli, npr. \"3:5,7-9:1\" (misao:1–5)")
+    k.add_argument("--obavezno", action="append", default=[], help="citat koji mora ostati (može više puta)")
+    k.add_argument("--nebitno", action="append", default=[], help="citat koji prvi ide van (može više puta)")
     ap.add_argument("--verzija", type=int, default=None, help="vremena iz reel_vN (zadano: zadnji render)")
     ap.add_argument("--trenutno", action="store_true", help="vremena prema trenutnom edit.json")
     ap.add_argument("--proba", action="store_true", help="samo pokaži što bi se promijenilo")
@@ -414,7 +546,7 @@ def main():
             die(f"nedostaje {proj / f}")
     naredba = NAREDBE.get(a.naredba.lower())
     if not naredba:
-        die(f"nepoznata naredba '{a.naredba}' (makni, zadrzi, dodaj, trazi, popis, vrati)")
+        die(f"nepoznata naredba '{a.naredba}' (makni, zadrzi, dodaj, trazi, skrati, popis, vrati)")
     if naredba == "vrati":
         undo(proj)
         return
@@ -423,6 +555,12 @@ def main():
     edit = load_json(proj / "edit.json")
     ref, label = reference_edit(proj, edit, a)
     content = any([a.od, a.do, a.rijeci, a.odsjecak, a.tema])
+    if naredba == "skrati":
+        if content:
+            die("skrati ne ide uz --od/--rijeci/--odsjecak/--tema (za to: makni); za dijelove koji moraju "
+                "ostati koristi --obavezno \"citat\"")
+        cmd_skrati(proj, words, edit, pj, a)
+        return
     if naredba == "trazi":
         if not a.vremena:
             die("što tražiti? primjer: python uredi.py projekt trazi cijena")
