@@ -36,6 +36,14 @@ def check_whisper():
         return False, "faster-whisper nije instaliran"
 
 
+def check_sherpa():
+    try:
+        import sherpa_onnx
+        return True, f"sherpa-onnx {getattr(sherpa_onnx, '__version__', '?')} (prepoznavanje govornika)"
+    except ImportError:
+        return False, "sherpa-onnx nije instaliran (treba za prepoznavanje govornika)"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--popravi", action="store_true")
@@ -50,6 +58,7 @@ def main():
         "python": (sys.version_info >= (3, 9), f"Python {sys.version.split()[0]}"),
         "ffmpeg": check_ffmpeg(),
         "whisper": check_whisper(),
+        "govornici": check_sherpa(),
         "fontovi": (len(list(FONTS_DIR.glob("*.ttf"))) >= 3, f"{len(list(FONTS_DIR.glob('*.ttf')))} fontova"),
         "stilovi": (len(list(STYLES_DIR.glob("*.json"))) >= 1, f"{len(list(STYLES_DIR.glob('*.json')))} stilova"),
     }
@@ -57,7 +66,7 @@ def main():
         print(f"{OK if ok else BAD} {k}: {msg}")
 
     if a.popravi:
-        if not checks["whisper"][0]:
+        if not (checks["whisper"][0] and checks["govornici"][0]):
             print("\nInstaliram Python pakete...")
             subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "-r", str(REQUIREMENTS)])
         if not checks["ffmpeg"][0]:

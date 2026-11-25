@@ -39,6 +39,15 @@ Prije montaže Shofe napravi „kartu videa" (`analiza.txt` u mapi `shofe_projek
 
 Za dulje snimke i podcast karta se radi uvijek; za kratki reel po potrebi.
 
+## Tko govori
+
+Kad u snimci govori više ljudi (podcast, intervju, gost u autu), Shofe prepozna tko govori i svaku rečenicu pripiše govorniku. Claude iz razgovora zaključi tko je tko (ili te pita) i upiše imena, pa u transkriptu piše `Marko: …`, `Ivan: …`. Pitaj npr.:
+
+- `tko sve govori u ovoj epizodi i koliko?`
+- `u snimci smo nas trojica, prvi je Marko, drugi Ivan`
+
+Radi na procesoru, bez interneta (prvi put skine dva mala modela, ~36 MB), oko 7× brže od trajanja snimke. Ako znaš koliko vas govori, reci Claudeu — tada je točnije. Vrlo kratki odgovori („Da.", „Točno.") ponekad dobiju krivog govornika.
+
 ## Stilovi
 
 | Stil | Za što |

@@ -11,6 +11,7 @@ import re
 from pathlib import Path
 
 from common import die, fmt_time, list_styles, load_json, norm_word, save_json
+from govornici import load_words, speaker_names
 
 FILLER = re.compile(r"^(e+|ee+m+|m+|mhm|hm+|a+|aa+m+|ovaj+|ono+)$")
 HESITATION = re.compile(r"^(e+|ee+m+|m+|mhm|hm+|aa+|aa+m+)$")  # sigurno za izbaciti
@@ -23,7 +24,8 @@ def split_segments(words, gap=0.30, max_words=14):
             prev = words[i - 1]
             pause = w["s"] - prev["e"]
             sentence_end = prev["w"][-1:] in ".!?" and pause > 0.15
-            if pause > gap or sentence_end or len(cur) >= max_words:
+            new_speaker = w.get("g") != prev.get("g")  # odsječak nikad ne prelazi na drugog govornika
+            if pause > gap or sentence_end or new_speaker or len(cur) >= max_words:
                 segs.append(cur)
                 cur = []
         cur.append(i)
@@ -56,7 +58,8 @@ def main():
         die("nema transcript.json. Prvo pokreni transcribe.py")
     if (proj / "edit.json").exists() and not a.prepisi:
         die("edit.json već postoji (dodaj --prepisi da ga napraviš ispočetka)")
-    words = load_json(tr)["words"]
+    words = load_words(proj)  # s govornicima ("g") ako postoji govornici.json
+    names = speaker_names(proj)
     if not words:
         die("transkript je prazan: u videu nema prepoznatog govora")
 
@@ -72,6 +75,8 @@ def main():
             "tekst": " ".join(toks),
             "zadrzi": True,
         }
+        if words[g[0]].get("g"):
+            seg["govornik"] = words[g[0]]["g"]
         hes = sorted({t for t in toks if HESITATION.match(norm_word(t))})
         if hes:
             seg["izbaci"] = hes
@@ -110,7 +115,8 @@ def main():
     for s, g in zip(segs, groups):
         unsure = [words[i]["w"] for i in g if words[i].get("p", 1) < 0.5]
         mark = "   " if s["zadrzi"] else " X "
-        line = f"{mark}#{s['id']:<3} {fmt_time(s['od'])}-{fmt_time(s['do'])}  {s['tekst']}"
+        who = f"{names.get(s['govornik']) or s['govornik']}: " if s.get("govornik") else ""
+        line = f"{mark}#{s['id']:<3} {fmt_time(s['od'])}-{fmt_time(s['do'])}  {who}{s['tekst']}"
         if s.get("napomena"):
             line += f"   <- {s['napomena']}"
         if unsure:

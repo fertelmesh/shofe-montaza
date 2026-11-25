@@ -32,3 +32,12 @@ Jedan unos po krugu, najnoviji na dnu.
 - Brzina u sandboxu (2 jezgre): 120 s videa 1080×1920 za 18 s → sat videa ≈ 9 min samo za sliku; zvuk par sekundi. Na Markovom laptopu treba izmjeriti (dio pregleda M1).
 - Testovi: novi `tests/test_analyze.py` na sintetskom videu s poznatim tišinama, rezovima, mutnim i tamnim dijelom (svi pogođeni na ±0,1–0,25 s) + slogovi hrvatskih riječi. Lokalno 35 prošlo, 1 preskočen.
 - Sljedeće: M1.6 govornici (diarizacija na procesoru, permisivna licenca).
+
+## 2026-11-25 02:45 — M1.6 govornici (diarizacija)
+- Živa specifikacija pročitana: bez promjena. Otvorenih issuea i PR-ova nema.
+- Istraživanje: sherpa-onnx + pyannote segmentation-3.0 (MIT) + 3D-Speaker CAM++ (Apache-2.0) — bez PyTorcha i HuggingFace tokena, gotovi paketi za Windows. pyannote community-1 odbačen (CC-BY-4.0, token, PyTorch, sporo na procesoru), `diarize` (beta, PyTorch), Reverb (nekomercijalno). Detalji u ODLUKE.md.
+- Novo: `govornici.py` → `govornici.json` (G1, G2… + udio govora), `--broj`, `--prag`, `--imena`. Naša druga provjera prebacuje krivo grupirane odsječke. `plan.py` i `analyze.py` stavljaju govornika na svaki odsječak; odsječak nikad ne prelazi na drugog govornika; `transcript.txt` piše `Ime: tekst`. `doctor.py` provjerava sherpa-onnx. Verzija 0.4.0.
+- Test: novi probni razgovor `tests/fixtures/razgovor.m4a` (3 sintetska glasa, 13 rečenica) + `make_dvoglasje.py`. Točnost 12–13/13 rečenica i uz šum, jeku, tihi MP3; jedan govornik → 1. Promašuje samo „Točno tako." (< 1 s). Brzina 10 min zvuka / 89 s na 2 jezgre.
+- Testovi lokalno: 45 prošlo, 1 preskočen (whisper). Pravi model se u CI-ju pokreće na Linuxu i Windowsu.
+- Za Marka: ništa sad; na pregledu M1 trebat će prava snimka s dvoje-troje ljudi (sintetski glasovi nisu pravi ljudi).
+- Sljedeće: M1.7 pregled karte videa kao HTML stranica.

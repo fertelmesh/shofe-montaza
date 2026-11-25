@@ -21,6 +21,7 @@ from pathlib import Path
 import numpy as np
 
 from common import die, ffmpeg, fmt_time, load_json, probe, save_json, version
+from govornici import load_words, speaker_names, speaker_stats
 
 SR = 16000          # zvuk za analizu: mono 16 kHz
 WIN = 0.05          # prozor za razinu zvuka (s)
@@ -333,6 +334,10 @@ def summary_text(an):
     if g:
         L.append(f"Govor: {g['udio_govora'] * 100:.0f}% vremena, {g['rijeci_u_minuti']} riječi/min, "
                  f"{g['slogova_u_s']} slogova/s ({g['tempo']})")
+    if an.get("govornici"):
+        L.append("Govornici: " + ", ".join(
+            f"{g['id']}{' (' + g['ime'] + ')' if g.get('ime') else ''} {g['udio'] * 100:.0f}%"
+            for g in an["govornici"]))
     ts = an["tisine"]
     L.append(f"Tišine ≥ {an['postavke']['tisina_min']}s: {len(ts)}, ukupno {sum(t['trajanje'] for t in ts):.1f}s")
     for t in sorted(ts, key=lambda x: -x["trajanje"])[:5]:
@@ -358,6 +363,8 @@ def summary_text(an):
                 flags.append(s["losi_kadar"])
             tempo = f"{s['slogova_u_s']:>4.1f}s/s" if s.get("slogova_u_s") is not None else "      "
             line = f"#{s['id']:<3} {fmt_time(s['od'])}-{fmt_time(s['do'])} {s['glasnoca_db']:>6.1f}dB {tempo}"
+            if s.get("govornik"):
+                line += f"  {s['govornik']}:"
             if s.get("tekst"):
                 line += f"  {s['tekst']}"
             if flags:
@@ -397,7 +404,7 @@ def analyze(proj, with_video=True, min_silence=0.5, gap=0.30):
     words = []
     tr = proj / "transcript.json"
     if tr.exists():
-        words = load_json(tr).get("words") or []
+        words = load_words(proj)  # s govornicima ("g") ako postoji govornici.json
     segs = []
     if words:
         for n, g in enumerate(group_words(words, gap), 1):
@@ -409,6 +416,8 @@ def analyze(proj, with_video=True, min_silence=0.5, gap=0.30):
                          "tekst": " ".join(w["w"] for w in ws),
                          "glasnoca_db": segment_db(samples, od, do),
                          "slogova_u_s": sps, "tempo": tempo_label(sps)})
+            if ws[0].get("g"):
+                segs[-1]["govornik"] = ws[0]["g"]
     else:
         # bez transkripta: dijelovi sa zvukom između tišina, najviše 10 s
         edges, prev = [], 0.0
@@ -464,6 +473,14 @@ def analyze(proj, with_video=True, min_silence=0.5, gap=0.30):
 
     joins = [round(c["start"], 2) for c in pj.get("clips", [])[1:]]
 
+    govornici = None
+    if any(s.get("govornik") for s in segs):
+        names = speaker_names(proj)
+        govornici = speaker_stats([{"od": s["od"], "do": s["do"], "govornik": s["govornik"]}
+                                   for s in segs if s.get("govornik")], names)
+        for g in govornici:
+            g["odsjecaka"] = sum(s.get("govornik") == g["id"] for s in segs)
+
     old = {}
     if (proj / "analiza.json").exists():
         try:
@@ -481,6 +498,7 @@ def analyze(proj, with_video=True, min_silence=0.5, gap=0.30):
                  "sum_db": floor, "govor_db": speech, "prag_tisine_db": thr,
                  "napomena": loudness_note(lufs, peak)},
         "govor": govor,
+        "govornici": govornici,
         "tisine": silences,
         "odsjecci": segs,
         "slika": slika,
