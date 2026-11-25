@@ -98,3 +98,12 @@ Jedan unos po krugu, najnoviji na dnu.
 - Testovi: novi `tests/test_verzije.py` (20, uključujući dva prava rendera i sat snimke). Lokalno 134 prošlo, 3 preskočena.
 - Za Marka: ništa sad. Na pregledu M2 probaj „pokaži verzije", „vrati verziju 1" i „što se promijenilo".
 - Sljedeće: M2.5 titlovi (SRT/VTT, rječnik iz ispravaka, engleski prijevod).
+
+## 2026-11-25 16:30 — M2.5a titlovi kao datoteka (SRT/VTT)
+- Živa specifikacija pročitana: bez promjena. Issue #7 (Pregled M1) još bez Markova odgovora; otvorenih PR-ova nema. Na početku kruga GitHub je ~10 min vraćao 503 (kratko radio na zastarjeloj kopiji repozitorija; taj rad odbačen, ništa nije spojeno).
+- M2.5 podijeljen na a (SRT/VTT), b (rječnik iz ispravaka), c (engleski prijevod).
+- Novo: `render.py` uz svaki video napiše `reel_vN.srt` (isto ime → VLC ga sam učita, YouTube upload). `titlovi.py`: `--format vtt|oba`, `--verzija N`, `--trenutno`, `--ispis`, `--izlaz`. Titlovi su fraze za čitanje: najviše 2 retka × 42 znaka, 0,83–7 s, rez na kraju rečenice/stanci, preduga fraza puca na zarezu, redak ne završava prijedlogom; tekst iz edit.json (ispravci, izbaci), vremena gotovog videa (rezovi, izrezi, brzina). SRT u UTF-8 s BOM-om i CRLF na svakom sustavu (DaVinci/Windows; prvi CI na Windowsu pao jer je Python sam pretvarao LF u CRLF). Verzija 0.10.0. Odluka i izvori u ODLUKE.md.
+- Provjera očima: SRT ucrtan na kadar gotovog videa na 8,5 s — „Drugi korak, skinite filter / i operite ga mlakom vodom." točno uz karaoke titl, dijakritike ispravne. Probni razgovor (125 riječi) → 15 titlova, svi prelomi na prirodnim mjestima.
+- Testovi: novi `tests/test_titlovi.py` (9: rečenice, 2×42, prijelom, stanke, 7 s, BOM/format, pravi render i usporedba s trajanjem videa, ispravci + brzina + uredi.py makni, CLI). Lokalno 143 prošlo, 3 preskočena.
+- Za Marka: ništa sad. Na pregledu M2 prenesi `reel_vN.srt` na YouTube (Studio → Titlovi → Prenesi datoteku).
+- Sljedeće: M2.5b rječnik iz ispravaka.
