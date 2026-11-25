@@ -30,6 +30,15 @@ Ispravci se traže običnim riječima, novi render traje oko minutu:
 
 Svaka verzija se sprema kao `reel_v1.mp4`, `reel_v2.mp4`... u mapi `shofe_projekt`. Originalni klipovi se nikad ne diraju.
 
+## Karta videa
+
+Prije montaže Shofe napravi „kartu videa" (`analiza.txt` u mapi `shofe_projekt`): gdje su tišine, koliko je glasno, koliko brzo pričaš, gdje su rezovi, i koji su dijelovi mutni, pretamni ili presvijetli. Claude zatim iz teksta dopiše teme i najjače trenutke (hook, poanta, smijeh, savjet). Pitaj npr.:
+
+- `što je u ovom videu?` ili `koji su najjači trenuci?`
+- `ima li mutnih ili tamnih dijelova?`
+
+Za dulje snimke i podcast karta se radi uvijek; za kratki reel po potrebi.
+
 ## Stilovi
 
 | Stil | Za što |

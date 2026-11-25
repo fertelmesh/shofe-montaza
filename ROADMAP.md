@@ -13,7 +13,7 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
 - [x] M1.2 pytest testovi + probne snimke (sintetski govor, mock transkript)
 - [x] M1.3 CI: GitHub Actions na Linuxu i Windowsu (pytest) + dimni test prave transkripcije (whisper tiny); popraviti sve što na Windowsu padne (#1)
 - [x] M1.4 `requirements.txt` za proizvod, `VERSION`, verzija u `doctor.py`; install.ps1 instalira iz `requirements.txt` (#2)
-- [ ] M1.5 Karta videa v1: `analyze.py` → `analiza.json` (tišine, glasnoća po odsječku, tempo govora, mutni/tamni kadrovi, promjene scene); SKILL.md: Claude iz transkripta dopisuje teme i najjače trenutke
+- [x] M1.5 Karta videa v1: `analyze.py` → `analiza.json` (tišine, glasnoća po odsječku, tempo govora, mutni/tamni kadrovi, promjene scene); SKILL.md: Claude iz transkripta dopisuje teme i najjače trenutke (#3)
 - [ ] M1.6 Govornici (diarizacija) na CPU-u, permisivna licenca; istraži opcije, zapiši u ODLUKE.md; test na sintetskom dvoglasju
 - [ ] M1.7 Pregled karte videa kao jedna lokalna HTML stranica (teme, govornici, trenuci, tišine na vremenskoj crti)
 - [ ] M1.8 Pregled M1: demo + issue za Marka

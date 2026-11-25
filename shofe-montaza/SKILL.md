@@ -1,6 +1,6 @@
 ---
 name: shofe-montaza
-description: Shofe Video Editor - edits raw talking-head phone clips into finished reels (9:16) or YouTube videos (16:9) - cuts pauses, fillers and bad takes, adds Croatian word-by-word subtitles, punch-in zooms, colour grade, hook title, background music with ducking. Use when the user says "montiraj", "montiraj ga", "napravi reel", "izreži pauze", "dodaj titlove", or asks to edit/cut video clips; also for revisions of a reel made with it ("povećaj titlove", "drugi stil", "makni dio o...").
+description: Shofe Video Editor - edits raw talking-head phone clips into finished reels (9:16) or YouTube videos (16:9) - cuts pauses, fillers and bad takes, adds Croatian word-by-word subtitles, punch-in zooms, colour grade, hook title, background music with ducking. Use when the user says "montiraj", "montiraj ga", "napravi reel", "izreži pauze", "dodaj titlove", "analiziraj video", "što je u ovom videu", "najjači trenuci", or asks to edit/cut/analyse video clips; also for revisions of a reel made with it ("povećaj titlove", "drugi stil", "makni dio o...").
 ---
 
 # Shofe montaža
@@ -17,8 +17,14 @@ On Windows use forward slashes and quote every path: `python "<skill>/scripts/re
    - Default 9:16. Use 16:9 for "YouTube"/"dugi video". Landscape clips get centre-cropped; adjust with `--crop-x 0.3` (0 left … 1 right) after checking a frame.
    - Put the project folder next to the clips unless the user says otherwise.
 3. **Transcribe**: `python "<skill>/scripts/transcribe.py" shofe_projekt` (default model large-v3-turbo, language hr). The first run downloads the model (~1.6 GB), so warn the user it will take a few minutes once. For speed on a weak laptop use `--model medium`. Other languages: `--jezik sr|bs|en|auto`.
-4. **Plan**: `python "<skill>/scripts/plan.py" shofe_projekt --stil <style>`. It writes `edit.json` and `transcript.txt` and auto-marks retakes and filler-only segments with `"zadrzi": false`.
-5. **Edit `edit.json` yourself** (this is the creative part, do it carefully):
+4. **Video map** (`analiza.json`): `python "<skill>/scripts/analyze.py" shofe_projekt` (after transcribe; ~8× faster than real time on a weak laptop, `--bez-slike` skips the picture part). It measures silences, loudness (whole video + per segment), speech tempo (syllables/s), scene cuts, blurry/dark/overexposed shots and clip joins, and writes `analiza.txt`, a short readable summary. Segment numbers match `edit.json` (same `--pauza` as plan.py, default 0.3). Always run it for videos longer than ~3 min, podcasts and clip hunting; for a short reel it is optional but read its `Loši kadrovi` line.
+   - Then **you** add the meaning, in `analiza.json` (rerunning analyze.py keeps these):
+     - `teme`: `[{"od": s, "do": s, "naslov": "3–6 words", "sazetak": "one sentence"}]` — consecutive topics covering the talk, in source seconds (take them from the word times in `transcript.json` / segment times).
+     - `trenuci`: `[{"od": s, "do": s, "vrsta": "hook|poanta|smijeh|emocija|savjet|citat|akcija|ostalo", "ocjena": 1-5, "opis": "why it is strong"}]` — the strongest moments: a promise/question that makes people stay (hook), the payoff, laughs, emotional or quotable lines, concrete tips. 5 = would open a reel with it. Quality over quantity (for 1 min ~2–4, for 60 min ~20–40).
+   - Check with `python "<skill>/scripts/analyze.py" shofe_projekt --provjeri` (refreshes `analiza.txt`; on mistakes exits 1 and lists them — fix and rerun).
+   - Use the map: cut or avoid `losi_kadrovi` (blurry/dark parts), consider `tiho` segments (mic problem?) and `brzo` tempo when choosing `brzina`, and pick `hook`/`naglasi` from the best `trenuci`. When the user asks what is in the video, answer from `analiza.txt`.
+5. **Plan**: `python "<skill>/scripts/plan.py" shofe_projekt --stil <style>`. It writes `edit.json` and `transcript.txt` and auto-marks retakes and filler-only segments with `"zadrzi": false`.
+6. **Edit `edit.json` yourself** (this is the creative part, do it carefully):
    - Read `transcript.txt`. Verify every auto mark (`X`, `<- ponovljeno…`). For retakes keep the **last complete** take. Also drop false starts, off-topic rambling, "je l' snima?", and anything the user asked to remove.
    - Fix misheard words in `tekst` (names, brands, diacritics č ć š ž đ). Words marked `[nesigurno: …]` are the likely errors. Changing `tekst` only changes the subtitles; timing is kept.
    - Add filler words to cut inside a kept segment via `"izbaci": ["eee", "ovaj"]` (only when "ovaj"/"ono" really are fillers in that segment).
@@ -26,13 +32,13 @@ On Windows use forward slashes and quote every path: `python "<skill>/scripts/re
    - `hook`: 3–7 word title for the first seconds, taken from the strongest promise/question in the video, in natural Croatian. Leave empty if the video already opens strongly and the user wants no title.
    - `naglasi`: 2–6 key words (nouns, numbers, the payoff) to colour in the accent colour.
    - Pick `stil` if the user didn't: energetic/selling → `suncani`; podcast clips → `podcast`; viral hook, short punchy → `udarno`; calm advice, explainers, YouTube → `cisto`; story/atmosphere/festival → `kino`.
-6. **Look before rendering**: `python "<skill>/scripts/render.py" shofe_projekt --kadar 1,5,12` (seconds of the final video) → `kadrovi.png`. Open the image and check: face not cut off, subtitles not covering the face or the mouth, hook readable, text fits. Fix (crop, `pozicija_titlova`, `velicina_titlova`) and repeat if needed.
-7. **Render**: `python "<skill>/scripts/render.py" shofe_projekt` → `reel_vN.mp4` (new version each time; the edit used is saved in `verzije/`). `--brzo` gives a fast half-resolution preview; `--kvaliteta visoka` for the final YouTube upload.
-8. **Report** in 3–4 lines: file path, length before → after, what was cut (segment numbers + a few words each), style. Offer the most useful next tweak, not a list.
+7. **Look before rendering**: `python "<skill>/scripts/render.py" shofe_projekt --kadar 1,5,12` (seconds of the final video) → `kadrovi.png`. Open the image and check: face not cut off, subtitles not covering the face or the mouth, hook readable, text fits. Fix (crop, `pozicija_titlova`, `velicina_titlova`) and repeat if needed.
+8. **Render**: `python "<skill>/scripts/render.py" shofe_projekt` → `reel_vN.mp4` (new version each time; the edit used is saved in `verzije/`). `--brzo` gives a fast half-resolution preview; `--kvaliteta visoka` for the final YouTube upload.
+9. **Report** in 3–4 lines: file path, length before → after, what was cut (segment numbers + a few words each), style. Offer the most useful next tweak, not a list.
 
 ## Revisions (no re-transcribing)
 
-Change `edit.json`, then run `render.py` again. Only rerun `prepare.py` + `transcribe.py` if clips were added/replaced; rerun `prepare.py` alone (same clips) to change cropping — the transcript stays valid.
+Change `edit.json`, then run `render.py` again. Only rerun `prepare.py` + `transcribe.py` (+ `analyze.py`) if clips were added/replaced; rerun `prepare.py` alone (same clips) to change cropping — the transcript stays valid.
 
 | User says | Change in edit.json |
 |---|---|
