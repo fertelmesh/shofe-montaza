@@ -117,3 +117,13 @@ Jedan unos po krugu, najnoviji na dnu.
 - Testovi: novi `tests/test_rjecnik.py` (28: 14 slučajeva što se uči a što ne, brojanje po projektima, vraćanje ispravka, primjena s interpunkcijom i velikim slovom, granica tokena, naredbe, cijeli put render → nauči → novi plan → SRT). `tests/conftest.py`: testovi nikad ne pišu u pravi rječnik.
 - Za Marka: ništa sad. Na pregledu M2: ispravi ime u dva videa i pogledaj da ga treći napiše sam („pokaži rječnik").
 - Sljedeće: M2.5c engleski prijevod titlova.
+
+## 2026-11-25 20:35 — M2.5c engleski prijevod titlova
+- Živa specifikacija pročitana: bez promjena. Issue #7 (Pregled M1) još bez Markova odgovora; otvorenih PR-ova nema.
+- Novo: `prijevod.py`. Prvo pokretanje napravi `prijevod_en.json` (svaki titl: vrijeme, najviše znakova, hrvatski tekst, prazno `en`); Claude upiše prijevode; drugo pokretanje provjeri i napiše `reel_vN.en.srt` (`--format oba` i `.en.vtt`) s istim vremenima kao hrvatski SRT. Pravila za Claudea u SKILL.md: prirodan govorni engleski, titl prevodi ono što se tada govori, imena (Sunčani4M, SF klima, Kutina) ostaju, `€300`.
+- Pamćenje po hrvatskom tekstu titla: nakon novih rezova prevodi se samo novo/promijenjeno, stare verzije rade bez ponovnog prevođenja; malo promijenjen titl preuzme stari prijevod uz napomenu „provjeri". Kad projekt ima prijevod, `render.py` sam napiše `<video>.en.srt` ili javi koliko titlova treba prevesti. `--jezik de` za druge jezike.
+- Provjere: 2 × 42 znaka (dulje = greška), prijelom ne iza the/and/of…, ručni prelom „|", upozorenje za > 20 znakova/s i neprevedeno. `titlovi.py`: zajednički odabir verzije (`pick`) i prijelom za bilo koji jezik. Odluka i izvori u ODLUKE.md (lokalni strojni prijevod odbačen za sada). Verzija 0.12.0.
+- Provjera očima: engleski SRT ucrtan na kadar gotovog videa na 7,5 s — „Step two: take out the filter / and wash it in lukewarm water." točno dok se govori „skinite filter i…", dva ravnomjerna retka.
+- Testovi: novi `tests/test_prijevod.py` (4: prijelom i provjere, pamćenje kroz rezove i napomene, cijeli put render → prijevod → makni → render sam napiše .en.srt → ispravak teksta, drugi jezik i greške). Lokalno 175 prošlo, 3 preskočena.
+- Za Marka: ništa sad. Na pregledu M2 reci „napravi i engleske titlove" i prenesi `.en.srt` na YouTube kao drugi jezik.
+- Sljedeće: M2.6 izvoz u DaVinci (FCPXML).
