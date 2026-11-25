@@ -1,6 +1,6 @@
 ---
 name: shofe-montaza
-description: Shofe Video Editor - edits raw talking-head phone clips into finished reels (9:16) or YouTube videos (16:9) - cuts pauses, fillers and bad takes, adds Croatian word-by-word subtitles, punch-in zooms, colour grade, hook title, background music with ducking. Use when the user says "montiraj", "montiraj ga", "napravi reel", "izreži pauze", "dodaj titlove", "analiziraj video", "što je u ovom videu", "pokaži kartu videa", "najjači trenuci", "tko govori", or asks to edit/cut/analyse video clips; also for revisions of a reel made with it ("povećaj titlove", "drugi stil", "makni dio o..."), time-based commands on a rendered video ("makni od 1:20 do 1:45", "izreži 0:05-0:08", "zadrži samo 0:10-0:40", "što je na 1:20", "vrati kako je bilo"), versions ("pokaži verzije", "vrati verziju 2", "što se promijenilo", "usporedi verziju 1 i 3") and content-based commands ("izreži dio gdje pričam o cijeni", "zadrži drugi pokušaj", "zadrži samo savjet o X", "vrati dio o X", "gdje spominjem X").
+description: Shofe Video Editor - edits raw talking-head phone clips into finished reels (9:16) or YouTube videos (16:9) - cuts pauses, fillers and bad takes, adds Croatian word-by-word subtitles, punch-in zooms, colour grade, hook title, background music with ducking. Use when the user says "montiraj", "montiraj ga", "napravi reel", "izreži pauze", "dodaj titlove", "analiziraj video", "što je u ovom videu", "pokaži kartu videa", "najjači trenuci", "tko govori", or asks to edit/cut/analyse video clips; also for revisions of a reel made with it ("povećaj titlove", "drugi stil", "makni dio o..."), time-based commands on a rendered video ("makni od 1:20 do 1:45", "izreži 0:05-0:08", "zadrži samo 0:10-0:40", "što je na 1:20", "vrati kako je bilo"), subtitle files ("SRT za YouTube", "titlovi kao datoteka", "VTT"), versions ("pokaži verzije", "vrati verziju 2", "što se promijenilo", "usporedi verziju 1 i 3") and content-based commands ("izreži dio gdje pričam o cijeni", "zadrži drugi pokušaj", "zadrži samo savjet o X", "vrati dio o X", "gdje spominjem X").
 ---
 
 # Shofe montaža
@@ -84,6 +84,14 @@ Every full or `--brzo` render is a version (`reel_vN.mp4` + `verzije/edit_vN.jso
   - "Vrati kako je bilo" is ambiguous: if there were uredi.py commands since the last render, use `uredi.py vrati` (one command back); if the user means the previous video they watched, use `verzije.py vrati <previous N>`. Ask only if both make sense.
 - "što se promijenilo", "usporedi verziju 1 i 3", "što je drukčije od prve": `python "<skill>/scripts/verzije.py" shofe_projekt usporedi [A] [B]` (A/B = number or `trenutno`; no arguments = watched version → current edit.json if it has unrendered changes, otherwise previous → last render; one argument = that version → current). It prints length change, commands added/no longer active, removed and added parts with their time in each version and the reason, changed settings and subtitle text fixes. Summarise it for the user in 2–4 lines.
 - "nazovi verziju 3 za Instagram": `verzije.py shofe_projekt nazovi 3 "za Instagram"` (shown in the list and comparisons).
+
+## Subtitle files (`titlovi.py`)
+
+Every render also writes `<video name>.srt` next to the video (`reel_v3.mp4` → `reel_v3.srt`): readable phrase subtitles for YouTube/Facebook/DaVinci/VLC — whole phrases, max 2 lines × 42 characters, 0.83–7 s each, broken at sentence ends and pauses, text exactly as corrected in `edit.json` (`tekst`, `izbaci`), times of the finished video (after `izrezi`, retakes and `brzina`). Hook is not included; case is as spoken (not the style's capitals). UTF-8 with BOM.
+
+- After a render, mention the `.srt` in the report for YouTube uploads (YouTube Studio → Subtitles → Upload file → With timing). For a long 16:9 YouTube video suggest `titlovi: false` (no burned-in captions) + the SRT, so captions don't show twice.
+- "napravi VTT", "titlovi za web": `python "<skill>/scripts/titlovi.py" shofe_projekt --format vtt` (or `oba`).
+- "titlovi za verziju 2": `--verzija 2` (default: the version the user is watching). `--trenutno` = current edit.json before rendering (→ `titlovi_trenutno.srt`). `--ispis` prints them (use it to check text or answer questions about subtitle timing). `--izlaz ime` sets the file name.
 
 ## Revisions (no re-transcribing)
 

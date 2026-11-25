@@ -66,6 +66,15 @@ Svaki render je nova verzija: `reel_v1.mp4`, `reel_v2.mp4`... u mapi `shofe_proj
 
 Nakon „vrati verziju 2" vremena u sljedećim naredbama čitaju se iz `reel_v2`, jer tu verziju gledaš.
 
+## Titlovi za YouTube (SRT)
+
+Uz svaki video Shofe sam napravi i datoteku titlova istog imena: `reel_v3.mp4` → `reel_v3.srt`. To su klasični titlovi za čitanje (cijele fraze, najviše dva retka), s ispravljenim imenima i pravopisom, točno u vremenu gotovog videa — i nakon rezova i ubrzanja.
+
+- **YouTube:** u YouTube Studiju → Titlovi → Dodaj → Prenesi datoteku → „S vremenskim oznakama" → odaberi `.srt`. YouTube ih tada pokazuje kao prave titlove (gledatelj ih uključi/isključi), a pomažu i pretrazi.
+- **Dulji YouTube video:** reci „bez titlova u videu" pa prenesi samo `.srt`, inače se vide dvaput.
+- **VLC** ih sam učita jer imaju isto ime kao video; **DaVinci**: File > Import > Subtitle.
+- Za web stranicu reci „napravi i VTT titlove"; za stariju verziju „titlovi za verziju 2".
+
 ## Karta videa
 
 Prije montaže Shofe napravi „kartu videa" (`analiza.txt` u mapi `shofe_projekt`): gdje su tišine, koliko je glasno, koliko brzo pričaš, gdje su rezovi, i koji su dijelovi mutni, pretamni ili presvijetli. Claude zatim iz teksta dopiše teme i najjače trenutke (hook, poanta, smijeh, savjet). Pitaj npr.:

@@ -9,6 +9,7 @@ import bisect
 import shutil
 from pathlib import Path
 
+import titlovi
 import verzije
 from common import (FONTS_DIR, GRADES, die, ffmpeg, filter_script_args, fmt_time, load_json,
                     load_style, norm_word, run)
@@ -484,10 +485,14 @@ def main():
     run(cmd, cwd=proj)
 
     final = total / speed
+    # titlovi kao datoteka uz video (isto ime → YouTube, VLC i DaVinci ih nađu)
+    srt = out.with_suffix(".srt")
+    titlovi.write_srt(srt, titlovi.make_cues([dict(w, s=w["s"] / speed, e=w["e"] / speed) for w in ws], final, fps))
     if not a.izlaz:  # nova verzija: točno ovaj edit.json, datum, trajanje; korisnik sada gleda nju
         verzije.record_render(proj, v, edit_raw, out.name, final, a.brzo, a.kvaliteta)
     removed = [s["id"] for s in edit["odsjecci"] if not s.get("zadrzi", True)]
     print(f"\nGotovo: {out}" + (f"  (verzija {v}; popis i usporedba: python verzije.py {proj.name})" if not a.izlaz else ""))
+    print(f"Titlovi za YouTube: {srt.name}")
     print(f"Trajanje: {fmt_time(pj['duration'])} → {fmt_time(final)}  (izrezano {pj['duration'] - final:.1f}s, {n} kadrova, {len(zr)} zumova)")
     if removed:
         print(f"Izbačeni odsječci: {', '.join('#' + str(i) for i in removed)}")

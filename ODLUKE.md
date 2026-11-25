@@ -2,6 +2,14 @@
 
 Svaka značajna odluka: datum, odluka, zašto, alternative, izvori. Najnovije na vrhu.
 
+## 2026-11-25 — Titlovi kao datoteka: SRT uz svaki render, pravila za čitljivost
+- Odluka: `render.py` uz svaki video napiše `<isto ime>.srt`; `titlovi.py` za VTT, stariju verziju, ispis. Titlovi su fraze za čitanje, ne karaoke iz videa: najviše 2 retka × 42 znaka, 0,83–7 s na ekranu, razmak barem 2 sličice, rez na kraju rečenice i na stanci > 0,7 s, preduga fraza puca na zarezu; prijelom retka što ravnomjerniji, ali radije iza interpunkcije, i ne iza prijedloga/veznika. Titl ostaje do 1 s iza zadnje riječi ako treba za čitanje (17 znakova/s).
+- Vremena i tekst iz istih funkcija kao render (`build_cuts`, `out_words`), pa titlovi uvijek odgovaraju videu: rezovi, `izrezi`, `izbaci`, ispravljeni `tekst`, `brzina`. Naslov (hook) nije titl.
+- SRT u UTF-8 s BOM-om: YouTube ga prihvaća, a Windows programi (DaVinci, Premiere) bez BOM-a znaju pokvariti č/ć/š/ž/đ. VTT bez BOM-a (web).
+- Isto ime kao video → VLC ih sam učita; DaVinci uvoz kroz File > Import > Subtitle (bitno i za M2.6).
+- Alternative: biblioteke `srt` (MIT) ili `pysubs2` (MIT) — format je jednostavan, vlastitih 20 redaka bez nove ovisnosti; titlovi isti kao karaoke grupe (2–4 riječi) — prekratki i prebrzi za YouTube titlove.
+- Izvori: https://backlothelp.netflix.com/hc/en-us/articles/215758617 (Netflix Timed Text Style Guide: 42 znaka, 2 retka, 5/6 s – 7 s, 2 sličice razmaka), https://utk-timed-text-guide.readthedocs.io/en/latest/contents/1_timed_text_style_guide.html , https://forum.blackmagicdesign.com/viewtopic.php?p=440116 (SRT i posebni znakovi u Resolveu), https://support.google.com/youtube/answer/2734698 (formati titlova na YouTubeu)
+
 ## 2026-11-25 — Verzije: svaki render je verzija, „vrati verziju N" ništa ne briše, usporedba po riječima
 - Odluka: novi `verzije.py` (popis, `vrati N`, `usporedi [A] [B]`, `nazovi N "naziv"`). Verzija = jedan render: `render.py` nakon uspješnog rendera sprema `verzije/edit_vN.json` (točno edit.json od kojeg je video napravljen) i u `verzije/verzije.json` upisuje datum, datoteku, trajanje, brzi pregled/kvalitetu i koju verziju korisnik gleda. `--izlaz` ne stvara verziju. Broj verzije ide iza svih reel_vN*.mp4 **i** svih edit_vN.json, pa obrisan video ne dovodi do prepisivanja stare verzije.
 - „Vrati verziju N" samo vrati edit.json na stanje te verzije; novije verzije ostaju (povijest je linearna i ne briše se, kao povijest verzija u Descriptu). Video te verzije već postoji, pa nije potreban novi render. Prethodno stanje ide u `povijest/`, pa `uredi.py vrati` poništava i to (zajedno s tim koju verziju korisnik gleda). Dvije razine poništavanja ostaju odvojene: `uredi.py vrati` = jedna naredba, `verzije.py vrati N` = cijeli render.
