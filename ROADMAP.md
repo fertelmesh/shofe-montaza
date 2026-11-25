@@ -16,7 +16,7 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
 - [x] M1.5 Karta videa v1: `analyze.py` → `analiza.json` (tišine, glasnoća po odsječku, tempo govora, mutni/tamni kadrovi, promjene scene); SKILL.md: Claude iz transkripta dopisuje teme i najjače trenutke (#3)
 - [x] M1.6 Govornici (diarizacija) na CPU-u, permisivna licenca; istraži opcije, zapiši u ODLUKE.md; test na sintetskom dvoglasju (#4)
 - [x] M1.7 Pregled karte videa kao jedna lokalna HTML stranica (teme, govornici, trenuci, tišine na vremenskoj crti) (#5)
-- [ ] M1.8 Pregled M1: demo + issue za Marka
+- [x] M1.8 Pregled M1: demo + issue za Marka (#6)
 
 ## M2 Montaža po naredbi
 
