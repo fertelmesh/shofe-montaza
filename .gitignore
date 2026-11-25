@@ -4,3 +4,4 @@ __pycache__/
 shofe_projekt/
 *.png
 !shofe-montaza/**/*.png
+!demo/*.png
