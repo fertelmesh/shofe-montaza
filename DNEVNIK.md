@@ -77,3 +77,14 @@ Jedan unos po krugu, najnoviji na dnu.
 - Testovi: novi `tests/test_sadrzaj.py` (23 testa, uključujući pravi render). Lokalno 93 prošlo, 3 preskočena.
 - Za Marka: ništa sad. Pravo mjerilo („9 od 10 naredbi pogodi pravi dio") provjerit ćemo na tvojim snimkama u pregledu M2.
 - Sljedeće: M2.3 „skrati na N sekundi".
+
+## 2026-11-25 12:25 — M2.3 „skrati na N sekundi"
+- Živa specifikacija pročitana: bez promjena. Issue #7 (Pregled M1) još bez Markova odgovora; otvorenih PR-ova nema.
+- Novo: `uredi.py skrati 60` (i `1:00`, `na 45`, `za 15`) + modul `skrati.py`. Video se dijeli na cijele misli; pitanje ostaje s odgovorom, „Drugo, ugradnja." s onim što najavljuje, a rečenica koja počinje s „A/Zato/To/Još…" ne ostaje bez prethodne. `--proba` ispiše sve misli s vremenom u videu, trajanjem i važnošću; Claude ih ocijeni (`--ocjene "3:5,7-9:1"`), a `--obavezno "citat"` / `--nebitno "citat"` za ono što Marko izričito traži. Bez Claudeovih ocjena: trenuci iz analiza.json, središnjost misli (TF-IDF), uvod i kraj malo više.
+- Odabir: naprtnjača po lancima misli (numpy), zatim mjerenje pravog trajanja gotovog videa i podešavanje dok ne bude ≤ N, tik ispod. Ide kroz iste `izrezi` kao druge naredbe, `vrati` radi; nikad ne vraća već izrezano. Odluka i izvori u ODLUKE.md. Verzija 0.8.0.
+- Mjerenje: probni reel 46 s → 12/15/20/30/40 s daje 11,8/14,5/19,6/30,0/38,6 s, sve rečenice cijele. Sat snimke → 10 min: 9:58,7 za ~11 s.
+- Provjera očima: render nakon „skrati na 20" s Claudeovim ocjenama (cijena i održavanje 5) — vremenski kod izvornog videa u kadrovima potvrđuje redoslijed uvod → cijena → održavanje → „Pratite SF klimu", titlovi odgovaraju, video 19,5 s.
+- Testovi: novi `tests/test_skrati.py` (21: misli i veze, lanci, ocjene, trenuci, obavezno/nebitno, vrati, brzina, sat snimke, pravi render). SKILL.md (postupak: proba → Claude ocijeni → skrati) i README dopunjeni.
+- Za Marka: ništa sad. Na pregledu M2 probaj „skrati na 30 sekundi" na pravom reelu.
+- Sljedeće: M2.4 verzije (popis, „vrati verziju N", usporedba).
+

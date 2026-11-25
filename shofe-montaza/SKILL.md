@@ -64,6 +64,17 @@ When the user describes WHAT to cut or keep ("izreži dio gdje pričam o cijeni"
 - Matching ignores case, punctuation and diacritics and accepts other forms of a word (cijena/cijenu) and small ASR errors; your corrected `tekst` in edit.json is searchable too. A quote that is not in the transcript is an error with the closest matches — never guess, re-read transcript.txt. If a quote occurs more than once it lists all with times: add words or `--pojava N` (ask the user only if the request itself is ambiguous).
 - Read the output: it prints the selected text, every part that goes out / comes back with its time in the finished video, notes when a selection starts or ends mid-sentence, and the new length. Tell the user in one or two lines what went out or came back. `--proba` first when the selection is large (a whole topic) or you are unsure. `vrati` undoes it like any uredi.py command.
 
+## Shorten to N seconds (`uredi.py skrati`)
+
+"Skrati na 60 sekundi", "neka bude ispod minute", "skrati za 15 s", "treba mi verzija od 30 s": the tool drops the least important **whole thoughts** (never half a sentence) until the finished video fits, and measures the real finished length (style cut margins, `brzina`) so the result is ≤ N.
+
+1. `python "<skill>/scripts/uredi.py" shofe_projekt skrati 60 --proba` — prints every thought (misao) in the current video: number, time in the current video, length, importance 1–5 with the reason, `X` = would go out, `^` = cannot stay without the previous one. Thoughts already respect sentence ends, question + answer, "Drugo, ugradnja." + what it announces, and sentences starting with "A/Ali/Zato/To/Još…" (kept only together with the one before). Automatic importance uses `analiza.json` `trenuci` (ocjena), how central a thought is to the whole video, and a bonus for the opening and the closing line — it does not understand the content.
+2. **You rate the thoughts** — always, unless the video has only a few thoughts and the automatic result is clearly right. Read the list and give every thought 1–5 for THIS video: 5 = hook / main point / the thing the user asked to keep, 4 = strong support, call to action, 3 = useful, 2 = filler-ish, 1 = repetition, aside, tangent. Respect what the user said ("glavno je cijena" → cijena 5). Then run for real:
+   `python "<skill>/scripts/uredi.py" shofe_projekt skrati 60 --ocjene "1:5,2:2,3-5:4,6:1,…"`
+   - `--obavezno "verbatim quote"` (repeatable) — must stay no matter what (e.g. the user said "ali ostavi dio o garanciji"); `--nebitno "quote"` — goes out first.
+   - `skrati 1:00`, `skrati na 45`, `skrati za 15` (shorter by 15 s) all work. It only removes; it never brings back parts that were cut before (use `dodaj` for that).
+3. Tell the user in two or three lines what went out (by topic, not a list of every sentence) and the new length. If it says the result is clearly shorter than the target, thoughts were too long to fit — offer a higher target or a different rating. `vrati` undoes it; then `render.py`.
+
 ## Revisions (no re-transcribing)
 
 Change `edit.json`, then run `render.py` again. Only rerun `prepare.py` + `transcribe.py` (+ `govornici.py`, `analyze.py`) if clips were added/replaced; rerun `prepare.py` alone (same clips) to change cropping — the transcript stays valid.
@@ -84,6 +95,7 @@ Change `edit.json`, then run `render.py` again. Only rerun `prepare.py` + `trans
 | makni dio o X | `uredi.py makni --od … --do …` / `--tema` (see "Commands by content") |
 | makni 1:20–1:45 / zadrži samo 0:10–0:40 | `uredi.py` (see above), never by hand |
 | vrati dio o X / zadrži drugi pokušaj | `uredi.py dodaj --od … --cijele-recenice` (+ `makni` the other take) |
+| skrati na 60 s / ispod minute / za 15 s | `uredi.py skrati 60 --proba`, rate thoughts, then `skrati 60 --ocjene …` (see "Shorten") |
 | promijeni naslov | `hook`; `hook_trajanje` for how long it shows |
 | traka napretka | `traka_napretka`: true |
 | kraće pauze / više zraka | pick a style with tighter/looser cuts, or edit `rezanje` in that style's JSON |

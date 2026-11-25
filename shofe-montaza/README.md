@@ -47,6 +47,14 @@ Možeš reći i **što** želiš maknuti ili zadržati, bez vremena — Claude t
 
 Claude ti kaže točno koje su rečenice otišle ili se vratile i koliko je video sad dug. Ako isto spominješ na dva mjesta, pita te koje misliš. Režu se samo riječi koje stvarno postoje u snimci, pa nema krivih rezova od nagađanja.
 
+Možeš tražiti i **trajanje**:
+
+- `skrati na 60 sekundi`, `neka bude ispod minute`, `treba mi verzija od 30 s`
+- `skrati za 15 sekundi`
+- `skrati na 45, ali ostavi dio o garanciji`
+
+Shofe izbacuje cijele misli, nikad pola rečenice: pitanje ostaje sa svojim odgovorom, „Drugo, ugradnja." s onim što najavljuje, a rečenica koja počinje s „A…", „Zato…", „To…" ne ostaje bez one prije. Claude ocijeni koliko je svaka misao važna za taj video (i pazi na ono što si rekao da je glavno), a Shofe izračuna koja kombinacija stane u zadano vrijeme. Gotovi video je uvijek najviše toliko dug, obično tik ispod. Dijelove koji su već izrezani ne vraća.
+
 Svaka verzija se sprema kao `reel_v1.mp4`, `reel_v2.mp4`... u mapi `shofe_projekt`. Originalni klipovi se nikad ne diraju.
 
 ## Karta videa
