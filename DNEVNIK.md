@@ -107,3 +107,13 @@ Jedan unos po krugu, najnoviji na dnu.
 - Testovi: novi `tests/test_titlovi.py` (9: rečenice, 2×42, prijelom, stanke, 7 s, BOM/format, pravi render i usporedba s trajanjem videa, ispravci + brzina + uredi.py makni, CLI). Lokalno 143 prošlo, 3 preskočena.
 - Za Marka: ništa sad. Na pregledu M2 prenesi `reel_vN.srt` na YouTube (Studio → Titlovi → Prenesi datoteku).
 - Sljedeće: M2.5b rječnik iz ispravaka.
+
+## 2026-11-25 18:20 — M2.5b rječnik koji uči iz ispravaka
+- Živa specifikacija pročitana: bez promjena. Issue #7 (Pregled M1) još bez Markova odgovora; otvorenih PR-ova nema.
+- Novo: `rjecnik.py`. Nakon svakog rendera Shofe usporedi ispravljeni tekst titlova s transkriptom i zapamti krivo čute riječi i imena (do 3 riječi: „Fertelmes → Fertelmeš", „esef → SF", „sunčani četiri m → Sunčani4M", „kutine → Kutine"). Kad isti ispravak vidi 2× (u jednom ili više videa), postaje aktivan: `plan.py` ga sam primijeni na novi edit.json (`[rječnik: …]` u transcript.txt), a ispravljeno ime ide i u whisperov upit (≤ 200 tokena, osnovni rjecnik.txt prvi).
+- Ne uči gramatiku (padeži „klime → klima", kratke riječi „je → sam"), preformulirano, brojeve („tristo → 300"), veliko slovo na početku rečenice ni izbačene poluglasove. Ako netko vrati automatski ispravak na staro, sljedeći render ga isključi. Ponovljeni render istog videa ne broji dvaput.
+- Naredbe: `popis`, `nauci`, `primijeni`, `dodaj "Ime"` / `dodaj "krivo" "točno"`, `zaboravi`; `plan.py --bez-rjecnika`. Naučeno se čuva u `%LOCALAPPDATA%\Shofe\rjecnik.json` (ponovna instalacija ga ne briše). Odluka i izvori u ODLUKE.md. Verzija 0.11.0.
+- Provjera očima: kadrovi reela u kojem je whisper čuo „kutine." i „sunčanon" — nakon plana s rječnikom titlovi pišu „KUTINE." i „SUNČANOM PUTU!".
+- Testovi: novi `tests/test_rjecnik.py` (28: 14 slučajeva što se uči a što ne, brojanje po projektima, vraćanje ispravka, primjena s interpunkcijom i velikim slovom, granica tokena, naredbe, cijeli put render → nauči → novi plan → SRT). `tests/conftest.py`: testovi nikad ne pišu u pravi rječnik.
+- Za Marka: ništa sad. Na pregledu M2: ispravi ime u dva videa i pogledaj da ga treći napiše sam („pokaži rječnik").
+- Sljedeće: M2.5c engleski prijevod titlova.

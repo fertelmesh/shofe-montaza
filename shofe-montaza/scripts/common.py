@@ -14,6 +14,17 @@ STYLES_DIR = SKILL_DIR / "styles"
 REQUIREMENTS = SKILL_DIR / "requirements.txt"
 
 
+def data_dir():
+    """Korisnikovi podaci koji moraju preživjeti ponovnu instalaciju skilla (npr. naučeni rječnik).
+    %LOCALAPPDATA%\\Shofe na Windowsu, ~/.local/share/shofe drugdje; SHOFE_PODACI za testove."""
+    env = os.environ.get("SHOFE_PODACI")
+    if env:
+        return Path(env)
+    if os.name == "nt" and os.environ.get("LOCALAPPDATA"):
+        return Path(os.environ["LOCALAPPDATA"]) / "Shofe"
+    return Path.home() / ".local" / "share" / "shofe"
+
+
 def version():
     try:
         return (SKILL_DIR / "VERSION").read_text(encoding="utf-8").strip()

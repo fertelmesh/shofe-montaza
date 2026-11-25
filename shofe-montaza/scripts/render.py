@@ -370,6 +370,16 @@ def zoom_chain(factor, W, H):
 
 
 # ---------------------------------------------------------------- glavno
+def learn_vocabulary(proj, edit, words):
+    """Rječnik uči iz ispravaka teksta u ovoj verziji; greška u rječniku nikad ne ruši render."""
+    try:
+        import rjecnik
+        new, lost, _ = rjecnik.learn(proj, edit, words)
+        rjecnik.report_learned(new, lost)
+    except Exception as e:  # noqa: BLE001
+        print(f"(rječnik nije ažuriran: {e})")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("projekt")
@@ -490,6 +500,7 @@ def main():
     titlovi.write_srt(srt, titlovi.make_cues([dict(w, s=w["s"] / speed, e=w["e"] / speed) for w in ws], final, fps))
     if not a.izlaz:  # nova verzija: točno ovaj edit.json, datum, trajanje; korisnik sada gleda nju
         verzije.record_render(proj, v, edit_raw, out.name, final, a.brzo, a.kvaliteta)
+        learn_vocabulary(proj, edit_raw, words)
     removed = [s["id"] for s in edit["odsjecci"] if not s.get("zadrzi", True)]
     print(f"\nGotovo: {out}" + (f"  (verzija {v}; popis i usporedba: python verzije.py {proj.name})" if not a.izlaz else ""))
     print(f"Titlovi za YouTube: {srt.name}")

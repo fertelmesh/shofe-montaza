@@ -1,6 +1,6 @@
 ---
 name: shofe-montaza
-description: Shofe Video Editor - edits raw talking-head phone clips into finished reels (9:16) or YouTube videos (16:9) - cuts pauses, fillers and bad takes, adds Croatian word-by-word subtitles, punch-in zooms, colour grade, hook title, background music with ducking. Use when the user says "montiraj", "montiraj ga", "napravi reel", "izreži pauze", "dodaj titlove", "analiziraj video", "što je u ovom videu", "pokaži kartu videa", "najjači trenuci", "tko govori", or asks to edit/cut/analyse video clips; also for revisions of a reel made with it ("povećaj titlove", "drugi stil", "makni dio o..."), time-based commands on a rendered video ("makni od 1:20 do 1:45", "izreži 0:05-0:08", "zadrži samo 0:10-0:40", "što je na 1:20", "vrati kako je bilo"), subtitle files ("SRT za YouTube", "titlovi kao datoteka", "VTT"), versions ("pokaži verzije", "vrati verziju 2", "što se promijenilo", "usporedi verziju 1 i 3") and content-based commands ("izreži dio gdje pričam o cijeni", "zadrži drugi pokušaj", "zadrži samo savjet o X", "vrati dio o X", "gdje spominjem X").
+description: Shofe Video Editor - edits raw talking-head phone clips into finished reels (9:16) or YouTube videos (16:9) - cuts pauses, fillers and bad takes, adds Croatian word-by-word subtitles, punch-in zooms, colour grade, hook title, background music with ducking. Use when the user says "montiraj", "montiraj ga", "napravi reel", "izreži pauze", "dodaj titlove", "analiziraj video", "što je u ovom videu", "pokaži kartu videa", "najjači trenuci", "tko govori", or asks to edit/cut/analyse video clips; also for revisions of a reel made with it ("povećaj titlove", "drugi stil", "makni dio o..."), time-based commands on a rendered video ("makni od 1:20 do 1:45", "izreži 0:05-0:08", "zadrži samo 0:10-0:40", "što je na 1:20", "vrati kako je bilo"), subtitle files ("SRT za YouTube", "titlovi kao datoteka", "VTT"), vocabulary ("zapamti ime", "uvijek piši X", "pokaži rječnik", "što je Shofe naučio"), versions ("pokaži verzije", "vrati verziju 2", "što se promijenilo", "usporedi verziju 1 i 3") and content-based commands ("izreži dio gdje pričam o cijeni", "zadrži drugi pokušaj", "zadrži samo savjet o X", "vrati dio o X", "gdje spominjem X").
 ---
 
 # Shofe montaža
@@ -28,7 +28,7 @@ On Windows use forward slashes and quote every path: `python "<skill>/scripts/re
 6. **Plan**: `python "<skill>/scripts/plan.py" shofe_projekt --stil <style>`. It writes `edit.json` and `transcript.txt` and auto-marks retakes and filler-only segments with `"zadrzi": false`.
 7. **Edit `edit.json` yourself** (this is the creative part, do it carefully):
    - Read `transcript.txt`. Verify every auto mark (`X`, `<- ponovljeno…`). For retakes keep the **last complete** take. Also drop false starts, off-topic rambling, "je l' snima?", and anything the user asked to remove.
-   - Fix misheard words in `tekst` (names, brands, diacritics č ć š ž đ). Words marked `[nesigurno: …]` are the likely errors. Changing `tekst` only changes the subtitles; timing is kept.
+   - Fix misheard words in `tekst` (names, brands, diacritics č ć š ž đ). Words marked `[nesigurno: …]` are the likely errors. Changing `tekst` only changes the subtitles; timing is kept. Segments marked `[rječnik: …]` were already corrected from the learned vocabulary — check them too. Your corrections are learned on render (see "Vocabulary"), so fix names consistently, word for word.
    - Add filler words to cut inside a kept segment via `"izbaci": ["eee", "ovaj"]` (only when "ovaj"/"ono" really are fillers in that segment).
    - To trim the start/end of a segment, change its `od`/`do` (seconds, source timeline).
    - `hook`: 3–7 word title for the first seconds, taken from the strongest promise/question in the video, in natural Croatian. Leave empty if the video already opens strongly and the user wants no title.
@@ -127,7 +127,14 @@ Defined in `<skill>/styles/*.json` (Croatian keys). To make a new look the user 
 
 ## Vocabulary
 
-`<skill>/rjecnik.txt` lists names and terms whisper should spell correctly. When you fix the same misheard name twice, add it there (one per line) and tell the user.
+The vocabulary learns from corrections, so the user corrects each misheard name only once or twice:
+
+- `<skill>/rjecnik.txt` is the base list of names/terms (shipped with Shofe; reinstalling overwrites it). The user's own data lives in `%LOCALAPPDATA%/Shofe/rjecnik.json` and survives reinstalls — never edit that file by hand, use `rjecnik.py`.
+- **Learning is automatic**: every render compares your corrected `tekst` with the transcript and remembers real misrecognitions (names, brands, diacritics, capitalised names, up to 3 words → 3 words: `Fertelmes → Fertelmeš`, `esef → SF`, `sunčani četiri m → Sunčani4M`, `kutine → Kutine`). Grammar fixes (case endings like `klime → klima`, short words like `je → sam`), rewording, number formatting, removed fillers and sentence-initial capitals are NOT learned. A correction becomes **active** after it was seen twice (in one or several videos); render prints `Rječnik naučio: X → Y` — tell the user in one line.
+- Active corrections are applied by `plan.py` to the new `edit.json` (`transcript.txt` shows `[rječnik: …]`; the segment gets `"rjecnik": [{"iz", "u"}]`). Check them like any other text. If one is wrong in this video, just change `tekst` back: the next render notices the revert and switches that learned correction off. Corrected names (with capitals/digits or multi-word) also go into whisper's prompt (≤ 200 tokens, base list first) so transcription spells them right.
+- `python "<skill>/scripts/rjecnik.py" popis` — terms and corrections (✓ active, · waiting `viđen 1/2`, switched off). Use it when the user asks "što je Shofe naučio" / "pokaži rječnik".
+- `rjecnik.py dodaj "Ime Prezime"` — a term for transcription (user: "zapamti ime X", a guest's name before transcribing). `rjecnik.py dodaj "krivo" "točno"` — a correction active immediately (user: "uvijek piši X umjesto Y").
+- `rjecnik.py zaboravi "krivo"` — switch off a correction for good (or remove a term the user added). `rjecnik.py primijeni shofe_projekt [--proba]` — apply active corrections to an existing edit.json (a project planned before the word was learned). `plan.py --bez-rjecnika` plans without them.
 
 ## Troubleshooting
 

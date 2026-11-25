@@ -10,6 +10,7 @@ import difflib
 import re
 from pathlib import Path
 
+import rjecnik
 from common import die, fmt_time, list_styles, load_json, norm_word, save_json
 from govornici import load_words, speaker_names
 
@@ -50,6 +51,7 @@ def main():
     ap.add_argument("--stil", default="suncani", help="|".join(list_styles()))
     ap.add_argument("--pauza", type=float, default=0.30, help="pauza (s) nakon koje počinje novi odsječak")
     ap.add_argument("--prepisi", action="store_true", help="prepiši postojeći edit.json")
+    ap.add_argument("--bez-rjecnika", action="store_true", help="ne primjenjuj naučene ispravke iz rječnika")
     a = ap.parse_args()
 
     proj = Path(a.projekt)
@@ -109,6 +111,7 @@ def main():
         "titlovi": True,
         "odsjecci": segs,
     }
+    fixed = [] if a.bez_rjecnika else rjecnik.apply_edit(edit)
     save_json(proj / "edit.json", edit)
 
     lines = []
@@ -121,12 +124,19 @@ def main():
             line += f"   <- {s['napomena']}"
         if unsure:
             line += f"   [nesigurno: {', '.join(unsure)}]"
+        if s.get("rjecnik"):
+            line += f"   [rječnik: {', '.join(x['u'] for x in s['rjecnik'])}]"
         lines.append(line)
     (proj / "transcript.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     dropped = sum(not s["zadrzi"] for s in segs)
     kept = sum(s["do"] - s["od"] for s in segs if s["zadrzi"])
     print("\n".join(lines))
+    if fixed:
+        n = sum(len(s.get("rjecnik", [])) for s in segs)
+        uniq = sorted({x["u"] for s in segs for x in s.get("rjecnik", [])})
+        print(f"\nRječnik ispravio {n} {'riječ' if n == 1 else 'riječi'}: {', '.join(uniq)}"
+              f" (python rjecnik.py popis; pogrešan ispravak samo vrati u tekstu)")
     print(f"\n{len(segs)} odsječaka, {dropped} označeno za izbacivanje, ~{kept:.1f}s govora ostaje.")
     print(f"Pregledaj {proj / 'edit.json'}, zatim: python render.py {proj}")
 

@@ -109,7 +109,11 @@ Novi stil: reci Claudeu "napravi mi stil kao suncani, ali plavi i s manjim slovi
 
 ## Rječnik
 
-U `rjecnik.txt` su imena koja transkripcija mora pisati točno (Sunčani put, SF klima, Kutina...). Dodaj svoje, jedno po retku.
+Shofe pamti tvoje ispravke. Kad u titlovima ispraviš krivo čuto ime (ili ga Claude ispravi), nakon rendera to zapamti; kad isti ispravak vidi **dvaput** (u jednom ili više videa), sljedeći put ga radi sam i javi „Rječnik naučio: Fertelmes → Fertelmeš". Uči samo krivo čute riječi i imena (kvačice, velika slova imena, „esef → SF"), ne gramatiku ni preformulirane rečenice.
+
+- Ako rječnik nešto krivo ispravi, samo vrati staru riječ u titlovima; Shofe to primijeti i više ne radi taj ispravak.
+- Reci Claudeu: „pokaži rječnik" (što je naučio), „zapamti ime Ivan Horvat" (prije transkripcije gosta), „uvijek piši SF klima umjesto esef klima", „zaboravi ispravak X".
+- `rjecnik.txt` u skillu je osnovni popis imena (Sunčani put, SF klima, Kutina...). Ono što Shofe nauči i što dodaš čuva se u `%LOCALAPPDATA%\Shofe\rjecnik.json`, pa ostaje i kad ponovno instaliraš Shofe.
 
 ## Glazba
 
