@@ -2,6 +2,15 @@
 
 Svaka značajna odluka: datum, odluka, zašto, alternative, izvori. Najnovije na vrhu.
 
+## 2026-11-25 — Pregled karte videa: jedna HTML datoteka s vlastitim SVG-om, bez biblioteka
+- Odluka: `pregled.py` piše `pregled.html` u mapu projekta: jedna datoteka, sav CSS i JavaScript unutra, podaci kao JSON u `<script type="application/json">`, vremenska crta crtana kao SVG u čistom JavaScriptu. Video se pušta iz `source.mp4` iz iste mape (H.264 + AAC, faststart — Edge i Chrome ga puštaju s diska). Radi bez interneta i bez servera: dvoklik u Exploreru.
+- Sadržaj: brojke (trajanje, LUFS, udio govora, tišine, govornici, loši kadrovi), video, najjači trenuci po ocjeni, vremenska crta u 5 traka (glasnoća s tišinama, govornici, teme, trenuci, slika: loši kadrovi, rezovi, spojevi klipova) sa zumom, teme, udio govornika, upozorenja, transkript po odsječcima s pretragom. Klik bilo gdje skače u videu, a trenutni odsječak se ističe dok video ide.
+- Ovojnica zvuka: najviša razina po stupcu iz istih 50-ms prozora koje analyze.py već mjeri (nema drugog dekodiranja), skalirana od 2. percentila (najmanje −60 dB) do vrha → 0–100; najviše 3000 stupaca (sat videa ≈ 140 KB stranice). U `analiza.json` je ne spremamo: Claude tu datoteku čita i ne treba mu 3000 brojeva.
+- Sigurnost: tekst iz transkripta i Claudeovih opisa ide u stranicu samo kao JSON (svaki `<` kao `\u003c`) i u DOM kao `textContent`, pa „</script>" u govoru ne može pokvariti stranicu.
+- `analyze.py` napravi pregled nakon analize i nakon `--provjeri` (kad Claude upiše teme i trenutke); ako pregled ne uspije, analiza svejedno vrijedi.
+- Alternative: wavesurfer.js (BSD-3, dobar valni oblik i regije, ali ~30–40 KB koda za ugraditi i zasebni dodaci; vrijedi ponovno razmotriti za M6.1 gdje treba uređivanje); vis-timeline (Apache-2.0/MIT, ali ~500 KB i vuče moment/vis-data); matplotlib PNG (nema klikanja ni zuma). Vlastiti SVG je ~250 redaka, bez novih ovisnosti i licenci.
+- Izvori: https://github.com/katspaugh/wavesurfer.js , https://github.com/visjs/vis-timeline , https://developer.mozilla.org/en-US/docs/Web/HTML/Element/script#embedding_data_in_html
+
 ## 2026-11-25 — Govornici (diarizacija): sherpa-onnx + pyannote segmentation-3.0 + 3D-Speaker CAM++
 - Odluka: `govornici.py` koristi **sherpa-onnx** (Apache-2.0, gotovi paketi za Windows i Python 3.12–3.14, ~20 MB, bez PyTorcha) s modelima **pyannote segmentation-3.0** (MIT, 5,9 MB, puna preciznost) i **3D-Speaker CAM++ VoxCeleb** (Apache-2.0, 28 MB). Modeli se skidaju jednom s GitHub izdanja sherpa-onnxa (bez HuggingFace računa i tokena) u `%LOCALAPPDATA%\Shofe\modeli`; SHA-256 se provjerava, ali razlika je samo upozorenje (autori su CAM++ datoteku već jednom zamijenili, 19. 11. 2026.).
 - Druga provjera (naša, ~10 % vremena): nakon brzog grupiranja svaki odsječak ≥ 1 s uspoređuje se s prosječnim glasom svakog govornika (bez sebe) i prebacuje ako mu je drugi jasno bliži (razlika kosinusa > 0,05). Bez nje je kratko pitanje znalo ostati pripisano prethodnom govorniku. Probali smo i „rastapanje" malog govornika sličnog drugome — pogoršalo je šumnu snimku (spojilo dvoje ljudi), pa je izbačeno.

@@ -41,3 +41,12 @@ Jedan unos po krugu, najnoviji na dnu.
 - Testovi lokalno: 45 prošlo, 1 preskočen (whisper). Pravi model se u CI-ju pokreće na Linuxu i Windowsu.
 - Za Marka: ništa sad; na pregledu M1 trebat će prava snimka s dvoje-troje ljudi (sintetski glasovi nisu pravi ljudi).
 - Sljedeće: M1.7 pregled karte videa kao HTML stranica.
+
+## 2026-11-25 04:10 — M1.7 pregled karte videa (HTML)
+- Živa specifikacija pročitana: bez promjena. Otvorenih issuea i PR-ova nema.
+- Novo: `pregled.py` → `pregled.html` u mapi projekta: jedna datoteka, radi bez interneta (dvoklik). Video + najjači trenuci po ocjeni, vremenska crta (glasnoća s tišinama, govornici u boji, teme, trenuci, loši kadrovi / rezovi / spojevi) sa zumom, teme, udio govornika, upozorenja, transkript s pretragom. Klik bilo gdje skače u videu; trenutni odsječak se ističe.
+- `analyze.py` ga sam napravi nakon analize i nakon `--provjeri` (kad Claude upiše teme i trenutke). SKILL.md: „pokaži kartu videa" → `pregled.py --otvori`. README za Marka dopunjen. Verzija 0.5.0.
+- Bez novih paketa (vlastiti SVG, bez biblioteka); odluka u ODLUKE.md. Sat videa → stranica ~150 KB, otvara se < 0,5 s.
+- Provjera očima: snimke stranice svijetlo/tamno/mobitel na probnom razgovoru (3 govornika, teme, trenuci, tamni dio) i na izmišljenoj karti od 60 min — izgleda uredno, bez JS grešaka.
+- Testovi: novi `tests/test_pregled.py` (ovojnica, sigurnost teksta „</script>", analyze → pregled → --provjeri, test u Chromiumu kroz Playwright). CI na Linuxu sada instalira Playwright + Chromium. Lokalno 48 prošlo, 3 preskočena (pravi modeli).
+- Sljedeće: M1.8 pregled M1 (demo videi + issue za Marka).
