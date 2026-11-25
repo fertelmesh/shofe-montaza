@@ -1,6 +1,6 @@
 """Karta videa: što se u videu događa, bez gledanja cijelog videa.
 
-  python analyze.py shofe_projekt              → analiza.json + analiza.txt
+  python analyze.py shofe_projekt              → analiza.json + analiza.txt + pregled.html
   python analyze.py shofe_projekt --bez-slike  (samo zvuk i govor, brže)
   python analyze.py shofe_projekt --provjeri   (provjeri teme/trenutke koje je Claude upisao)
 
@@ -382,7 +382,8 @@ def summary_text(an):
 
 # ---------------------------------------------------------------- glavno
 
-def analyze(proj, with_video=True, min_silence=0.5, gap=0.30):
+def analyze(proj, with_video=True, min_silence=0.5, gap=0.30, zvuk_out=None):
+    """zvuk_out: rječnik u koji se upiše razina zvuka po prozorima ("db", "win") za pregled.html."""
     t0 = time.time()
     src = proj / "source.mp4"
     if not src.exists():
@@ -395,6 +396,8 @@ def analyze(proj, with_video=True, min_silence=0.5, gap=0.30):
     if samples is None or len(samples) == 0:
         samples = np.zeros(int(duration * SR), np.int16)
     db = window_db(samples)
+    if zvuk_out is not None:
+        zvuk_out.update(db=db, win=WIN)
     thr, floor, speech = silence_threshold(db) if len(db) else (-50.0, -90.0, -90.0)
     silences = find_silences(db, thr, min_silence) if len(db) else []
     lufs, lra, peak = ebur128(src)
@@ -514,6 +517,16 @@ def analyze(proj, with_video=True, min_silence=0.5, gap=0.30):
     return an
 
 
+def _pregled(proj, an, db=None, win=None):
+    """pregled.html uz svaku analizu; ako ne uspije, analiza svejedno vrijedi."""
+    try:
+        from pregled import write_pregled
+        out = write_pregled(proj, an, db, win)
+        print(f"Pregled za čovjeka: {out}")
+    except Exception as e:  # noqa: BLE001
+        print(f"Napomena: pregled.html nije napravljen ({e}). Pokreni pregled.py.", file=sys.stderr)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("projekt")
@@ -535,15 +548,18 @@ def main():
             sys.exit(1)
         (proj / "analiza.txt").write_text(summary_text(an), encoding="utf-8")
         print(f"U redu: {len(an.get('teme') or [])} tema, {len(an.get('trenuci') or [])} trenutaka. analiza.txt osvježen.")
+        _pregled(proj, an)
         return
 
-    an = analyze(proj, with_video=not a.bez_slike, min_silence=a.tisina, gap=a.pauza)
+    zv = {}
+    an = analyze(proj, with_video=not a.bez_slike, min_silence=a.tisina, gap=a.pauza, zvuk_out=zv)
     save_json(proj / "analiza.json", an)
     txt = summary_text(an)
     (proj / "analiza.txt").write_text(txt, encoding="utf-8")
     print()
     print(txt)
     print(f"Gotovo za {an['trajanje_analize_s']:.0f}s → {proj / 'analiza.json'}")
+    _pregled(proj, an, zv.get("db"), zv.get("win"))
     if not (proj / "transcript.json").exists():
         print("Napomena: nema transcript.json, pa nema teksta ni tempa govora. Pokreni transcribe.py pa ponovno analyze.py.")
 

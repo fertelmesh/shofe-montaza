@@ -37,6 +37,8 @@ Prije montaže Shofe napravi „kartu videa" (`analiza.txt` u mapi `shofe_projek
 - `što je u ovom videu?` ili `koji su najjači trenuci?`
 - `ima li mutnih ili tamnih dijelova?`
 
+Kartu možeš i **vidjeti**: u mapi `shofe_projekt` je `pregled.html` — dvoklik i otvori se u pregledniku (radi bez interneta). Gore je video i popis najjačih trenutaka, ispod vremenska crta: glasnoća s tišinama, tko kad govori (u boji), teme, trenuci (veći krug = bolja ocjena) i loši kadrovi. Klik bilo gdje (trenutak, tema, rečenica u transkriptu, mjesto na crti) skoči na to mjesto u videu. Gumbi **+ / −** zumiraju crtu (ili Ctrl + kotačić miša), a u transkriptu možeš tražiti riječ. Možeš reći i `pokaži kartu videa`.
+
 Za dulje snimke i podcast karta se radi uvijek; za kratki reel po potrebi.
 
 ## Tko govori
