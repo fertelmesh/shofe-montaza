@@ -21,7 +21,7 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
 ## M2 Montaža po naredbi
 
 - [x] M2.1 `uredi.py`: naredbe po vremenu u vremenu gotovog videa („makni 1:20–1:45", „zadrži samo 0:10–0:40") → izmjene edit.json (#9)
-- [x] M2.2 Naredbe po sadržaju: Claude u transkriptu nađe dio, alat ga izreže/zadrži po riječima; testni skup od 10 naredbi s očekivanim rezultatom (#PR)
+- [x] M2.2 Naredbe po sadržaju: Claude u transkriptu nađe dio, alat ga izreže/zadrži po riječima; testni skup od 10 naredbi s očekivanim rezultatom (#10)
 - [ ] M2.3 „Skrati na N sekundi": rangiranje odsječaka po važnosti, zadržava zaokružene misli
 - [ ] M2.4 Verzije: popis verzija, „vrati verziju N", usporedba što se promijenilo
 - [ ] M2.5 Titlovi: izvoz SRT (i VTT), rječnik se sam nadopunjuje iz Markovih ispravaka, engleski prijevod (opcija)
