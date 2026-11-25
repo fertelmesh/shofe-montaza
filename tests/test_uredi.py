@@ -192,7 +192,7 @@ def test_popis_lists_output_times(projekt):
     assert "Bok, ja sam Marko" in r.stdout and "#1" in r.stdout
     run("uredi.py", projekt, "makni", "0:00-0:02")
     r = run("uredi.py", projekt, "popis")
-    assert "Izrezano naredbama po vremenu" in r.stdout
+    assert "Izrezano naredbama" in r.stdout
 
 
 # ---------------------------------------------------------------- render i ispravljeni tekst
@@ -221,7 +221,7 @@ def test_render_after_makni(baza, tmp_path):
     i = toks.index("Drugi")
     run("uredi.py", proj, "makni", f"{tl[i]['s'] - 0.05:.2f}-{tl[toks.index('vodom.')]['e'] + 0.05:.2f}")
     r = run("render.py", proj, "--izlaz", "poslije.mp4")
-    assert "Izrezano naredbama po vremenu" in r.stdout
+    assert "Izrezano naredbama" in r.stdout
     out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0",
                           str(proj / "poslije.mp4")], capture_output=True, text=True).stdout
     _, _, dur2 = out_text(proj)

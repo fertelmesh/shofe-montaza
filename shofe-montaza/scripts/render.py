@@ -466,7 +466,7 @@ def main():
     if removed:
         print(f"Izbačeni odsječci: {', '.join('#' + str(i) for i in removed)}")
     if edit.get("izrezi"):
-        print(f"Izrezano naredbama po vremenu (dijelova: {len(edit['izrezi'])}), popis: python uredi.py {proj.name} popis")
+        print(f"Izrezano naredbama (dijelova: {len(edit['izrezi'])}), popis: python uredi.py {proj.name} popis")
 
 
 def stills_mode(a, proj, cuts, zr, factor, grade, subs, speed, W, H, total):

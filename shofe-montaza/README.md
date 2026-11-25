@@ -37,6 +37,16 @@ Možeš reći i **vremena iz gotovog videa** — onako kako ih vidiš dok ga gle
 
 Vremena se uvijek čitaju iz zadnjeg videa koji si dobio, pa možeš reći nekoliko naredbi zaredom dok gledaš isti video. Rez nikad ne pada usred riječi: Claude ti javi koje su riječi otišle i koliko je video sad dug.
 
+Možeš reći i **što** želiš maknuti ili zadržati, bez vremena — Claude to pronađe u tekstu snimke:
+
+- `izreži dio gdje pričam o cijeni` ili `makni rečenicu o suboti`
+- `zadrži drugi pokušaj uvoda` (vraća pokušaj koji je Shofe izbacio, a zadnji makne)
+- `zadrži samo savjet o filteru`
+- `makni cijenu, ali ostavi rečenicu o tisuću eura`
+- `vrati dio o održavanju`
+
+Claude ti kaže točno koje su rečenice otišle ili se vratile i koliko je video sad dug. Ako isto spominješ na dva mjesta, pita te koje misliš. Režu se samo riječi koje stvarno postoje u snimci, pa nema krivih rezova od nagađanja.
+
 Svaka verzija se sprema kao `reel_v1.mp4`, `reel_v2.mp4`... u mapi `shofe_projekt`. Originalni klipovi se nikad ne diraju.
 
 ## Karta videa
