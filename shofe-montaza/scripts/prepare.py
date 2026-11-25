@@ -8,7 +8,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from common import FORMATS, die, ffmpeg, natural_key, run, save_json, video_info
+from common import FORMATS, concat_line, die, ffmpeg, natural_key, run, save_json, video_info
 
 VIDEO_EXT = {".mp4", ".mov", ".m4v", ".mkv", ".avi", ".webm", ".mts", ".3gp"}
 
@@ -87,7 +87,7 @@ def main():
         parts.append(dst)
 
     lst = out / "_tmp" / "concat.txt"
-    lst.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in parts), encoding="utf-8")
+    lst.write_text("".join(concat_line(p) for p in parts), encoding="utf-8")
     src = out / "source.mp4"
     run([ffmpeg(), "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", lst, "-c", "copy", "-movflags", "+faststart", src])
 

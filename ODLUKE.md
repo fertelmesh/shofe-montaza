@@ -2,6 +2,14 @@
 
 Svaka značajna odluka: datum, odluka, zašto, alternative, izvori. Najnovije na vrhu.
 
+## 2026-11-25 — CI i Windows: prepoznavanje ffmpega po libavfilteru, choco u CI-ju
+- Odluka: `-/filter_complex` (ffmpeg 7+) ili `-filter_complex_script` (≤6) bira se po glavnoj verziji iz `ffmpeg -version`; kad je to git build bez broja verzije (Gyan "2025-…-git", BtbN "N-…"), verzija se računa iz libavfilter (10 → 7, 11 → 8). Prije je nepoznata verzija značila "6", a staru opciju ffmpeg 7 samo trpi kao zastarjelu.
+- CI: Linux (apt, ffmpeg 6.1) + Windows (choco, Gyan build 7/8) za sve testove i dimni test prave transkripcije (whisper tiny) na oba sustava; prije testova `doctor.py` mora javiti ffmpeg OK (subtitles, loudnorm, zscale, libx264…).
+- Sitni Windows popravci: `doctor.py --popravi` više ne koristi `os.execv` (na Windowsu lomi putanje s razmacima), concat lista escapea apostrof u putanji, svi `subprocess` izlazi čitaju se kao UTF-8.
+- Provjereno lokalno s ffmpeg 6.1 i 7.0.2 (statički build), testna mapa ima razmak, dijakritike i apostrof.
+- Alternative: FedericoCarboni/setup-ffmpeg akcija (dodatna ovisnost, ništa ne dobivamo), winget na runneru (nije pouzdano dostupan u GitHub Actions).
+- Izvori: https://ffmpeg.org/ffmpeg-all.html (opcija `-/`), https://trac.ffmpeg.org/ticket/10893 , https://docs.python.org/3/library/os.html#os.execv
+
 ## 2026-11-25 — Agent radi samostalno
 - Odluka (Marko): agent sam odlučuje prema istraživanju, sam spaja promjene kad CI prođe, radi u krugovima svaka 2 sata. Kontrolne točke su pregledi s demom, ne zaustavljanje.
 

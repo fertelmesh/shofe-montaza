@@ -19,6 +19,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
       - name: ffmpeg (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
@@ -27,13 +29,23 @@ jobs:
         run: choco install ffmpeg -y --no-progress
       - name: Python paketi
         run: python -m pip install -r requirements-dev.txt
+      - name: Okruženje (ffmpeg + doctor)
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          ffmpeg -hide_banner -version
+          python shofe-montaza/scripts/doctor.py
       - name: Testovi
         env:
           PYTHONUTF8: "1"
-        run: python -m pytest tests -q
+        run: python -m pytest tests -q -rs
 
   transkripcija:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -43,10 +55,16 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ~/.cache/huggingface
-          key: hf-whisper-tiny
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - run: python -m pip install -r requirements-dev.txt faster-whisper
+          key: hf-whisper-tiny-${{ runner.os }}
+      - name: ffmpeg (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: ffmpeg (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg -y --no-progress
+      - run: python -m pip install -r requirements-dev.txt
       - name: Dimni test transkripcije
         env:
           SHOFE_WHISPER_TEST: "1"
-        run: python -m pytest tests/test_transcribe_smoke.py -q
+          PYTHONUTF8: "1"
+        run: python -m pytest tests/test_transcribe_smoke.py -q -rs

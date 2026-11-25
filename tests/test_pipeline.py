@@ -26,13 +26,13 @@ def run(script, *args):
 
 def probe(path):
     r = subprocess.run(["ffprobe", "-v", "error", "-print_format", "json", "-show_streams", "-show_format", str(path)],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
     return json.loads(r.stdout)
 
 
 @pytest.fixture(scope="module")
 def projekt(tmp_path_factory):
-    base = tmp_path_factory.mktemp("shofe test čćž")  # razmak + dijakritici, kao na Windowsu
+    base = tmp_path_factory.mktemp("shofe test čćž Markov's")  # razmak, dijakritici, apostrof
     clips = base / "klipovi"
     clips.mkdir()
     for f in ("klip1.mp4", "klip2.mp4"):

@@ -1,4 +1,5 @@
 """Zajedničke pomoćne funkcije za Shofe montažu."""
+import functools
 import glob
 import json
 import os
@@ -75,11 +76,28 @@ def ffprobe():
     return p
 
 
+def parse_ffmpeg_major(version_text):
+    """Glavna verzija ffmpega iz `ffmpeg -version`.
+
+    Izdanja: "ffmpeg version 7.1-full_build-www.gyan.dev", "ffmpeg version n6.1.1".
+    Git buildovi ("ffmpeg version 2025-01-27-git-…", "N-118448-g…") nemaju broj, pa se
+    verzija pogađa iz libavfilter (10 → ffmpeg 7, 11 → ffmpeg 8).
+    """
+    m = re.search(r"ffmpeg version n?(\d+)\.", version_text)
+    if m:
+        return int(m.group(1))
+    m = re.search(r"libavfilter\s+(\d+)\.", version_text)
+    if m:
+        return int(m.group(1)) - 3
+    return 6
+
+
+@functools.lru_cache(maxsize=None)
 def ffmpeg_major():
     try:
-        out = subprocess.run([ffmpeg(), "-version"], capture_output=True, text=True).stdout
-        m = re.search(r"ffmpeg version n?(\d+)", out)
-        return int(m.group(1)) if m else 6
+        out = subprocess.run([ffmpeg(), "-version"], capture_output=True, text=True,
+                             encoding="utf-8", errors="replace").stdout
+        return parse_ffmpeg_major(out)
     except Exception:
         return 6
 
@@ -89,6 +107,12 @@ def filter_script_args(path):
     if ffmpeg_major() >= 7:
         return ["-/filter_complex", str(path)]
     return ["-filter_complex_script", str(path)]
+
+
+def concat_line(path):
+    """Redak za ffmpeg concat listu; apostrof u putanji (npr. "Markov's") mora se escapeati."""
+    p = Path(path).resolve().as_posix().replace("'", "'\\''")
+    return f"file '{p}'\n"
 
 
 def run(cmd, cwd=None, quiet=True):

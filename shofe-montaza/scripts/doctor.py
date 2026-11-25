@@ -17,8 +17,9 @@ def check_ffmpeg():
     p = find_tool("ffmpeg")
     if not p or not find_tool("ffprobe"):
         return False, "ffmpeg/ffprobe nije pronađen"
-    out = subprocess.run([p, "-hide_banner", "-filters"], capture_output=True, text=True).stdout
-    enc = subprocess.run([p, "-hide_banner", "-encoders"], capture_output=True, text=True).stdout
+    kw = {"capture_output": True, "text": True, "encoding": "utf-8", "errors": "replace"}
+    out = subprocess.run([p, "-hide_banner", "-filters"], **kw).stdout
+    enc = subprocess.run([p, "-hide_banner", "-encoders"], **kw).stdout
     missing = [f for f in ("subtitles", "loudnorm", "sidechaincompress", "afftdn", "zscale") if f" {f} " not in out]
     if "libx264" not in enc:
         missing.append("libx264")
@@ -63,7 +64,8 @@ def main():
             else:
                 print("\nInstaliraj ffmpeg: brew install ffmpeg (Mac) ili sudo apt install ffmpeg (Linux)")
         print("\nPonovna provjera:")
-        os.execv(sys.executable, [sys.executable, __file__])
+        # os.execv na Windowsu lomi putanje s razmacima ("C:\\Program Files\\..."), zato novi proces
+        sys.exit(subprocess.run([sys.executable, __file__]).returncode)
 
     bad = [k for k, (ok, _) in checks.items() if not ok]
     if bad:
