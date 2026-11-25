@@ -127,3 +127,13 @@ Jedan unos po krugu, najnoviji na dnu.
 - Testovi: novi `tests/test_prijevod.py` (4: prijelom i provjere, pamćenje kroz rezove i napomene, cijeli put render → prijevod → makni → render sam napiše .en.srt → ispravak teksta, drugi jezik i greške). Lokalno 175 prošlo, 3 preskočena.
 - Za Marka: ništa sad. Na pregledu M2 reci „napravi i engleske titlove" i prenesi `.en.srt` na YouTube kao drugi jezik.
 - Sljedeće: M2.6 izvoz u DaVinci (FCPXML).
+
+## 2026-11-25 23:30 — M2.6 izvoz u DaVinci (FCPXML)
+- Živa specifikacija pročitana: bez promjena. Issue #7 (Pregled M1) još bez Markova odgovora; otvorenih PR-ova nema.
+- Novo: `davinci.py`; `render.py` uz svaki video sam napiše `reel_vN.fcpxml` (uz `reel_vN.srt`). FCPXML 1.10 za DaVinci Resolve 18+ (i besplatni): File > Import > Timeline, pa File > Import > Subtitle. Timeline koristi **originalne snimke** s istim rezovima (rez preko spoja dva klipa → dva kadra), stvarni broj sličica svake snimke (29,97 / 30) i vremenski kod, isto kadriranje (vodoravna snimka popuni 9:16 i pomakne se kao `--crop-x`), zumove kao Zoom, glazbu na zasebnoj traci (glasnoća izmjerena kao u renderu) i oznake (stil, naslov, zumovi). Zvuk i boja neobrađeni. `brzina` ide kao timeMap.
+- `prepare.py` sada pamti kadriranje po klipu u `project.json`. Ako originala više nema, timeline koristi `source.mp4`; `--izvor priprema` to bira ručno. `davinci.py --verzija N / --trenutno / --ispis`. Odluka i izvori u ODLUKE.md. Verzija 0.13.0.
+- Provjera (DaVinci nemam): XML valjan po Appleovu DTD-u 1.10; kadrovi = rezovi iz rendera (±1 sličica), ukupno = trajanje videa; slika i zvuk složeni iz originala po XML-u jednaki su Shofeovim (zvuk korelacija > 0,8; slika razlika < 2/255, krivi smjer pomaka bi dao 125/255). Očima: kadrovi iz originala po XML-u uz Shofeove kadrove na 3,5 s (vodoravni klip, crop-x 0.3, zum 116 %) i 9 s — isti izrez, Shofeov ima samo toplu boju i titlove.
+- Usput otkriveno: zvuk u `source.mp4` kasni ~21 ms za originalom (AAC u pripremi); u DaVinciju je sinkronizacija čak točnija. Nije vidljivo, ali zabilježeno.
+- Testovi: novi `tests/test_davinci.py` (6). Lokalno 181 prošlo, 3 preskočena (prije DTD testova). `lxml` dodan u requirements-dev.
+- Za Marka (na pregledu M2): otvori `reel_vN.fcpxml` u DaVinciju — jedina nesigurnost je kadriranje vodoravnih snimki (mjerna jedinica pozicije u FCPXML-u nije službeno opisana); ako je krivo, `--izvor priprema` uvijek radi.
+- Sljedeće: M2.7 Pregled M2 (demo + issue).
