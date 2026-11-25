@@ -47,10 +47,17 @@ jobs:
         run: ffmpeg -version
       - name: Python paketi
         run: python -m pip install -r requirements-dev.txt
+      # modeli za prepoznavanje govornika (~36 MB, GitHub izdanja sherpa-onnxa)
+      - uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/shofe-modeli
+          key: shofe-modeli-v1-${{ runner.os }}
       - name: Testovi
         env:
           PYTHONUTF8: "1"
-        run: python -m pytest tests -q
+          SHOFE_GOVORNICI_TEST: "1"
+          SHOFE_MODELI: ${{ runner.temp }}/shofe-modeli
+        run: python -m pytest tests -q -rs
 
   transkripcija:
     strategy:
