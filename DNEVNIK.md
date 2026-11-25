@@ -50,3 +50,11 @@ Jedan unos po krugu, najnoviji na dnu.
 - Provjera očima: snimke stranice svijetlo/tamno/mobitel na probnom razgovoru (3 govornika, teme, trenuci, tamni dio) i na izmišljenoj karti od 60 min — izgleda uredno, bez JS grešaka.
 - Testovi: novi `tests/test_pregled.py` (ovojnica, sigurnost teksta „</script>", analyze → pregled → --provjeri, test u Chromiumu kroz Playwright). CI na Linuxu sada instalira Playwright + Chromium. Lokalno 48 prošlo, 3 preskočena (pravi modeli).
 - Sljedeće: M1.8 pregled M1 (demo videi + issue za Marka).
+
+## 2026-11-25 06:20 — M1.8 pregled M1 (demo + issue)
+- Živa specifikacija pročitana: bez promjena. Otvorenih issuea i PR-ova nema.
+- Novo: `tests/make_demo.py` napravi demo u `demo/` iz probnih snimki: `M1_reel.mp4` (24 s sirovo → 15 s reel, stil suncani, hook, glazba), `M1_stilovi.mp4` (svih 5 stilova), `M1_karta_videa.mp4` (snimka zaslona karte videa: klik na trenutak, zum, tema, pretraga) + slike `M1_kadrovi.png`, `M1_karta_videa.png`. Ukupno 5 MB; `demo/README.md` objašnjava svaku datoteku.
+- Provjera očima: kadrovi reela, svih 5 stilova i stranica karte videa pregledani; govornike na probnom razgovoru prepoznao pravi model (12/13, promašen „Točno tako."), rezovi na 18 s i 36 s i tamni dio 40–44 s pogođeni.
+- Proizvod nepromijenjen (verzija ostaje 0.5.0). Testovi lokalno: 50 prošlo, 1 preskočen.
+- Za Marka: issue „Pregled M1" — instalacija, jedan pravi reel, jedna dulja snimka s 2–3 osobe (izmjeriti vrijeme karte videa; cilj sat snimke ≤ 20 min), testni klipovi u `tests/real/`, otvorene odluke (laptop, kamere u R4).
+- Sljedeće: M2.1 `uredi.py` (naredbe po vremenu).
