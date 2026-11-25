@@ -25,7 +25,7 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
 - [x] M2.3 „Skrati na N sekundi": rangiranje odsječaka po važnosti, zadržava zaokružene misli (#11)
 - [x] M2.4 Verzije: popis verzija, „vrati verziju N", usporedba što se promijenilo (#12)
 - M2.5 Titlovi (podijeljeno):
-  - [x] M2.5a Izvoz SRT (uz svaki render) i VTT: fraze, 2 × 42 znaka, 0,83–7 s, ispravljeni tekst, vrijeme gotovog videa (#PR)
+  - [x] M2.5a Izvoz SRT (uz svaki render) i VTT: fraze, 2 × 42 znaka, 0,83–7 s, ispravljeni tekst, vrijeme gotovog videa (#13)
   - [ ] M2.5b Rječnik se sam nadopunjuje iz Markovih/Claudeovih ispravaka teksta (edit.json `tekst` vs transkript)
   - [ ] M2.5c Engleski prijevod titlova (opcija): Claude prevodi po titlovima, `reel_vN.en.srt`
 - [ ] M2.6 Izvoz u DaVinci: FCPXML timeline s originalnim klipovima i istim rezovima + SRT; validacija XML-a u testu; upute u README

@@ -99,7 +99,7 @@ Jedan unos po krugu, najnoviji na dnu.
 - Za Marka: ništa sad. Na pregledu M2 probaj „pokaži verzije", „vrati verziju 1" i „što se promijenilo".
 - Sljedeće: M2.5 titlovi (SRT/VTT, rječnik iz ispravaka, engleski prijevod).
 
-## 2026-11-25 17:05 — M2.5a titlovi kao datoteka (SRT/VTT)
+## 2026-11-25 16:30 — M2.5a titlovi kao datoteka (SRT/VTT)
 - Živa specifikacija pročitana: bez promjena. Issue #7 (Pregled M1) još bez Markova odgovora; otvorenih PR-ova nema. Na početku kruga GitHub je ~10 min vraćao 503 (kratko radio na zastarjeloj kopiji repozitorija; taj rad odbačen, ništa nije spojeno).
 - M2.5 podijeljen na a (SRT/VTT), b (rječnik iz ispravaka), c (engleski prijevod).
 - Novo: `render.py` uz svaki video napiše `reel_vN.srt` (isto ime → VLC ga sam učita, YouTube upload). `titlovi.py`: `--format vtt|oba`, `--verzija N`, `--trenutno`, `--ispis`, `--izlaz`. Titlovi su fraze za čitanje: najviše 2 retka × 42 znaka, 0,83–7 s, rez na kraju rečenice/stanci, preduga fraza puca na zarezu, redak ne završava prijedlogom; tekst iz edit.json (ispravci, izbaci), vremena gotovog videa (rezovi, izrezi, brzina). SRT u UTF-8 s BOM-om (DaVinci/Windows). Verzija 0.10.0. Odluka i izvori u ODLUKE.md.
