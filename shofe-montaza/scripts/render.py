@@ -497,13 +497,18 @@ def main():
     final = total / speed
     # titlovi kao datoteka uz video (isto ime → YouTube, VLC i DaVinci ih nađu)
     srt = out.with_suffix(".srt")
-    titlovi.write_srt(srt, titlovi.make_cues([dict(w, s=w["s"] / speed, e=w["e"] / speed) for w in ws], final, fps))
+    cues = titlovi.make_cues([dict(w, s=w["s"] / speed, e=w["e"] / speed) for w in ws], final, fps)
+    titlovi.write_srt(srt, cues)
+    import prijevod  # engleski (ili drugi) titlovi, ako ih projekt već prevodi
+    translated = prijevod.for_render(proj, cues, out)
     if not a.izlaz:  # nova verzija: točno ovaj edit.json, datum, trajanje; korisnik sada gleda nju
         verzije.record_render(proj, v, edit_raw, out.name, final, a.brzo, a.kvaliteta)
         learn_vocabulary(proj, edit_raw, words)
     removed = [s["id"] for s in edit["odsjecci"] if not s.get("zadrzi", True)]
     print(f"\nGotovo: {out}" + (f"  (verzija {v}; popis i usporedba: python verzije.py {proj.name})" if not a.izlaz else ""))
     print(f"Titlovi za YouTube: {srt.name}")
+    for line in translated:
+        print(line)
     print(f"Trajanje: {fmt_time(pj['duration'])} → {fmt_time(final)}  (izrezano {pj['duration'] - final:.1f}s, {n} kadrova, {len(zr)} zumova)")
     if removed:
         print(f"Izbačeni odsječci: {', '.join('#' + str(i) for i in removed)}")

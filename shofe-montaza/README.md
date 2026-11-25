@@ -75,6 +75,15 @@ Uz svaki video Shofe sam napravi i datoteku titlova istog imena: `reel_v3.mp4` �
 - **VLC** ih sam učita jer imaju isto ime kao video; **DaVinci**: File > Import > Subtitle.
 - Za web stranicu reci „napravi i VTT titlove"; za stariju verziju „titlovi za verziju 2".
 
+### Engleski titlovi
+
+Reci „napravi i engleske titlove" (ili „prevedi titlove na engleski"). Claude prevede svaki titl i Shofe napiše `reel_v3.en.srt` — isto vrijeme kao hrvatski, najviše dva retka, imena (Sunčani4M, SF klima, Kutina) ostaju kako jesu.
+
+- Od tada **svaki novi render sam napravi i `.en.srt`**: Shofe pamti prijevode, pa nakon rezova Claude prevodi samo rečenice koje su nove ili promijenjene.
+- **YouTube:** Studio → Titlovi → Dodaj jezik → engleski → Prenesi datoteku → `reel_v3.en.srt`. Gledatelj tada bira hrvatske ili engleske titlove.
+- **VLC** ih nađe sam (Titlovi → Podnaslovna traka); prijevode možeš pročitati i ispraviti u `prijevod_en.json` u mapi projekta.
+- Može i drugi jezik: „prevedi titlove na njemački" → `reel_v3.de.srt`.
+
 ## Karta videa
 
 Prije montaže Shofe napravi „kartu videa" (`analiza.txt` u mapi `shofe_projekt`): gdje su tišine, koliko je glasno, koliko brzo pričaš, gdje su rezovi, i koji su dijelovi mutni, pretamni ili presvijetli. Claude zatim iz teksta dopiše teme i najjače trenutke (hook, poanta, smijeh, savjet). Pitaj npr.:

@@ -1,6 +1,6 @@
 ---
 name: shofe-montaza
-description: Shofe Video Editor - edits raw talking-head phone clips into finished reels (9:16) or YouTube videos (16:9) - cuts pauses, fillers and bad takes, adds Croatian word-by-word subtitles, punch-in zooms, colour grade, hook title, background music with ducking. Use when the user says "montiraj", "montiraj ga", "napravi reel", "izreži pauze", "dodaj titlove", "analiziraj video", "što je u ovom videu", "pokaži kartu videa", "najjači trenuci", "tko govori", or asks to edit/cut/analyse video clips; also for revisions of a reel made with it ("povećaj titlove", "drugi stil", "makni dio o..."), time-based commands on a rendered video ("makni od 1:20 do 1:45", "izreži 0:05-0:08", "zadrži samo 0:10-0:40", "što je na 1:20", "vrati kako je bilo"), subtitle files ("SRT za YouTube", "titlovi kao datoteka", "VTT"), vocabulary ("zapamti ime", "uvijek piši X", "pokaži rječnik", "što je Shofe naučio"), versions ("pokaži verzije", "vrati verziju 2", "što se promijenilo", "usporedi verziju 1 i 3") and content-based commands ("izreži dio gdje pričam o cijeni", "zadrži drugi pokušaj", "zadrži samo savjet o X", "vrati dio o X", "gdje spominjem X").
+description: Shofe Video Editor - edits raw talking-head phone clips into finished reels (9:16) or YouTube videos (16:9) - cuts pauses, fillers and bad takes, adds Croatian word-by-word subtitles, punch-in zooms, colour grade, hook title, background music with ducking. Use when the user says "montiraj", "montiraj ga", "napravi reel", "izreži pauze", "dodaj titlove", "analiziraj video", "što je u ovom videu", "pokaži kartu videa", "najjači trenuci", "tko govori", or asks to edit/cut/analyse video clips; also for revisions of a reel made with it ("povećaj titlove", "drugi stil", "makni dio o..."), time-based commands on a rendered video ("makni od 1:20 do 1:45", "izreži 0:05-0:08", "zadrži samo 0:10-0:40", "što je na 1:20", "vrati kako je bilo"), subtitle files ("SRT za YouTube", "titlovi kao datoteka", "VTT"), translated subtitles ("engleski titlovi", "prevedi titlove", "titlovi na engleskom", "English subtitles"), vocabulary ("zapamti ime", "uvijek piši X", "pokaži rječnik", "što je Shofe naučio"), versions ("pokaži verzije", "vrati verziju 2", "što se promijenilo", "usporedi verziju 1 i 3") and content-based commands ("izreži dio gdje pričam o cijeni", "zadrži drugi pokušaj", "zadrži samo savjet o X", "vrati dio o X", "gdje spominjem X").
 ---
 
 # Shofe montaža
@@ -92,6 +92,20 @@ Every render also writes `<video name>.srt` next to the video (`reel_v3.mp4` →
 - After a render, mention the `.srt` in the report for YouTube uploads (YouTube Studio → Subtitles → Upload file → With timing). For a long 16:9 YouTube video suggest `titlovi: false` (no burned-in captions) + the SRT, so captions don't show twice.
 - "napravi VTT", "titlovi za web": `python "<skill>/scripts/titlovi.py" shofe_projekt --format vtt` (or `oba`).
 - "titlovi za verziju 2": `--verzija 2` (default: the version the user is watching). `--trenutno` = current edit.json before rendering (→ `titlovi_trenutno.srt`). `--ispis` prints them (use it to check text or answer questions about subtitle timing). `--izlaz ime` sets the file name.
+
+## English subtitles (`prijevod.py`)
+
+"Napravi engleske titlove", "prevedi titlove na engleski": **you** translate, cue by cue; the tool keeps the translations and writes `<video>.en.srt` with exactly the same times as the Croatian SRT.
+
+1. `python "<skill>/scripts/prijevod.py" shofe_projekt` (default: the version the user is watching; `--verzija N`, `--trenutno` like titlovi.py). It writes `prijevod_en.json` in the project and lists the cues to translate (number, time, `max_znakova`, Croatian text); exit code 1 while something is missing.
+2. Edit `prijevod_en.json`: fill `"en"` for every cue in `titlovi`, never change `"hr"`. Read all cues first so you translate with the whole video in mind. Rules:
+   - natural spoken English as a native speaker would say it, not word for word; keep the speaker's tone (casual stays casual);
+   - each cue translates what is said **during that cue** (a viewer reads it while hearing it); move a word to the neighbouring cue only when English word order needs it;
+   - keep names, brands and show titles as they are (Sunčani4M, SF klima, Sunčani put, Sunčano AJMO!, Kutina, Renault 4); numbers as digits, prices as `€300`;
+   - at most `max_znakova` characters (fits 2 lines × 42 and a comfortable reading speed); shorter is better than complete; optional manual line break with ` | `.
+3. Run the same command again: it checks every cue (too long = error, nothing written; fast reading speed, untranslated = warning — fix them) and writes `reel_vN.en.srt` (`--format oba` adds `.en.vtt`, `--ispis` prints Croatian and English side by side). Tell the user the file name and how to upload it to YouTube as an extra language (Studio → Subtitles → Add language → English → Upload file).
+- From then on **every render** also writes `<video>.en.srt` when all cues are translated, or prints `Titlovi (en): N titlova treba prevesti…` — then repeat steps 1–3 (only new/changed cues are empty; translations are matched by Croatian text, so cuts don't lose them). A cue with `"napomena": "preuzeto iz sličnog titla … — provjeri"` got the translation of a slightly different older cue (e.g. a corrected word): check it, fix `"en"` if needed and delete `napomena`.
+- Other languages: `--jezik de` (→ `prijevod_de.json`, field `"de"`, `.de.srt`). Burned-in English captions are not supported yet (only the file).
 
 ## Revisions (no re-transcribing)
 

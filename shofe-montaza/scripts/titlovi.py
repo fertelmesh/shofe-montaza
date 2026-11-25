@@ -7,6 +7,7 @@
   python titlovi.py shofe_projekt --ispis          ispiši titlove u konzolu
 
 render.py sam napravi reel_vN.srt uz svaki video, pa ovo treba samo za VTT, stariju verziju ili ispis.
+Engleski prijevod: prijevod.py (reel_vN.en.srt).
 
 Za razliku od titlova upisanih u video (karaoke, 2–4 riječi), ovo su klasični titlovi za čitanje:
 cijele fraze, najviše 2 retka po 42 znaka, 0,83–7 s na ekranu, rez na kraju rečenice ili stanci,
@@ -34,6 +35,11 @@ CLAUSE_END = re.compile(r"[,;:–—]+[\"'”»)]*$")
 WEAK_END = {"i", "a", "u", "na", "za", "od", "do", "s", "sa", "k", "ka", "o", "po", "pri", "iz", "uz", "bez",
             "kroz", "prema", "da", "ali", "ili", "te", "pa", "ni", "niti", "nego", "je", "se", "su", "sam", "smo",
             "ste", "si", "će", "ću", "bi", "što", "kad", "kada", "ako", "jer", "kao", "the", "a", "an", "to", "of"}
+# isto za engleski prijevod (članovi, prijedlozi, veznici, posvojne zamjenice)
+WEAK_END_EN = {"a", "an", "the", "and", "or", "but", "nor", "so", "of", "to", "in", "on", "at", "for", "with", "from",
+               "by", "into", "onto", "about", "as", "than", "that", "if", "when", "because", "your", "my", "our",
+               "his", "her", "their", "its", "this", "these", "those", "is", "are", "was", "were", "be", "i", "you",
+               "we", "it's", "i'm", "you're", "don't", "can't", "will", "would", "can", "not", "very", "just"}
 
 
 def _plain(t):
@@ -79,10 +85,15 @@ def group_words(ws):
 def split_lines(ws):
     """Tekst titla u 1–2 retka: što ravnomjerniji, prekid po mogućnosti iza interpunkcije,
     redak ne završava prijedlogom ili veznikom."""
-    toks = [w["t"] for w in ws]
+    return split_tokens([w["t"] for w in ws])
+
+
+def split_tokens(toks, weak=WEAK_END):
+    """Riječi (bez vremena) → 1–2 retka; weak = riječi kojima redak ne bi trebao završiti."""
     full = " ".join(toks)
     if len(full) <= MAX_LINE or len(toks) < 2:
         return [full]
+    weak_p = {_plain(x) for x in weak}
     best, best_score = None, None
     for i in range(1, len(toks)):
         l1, l2 = " ".join(toks[:i]), " ".join(toks[i:])
@@ -90,7 +101,7 @@ def split_lines(ws):
         score = over * 100 + abs(len(l1) - len(l2))
         if CLAUSE_END.search(toks[i - 1]) or SENT_END.search(toks[i - 1]):
             score -= 20
-        if _plain(toks[i - 1]) in WEAK_END:
+        if _plain(toks[i - 1]) in weak_p:
             score += 10
         if best_score is None or score < best_score:
             best, best_score = [l1, l2], score
@@ -170,8 +181,25 @@ def cues_for(proj, edit):
     return make_cues(ws, total, pj["fps"]), total
 
 
-def main():
+def pick(proj, verzija=None, trenutno=False):
+    """Koji edit.json: (edit, osnovno ime datoteke, opis). Zadano: verzija koju korisnik gleda."""
     import verzije
+
+    proj = Path(proj)
+    for f in ("project.json", "transcript.json", "edit.json"):
+        if not (proj / f).exists():
+            die(f"nedostaje {proj / f}")
+    found = verzije.found_versions(proj)
+    if trenutno or (not found and verzija is None):
+        return load_json(proj / "edit.json"), "titlovi_trenutno", "trenutni edit.json"
+    v = verzija if verzija is not None else verzije.viewed(proj)
+    if v not in found:
+        die(f"nema verzije {v}. Postoje: {', '.join(map(str, sorted(found))) or 'nijedna'}")
+    vf = verzije.video_file(proj, v)
+    return load_json(found[v]), (Path(vf).stem if vf else f"reel_v{v}"), f"verzija {v}"
+
+
+def main():
 
     ap = argparse.ArgumentParser(description="Titlovi kao SRT/VTT datoteka")
     ap.add_argument("projekt")
@@ -183,18 +211,7 @@ def main():
     a = ap.parse_args()
 
     proj = Path(a.projekt).resolve()
-    for f in ("project.json", "transcript.json", "edit.json"):
-        if not (proj / f).exists():
-            die(f"nedostaje {proj / f}")
-    found = verzije.found_versions(proj)
-    if a.trenutno or (not found and a.verzija is None):
-        edit, base, what = load_json(proj / "edit.json"), "titlovi_trenutno", "trenutni edit.json"
-    else:
-        v = a.verzija if a.verzija is not None else verzije.viewed(proj)
-        if v not in found:
-            die(f"nema verzije {v}. Postoje: {', '.join(map(str, sorted(found))) or 'nijedna'}")
-        vf = verzije.video_file(proj, v)
-        edit, base, what = load_json(found[v]), (Path(vf).stem if vf else f"reel_v{v}"), f"verzija {v}"
+    edit, base, what = pick(proj, a.verzija, a.trenutno)
     base = a.izlaz or base
 
     cues, total = cues_for(proj, edit)
