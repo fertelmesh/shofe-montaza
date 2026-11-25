@@ -2,6 +2,16 @@
 
 Svaka značajna odluka: datum, odluka, zašto, alternative, izvori. Najnovije na vrhu.
 
+## 2026-11-25 — Karta videa (analyze.py): vlastita mjerenja u numpyju, bez OpenCV-a i PySceneDetecta
+- Odluka: `analyze.py` radi dva prolaza ffmpegom. Zvuk: mono 16 kHz → RMS po 50 ms, prag tišine prilagođen snimci (5. i 95. percentil: šum i govor, prag na 35 % između, granice −55 dB i govor −12 dB), tišine ≥ 0,5 s; ukupna glasnoća, raspon i vrh iz ffmpeg `ebur128`. Slika: siva sličica (dulja stranica 256 px) za svaku sličicu → svjetlina, promjena (prosječna razlika blokova 8×8) i oštrina (varijanca Laplaceovog operatora) 5× u sekundi.
+- Rezovi: kao PySceneDetect AdaptiveDetector — promjena sličice uspoređuje se s prosjekom 2 susjedne sličice sa svake strane (omjer ≥ 3, najmanja promjena 12, kadar najmanje 0,5 s); tako kretanje kamere ne daje lažne rezove. AdaptiveDetector ima najbolji F1 na BBC i AutoShot testovima PySceneDetecta (91,6 / 73,9).
+- Mutno: oštrina ovisi o sadržaju (rešetka ima 3× manju varijancu od testne slike, a nije mutna — vidjeli na probnom klipu), pa se mjeri unutar kadra: mutno kad padne ispod 35 % 90. percentila istog kadra. Tamno: srednja svjetlina < 40 (Y), presvijetlo > 230. Sve ≥ 0,5 s.
+- Tempo: slogovi hrvatske riječi = samoglasnici (ije = jedan) + slogotvorno r (krv, Hrvatska); oznake sporo < 4, brzo > 6,5 slogova/s. Brojke za hrvatski nismo našli (radovi Kovač 2018 i Matticchio 2018 daju samo usporedbe), pa su granice procjena za uobičajeni govor i prilagodit će se na Markovim snimkama.
+- Teme i trenuci: piše ih Claude u `analiza.json` (ne lokalni model) — Claude ionako čita transkript, besplatno je i najbolje razumije hrvatski. `--provjeri` provjerava oblik; ponovna analiza ih čuva.
+- Brzina: 120 s videa 1080×1920 (12 Mbit/s) za 18 s na 2 jezgre u sandboxu, gotovo sve je dekodiranje H.264 → 60 min ≈ 9 min na 2 jezgre, na Markovom laptopu (4–8 jezgri) procjena 3–5 min. `--bez-slike` za samo zvuk (sekunde).
+- Alternative: PySceneDetect (BSD-3, ali vuče OpenCV ~40 MB i radi isti dekod); ffmpeg `scdet`/`select=scene` (fiksni prag, lošiji kod kretanja); `blurdetect` filter (nije u svim ffmpeg buildovima, treba ffmpeg 6+). Nema novih ovisnosti (numpy, BSD-3, već postoji).
+- Izvori: https://raw.githubusercontent.com/Breakthrough/PySceneDetect/main/benchmark/README.md , https://www.scenedetect.com/docs/api.html , https://hrcak.srce.hr/clanak/295046 , https://www.bib.irb.hr/937198 , https://ffmpeg.org/ffmpeg-filters.html#ebur128
+
 ## 2026-11-25 — Verzije i popis paketa proizvoda
 - Odluka: `shofe-montaza/VERSION` (semver, počinje 0.2.0 jer je v1 montaža bila 0.1), ispisuje je `doctor.py`. Python paketi proizvoda u `shofe-montaza/requirements.txt` (kopira se sa skillom); iz njega instaliraju `install.ps1` i `doctor.py --popravi`; korijenski `requirements.txt` samo upućuje na njega.
 - Granice verzija: `faster-whisper>=1.1,<2` — gornja granica jer bi nova glavna verzija mogla promijeniti API; tjedni CI s najnovijim paketima javlja kvar prije Marka. Ne prikivamo točne verzije: na Windowsu bi to s novim Pythonom značilo da nema gotovih paketa.

@@ -23,3 +23,12 @@ Jedan unos po krugu, najnoviji na dnu.
 - Popravak: `doctor.py --popravi` više ne puca na putanjama s razmakom (bez `os.execv`).
 - Testovi lokalno: 15 prošlo, 1 preskočen.
 - Sljedeće: M1.5 karta videa (`analyze.py`).
+
+## 2026-11-25 01:20 — M1.5 karta videa
+- Živa specifikacija pročitana: bez promjena u odnosu na SPEC.md. Otvorenih issuea i PR-ova nema.
+- Novo: `analyze.py` → `analiza.json` + čitljivi `analiza.txt`: tišine, glasnoća (cijeli video u LUFS + po odsječku, oznake tiho/glasno), tempo govora (slogova u sekundi, sporo/normalno/brzo), rezovi i kadrovi, spojevi klipova, mutni/tamni/presvijetli dijelovi. Odsječci imaju iste brojeve kao u edit.json. `--bez-slike` za brzu analizu samo zvuka.
+- Teme i najjači trenuci (hook, poanta, smijeh, savjet…) upisuje Claude prema uputama u SKILL.md; `analyze.py --provjeri` provjerava ih, ponovna analiza ih čuva.
+- Bez novih paketa (samo numpy + ffmpeg). Odluka i izvori u ODLUKE.md. Verzija 0.3.0.
+- Brzina u sandboxu (2 jezgre): 120 s videa 1080×1920 za 18 s → sat videa ≈ 9 min samo za sliku; zvuk par sekundi. Na Markovom laptopu treba izmjeriti (dio pregleda M1).
+- Testovi: novi `tests/test_analyze.py` na sintetskom videu s poznatim tišinama, rezovima, mutnim i tamnim dijelom (svi pogođeni na ±0,1–0,25 s) + slogovi hrvatskih riječi. Lokalno 35 prošlo, 1 preskočen.
+- Sljedeće: M1.6 govornici (diarizacija na procesoru, permisivna licenca).
