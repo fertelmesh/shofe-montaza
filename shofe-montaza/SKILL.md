@@ -1,6 +1,6 @@
 ---
 name: shofe-montaza
-description: Shofe Video Editor - edits raw talking-head phone clips into finished reels (9:16) or YouTube videos (16:9) - cuts pauses, fillers and bad takes, adds Croatian word-by-word subtitles, punch-in zooms, colour grade, hook title, background music with ducking. Use when the user says "montiraj", "montiraj ga", "napravi reel", "izreži pauze", "dodaj titlove", "analiziraj video", "što je u ovom videu", "pokaži kartu videa", "najjači trenuci", "tko govori", or asks to edit/cut/analyse video clips; also for revisions of a reel made with it ("povećaj titlove", "drugi stil", "makni dio o..."), time-based commands on a rendered video ("makni od 1:20 do 1:45", "izreži 0:05-0:08", "zadrži samo 0:10-0:40", "što je na 1:20", "vrati kako je bilo") and content-based commands ("izreži dio gdje pričam o cijeni", "zadrži drugi pokušaj", "zadrži samo savjet o X", "vrati dio o X", "gdje spominjem X").
+description: Shofe Video Editor - edits raw talking-head phone clips into finished reels (9:16) or YouTube videos (16:9) - cuts pauses, fillers and bad takes, adds Croatian word-by-word subtitles, punch-in zooms, colour grade, hook title, background music with ducking. Use when the user says "montiraj", "montiraj ga", "napravi reel", "izreži pauze", "dodaj titlove", "analiziraj video", "što je u ovom videu", "pokaži kartu videa", "najjači trenuci", "tko govori", or asks to edit/cut/analyse video clips; also for revisions of a reel made with it ("povećaj titlove", "drugi stil", "makni dio o..."), time-based commands on a rendered video ("makni od 1:20 do 1:45", "izreži 0:05-0:08", "zadrži samo 0:10-0:40", "što je na 1:20", "vrati kako je bilo"), versions ("pokaži verzije", "vrati verziju 2", "što se promijenilo", "usporedi verziju 1 i 3") and content-based commands ("izreži dio gdje pričam o cijeni", "zadrži drugi pokušaj", "zadrži samo savjet o X", "vrati dio o X", "gdje spominjem X").
 ---
 
 # Shofe montaža
@@ -35,7 +35,7 @@ On Windows use forward slashes and quote every path: `python "<skill>/scripts/re
    - `naglasi`: 2–6 key words (nouns, numbers, the payoff) to colour in the accent colour.
    - Pick `stil` if the user didn't: energetic/selling → `suncani`; podcast clips → `podcast`; viral hook, short punchy → `udarno`; calm advice, explainers, YouTube → `cisto`; story/atmosphere/festival → `kino`.
 8. **Look before rendering**: `python "<skill>/scripts/render.py" shofe_projekt --kadar 1,5,12` (seconds of the final video) → `kadrovi.png`. Open the image and check: face not cut off, subtitles not covering the face or the mouth, hook readable, text fits. Fix (crop, `pozicija_titlova`, `velicina_titlova`) and repeat if needed.
-9. **Render**: `python "<skill>/scripts/render.py" shofe_projekt` → `reel_vN.mp4` (new version each time; the edit used is saved in `verzije/`). `--brzo` gives a fast half-resolution preview; `--kvaliteta visoka` for the final YouTube upload.
+9. **Render**: `python "<skill>/scripts/render.py" shofe_projekt` → `reel_vN.mp4` (new version each time; the edit used is saved in `verzije/`, see "Versions"). `--brzo` gives a fast half-resolution preview; `--kvaliteta visoka` for the final YouTube upload.
 10. **Report** in 3–4 lines: file path, length before → after, what was cut (segment numbers + a few words each), style. Offer the most useful next tweak, not a list.
 
 ## Commands by time in the finished video (`uredi.py`)
@@ -44,11 +44,11 @@ When the user names times they saw in the rendered video ("makni od 1:20 do 1:45
 
 - `python "<skill>/scripts/uredi.py" shofe_projekt makni 1:20-1:45 [more ranges]` — removes that part of the finished video.
 - `python "<skill>/scripts/uredi.py" shofe_projekt zadrzi 0:10-0:40` — keeps only that part (everything else goes out).
-- Times are read from the **last rendered version** (`reel_vN`, what the user watched), so several commands in a row without a new render all use the same video. `--verzija N` if the user means an older reel; `--trenutno` to use the current edit.json (e.g. after `popis`). Formats: `1:20`, `1:20.5`, `0:01:20`, `80`, `od 1:20 do 1:45`.
+- Times are read from the **version the user is watching**: the last render, or the version restored with `verzije.py vrati N` (`reel_vN`), so several commands in a row without a new render all use the same video. `--verzija N` if the user means an older reel; `--trenutno` to use the current edit.json (e.g. after `popis`). Formats: `1:20`, `1:20.5`, `0:01:20`, `80`, `od 1:20 do 1:45`.
 - Cuts snap to whole words (a word goes out if its middle is inside the range) and are written to `edit.json` → `izrezi` (source seconds, with the command and the removed text). It prints the removed words and the new length: read them and tell the user in one line what was removed („…prve riječi … zadnje…“). If the cut leaves a broken sentence (it prints notes when a time falls inside a word), suggest extending it to the sentence end.
 - Add `--proba` to preview without changing anything (use it when the user's range looks odd, e.g. very long).
 - `python "<skill>/scripts/uredi.py" shofe_projekt popis` — finished-video timeline: each kept segment with its times and text, plus the time cuts. Use it to answer "što je na 1:20?" or to check a range before cutting.
-- `python "<skill>/scripts/uredi.py" shofe_projekt vrati` — undo the last uredi.py command (repeat to go further back; history is in `povijest/`). "Vrati kako je bilo" for a whole render version: copy `verzije/edit_vN.json` over `edit.json`.
+- `python "<skill>/scripts/uredi.py" shofe_projekt vrati` — undo the last uredi.py command (repeat to go further back; history is in `povijest/`). For a whole render version use `verzije.py vrati N` (see "Versions"); never copy files in `verzije/` by hand.
 - Then render (`render.py`, or `--kadar` first if the cut is near the hook). `plan.py --prepisi` starts from scratch and drops `izrezi`.
 
 ## Commands by content (`uredi.py` with quotes)
@@ -75,6 +75,16 @@ When the user describes WHAT to cut or keep ("izreži dio gdje pričam o cijeni"
    - `skrati 1:00`, `skrati na 45`, `skrati za 15` (shorter by 15 s) all work. It only removes; it never brings back parts that were cut before (use `dodaj` for that).
 3. Tell the user in two or three lines what went out (by topic, not a list of every sentence) and the new length. If it says the result is clearly shorter than the target, thoughts were too long to fit — offer a higher target or a different rating. `vrati` undoes it; then `render.py`.
 
+## Versions (`verzije.py`)
+
+Every full or `--brzo` render is a version (`reel_vN.mp4` + `verzije/edit_vN.json` + date/length in `verzije/verzije.json`); `--izlaz` renders are not. Nothing is ever deleted.
+
+- "pokaži verzije", "koje verzije imam": `python "<skill>/scripts/verzije.py" shofe_projekt` — every version with date, length, style, file, a one-line summary of what changed from the previous one, ► the version the user is watching, and unrendered changes in edit.json. Tell the user the list briefly (version, length, what changed).
+- "vrati verziju 2", "vrati kako je bilo u prvoj", "ona prije mi je bila bolja": `python "<skill>/scripts/verzije.py" shofe_projekt vrati 2` (`--proba` to preview). edit.json becomes exactly that version; newer versions stay; its video already exists, so **do not render again** unless the user asks for changes — tell them which file to open. Later time-based commands read times from that version. `uredi.py vrati` undoes it.
+  - "Vrati kako je bilo" is ambiguous: if there were uredi.py commands since the last render, use `uredi.py vrati` (one command back); if the user means the previous video they watched, use `verzije.py vrati <previous N>`. Ask only if both make sense.
+- "što se promijenilo", "usporedi verziju 1 i 3", "što je drukčije od prve": `python "<skill>/scripts/verzije.py" shofe_projekt usporedi [A] [B]` (A/B = number or `trenutno`; no arguments = watched version → current edit.json if it has unrendered changes, otherwise previous → last render; one argument = that version → current). It prints length change, commands added/no longer active, removed and added parts with their time in each version and the reason, changed settings and subtitle text fixes. Summarise it for the user in 2–4 lines.
+- "nazovi verziju 3 za Instagram": `verzije.py shofe_projekt nazovi 3 "za Instagram"` (shown in the list and comparisons).
+
 ## Revisions (no re-transcribing)
 
 Change `edit.json`, then run `render.py` again. Only rerun `prepare.py` + `transcribe.py` (+ `govornici.py`, `analyze.py`) if clips were added/replaced; rerun `prepare.py` alone (same clips) to change cropping — the transcript stays valid.
@@ -95,6 +105,7 @@ Change `edit.json`, then run `render.py` again. Only rerun `prepare.py` + `trans
 | makni dio o X | `uredi.py makni --od … --do …` / `--tema` (see "Commands by content") |
 | makni 1:20–1:45 / zadrži samo 0:10–0:40 | `uredi.py` (see above), never by hand |
 | vrati dio o X / zadrži drugi pokušaj | `uredi.py dodaj --od … --cijele-recenice` (+ `makni` the other take) |
+| pokaži verzije / vrati verziju 2 / što se promijenilo | `verzije.py` (see "Versions") |
 | skrati na 60 s / ispod minute / za 15 s | `uredi.py skrati 60 --proba`, rate thoughts, then `skrati 60 --ocjene …` (see "Shorten") |
 | promijeni naslov | `hook`; `hook_trajanje` for how long it shows |
 | traka napretka | `traka_napretka`: true |

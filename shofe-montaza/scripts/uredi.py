@@ -32,9 +32,10 @@ from pathlib import Path
 import copy
 
 from common import die, fmt_time, load_json, save_json
-from render import align_tokens, build_cuts, resolve_style, to_out
+from render import align_tokens, build_cuts, resolve_style, to_out, word_starts, words_in
 import sadrzaj
 import skrati as sk
+import verzije
 
 TIME = r"\d+(?::\d{1,2}){0,2}(?:[.,]\d+)?s?"
 RANGE = re.compile(rf"(?:od\s+)?({TIME})\s*(?:-|do)\s*({TIME})")
@@ -85,10 +86,10 @@ def parse_ranges(args):
 # ---------------------------------------------------------------- vremenska crta gotovog videa
 def segment_of(words, edit):
     owner = {}
+    starts = word_starts(words)
     for seg in edit["odsjecci"]:
-        for i, w in enumerate(words):
-            if w["s"] >= seg["od"] - 0.01 and w["e"] <= seg["do"] + 0.01:
-                owner.setdefault(i, seg["id"])
+        for i in words_in(words, seg["od"], seg["do"], starts):
+            owner.setdefault(i, seg["id"])
     return owner
 
 
@@ -98,6 +99,7 @@ def timeline(words, edit, pj):
     speed = float(edit.get("brzina") or 1.0)
     cuts, kept, total = build_cuts(words, edit, st, pj["fps"], pj["duration"])
     owner = segment_of(words, edit)
+    starts = [c["a"] for c in cuts]
     out = []
     for item in kept:
         if isinstance(item[0], list):
@@ -106,7 +108,7 @@ def timeline(words, edit, pj):
         else:
             pairs = [item]
         for i, tok in pairs:
-            s, e = to_out(words[i]["s"], cuts), to_out(words[i]["e"], cuts)
+            s, e = to_out(words[i]["s"], cuts, starts), to_out(words[i]["e"], cuts, starts)
             if s is None or e is None:
                 continue
             out.append({"i": i, "s": s / speed, "e": e / speed, "t": tok, "seg": owner.get(i)})
@@ -150,13 +152,21 @@ def excerpt(ws, n=4):
 
 
 # ---------------------------------------------------------------- povijest (za "vrati")
-def save_history(proj, naredba):
+def save_history(proj, naredba, extra=None):
+    """Spremi trenutni edit.json u povijest/ prije naredbe. `extra` (npr. koju verziju korisnik gleda)
+    sprema se pod ključem "_shofe" i vraća se kod `vrati`, ali ne ide natrag u edit.json."""
     hist = proj / "povijest"
     hist.mkdir(exist_ok=True)
     nums = [int(m.group(1)) for p in hist.glob("*.json") if (m := re.match(r"(\d+)", p.stem))]
     n = max(nums, default=0) + 1
     slug = re.sub(r"[^\w]+", "_", naredba, flags=re.UNICODE).strip("_")[:40]
-    shutil.copy2(proj / "edit.json", hist / f"{n:03d}_{slug}.json")
+    dst = hist / f"{n:03d}_{slug}.json"
+    if extra:
+        data = load_json(proj / "edit.json")
+        data["_shofe"] = extra
+        save_json(dst, data)
+    else:
+        shutil.copy2(proj / "edit.json", dst)
 
 
 def undo(proj):
@@ -165,7 +175,11 @@ def undo(proj):
     if not files:
         die("nema ništa za vratiti (povijest je prazna)")
     last = files[-1]
-    shutil.copy2(last, proj / "edit.json")
+    data = load_json(last)
+    extra = data.pop("_shofe", None)
+    save_json(proj / "edit.json", data)
+    if extra and "gledano" in extra:
+        verzije.set_viewed(proj, extra["gledano"])
     last.unlink()
     label = last.stem.split("_", 1)[1].replace("_", " ") if "_" in last.stem else last.stem
     print(f"Vraćeno stanje prije naredbe: {label}")
@@ -481,20 +495,19 @@ def cmd_skrati(proj, words, edit, pj, a):
 
 # ---------------------------------------------------------------- glavno
 def reference_edit(proj, edit, a):
-    """Prema kojoj verziji se čitaju vremena: zadnji render (ono što je korisnik gledao)."""
+    """Prema kojoj verziji se čitaju vremena: ona koju korisnik gleda (zadnji render ili „vrati verziju N")."""
     if a.trenutno:
         return edit, "trenutni edit.json (sljedeći render)"
-    vdir = proj / "verzije"
-    found = {int(m.group(1)): p for p in vdir.glob("edit_v*.json") if (m := re.fullmatch(r"edit_v(\d+)", p.stem))} \
-        if vdir.exists() else {}
+    found = verzije.found_versions(proj)
     if a.verzija is not None:
         if a.verzija not in found:
             die(f"nema verzije {a.verzija} (postoje: {', '.join(map(str, sorted(found))) or 'nijedna'})")
         return load_json(found[a.verzija]), f"reel_v{a.verzija}"
     if not found:
         return edit, "trenutni edit.json (još nije renderiran)"
-    n = max(found)
-    return load_json(found[n]), f"reel_v{n} (zadnji render)"
+    n = verzije.viewed(proj)
+    why = "zadnji render" if n == max(found) else "vraćena verzija"
+    return load_json(found[n]), f"reel_v{n} ({why})"
 
 
 def cmd_popis(words, edit, pj, label):

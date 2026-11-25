@@ -88,3 +88,13 @@ Jedan unos po krugu, najnoviji na dnu.
 - Za Marka: ništa sad. Na pregledu M2 probaj „skrati na 30 sekundi" na pravom reelu.
 - Sljedeće: M2.4 verzije (popis, „vrati verziju N", usporedba).
 
+
+## 2026-11-25 14:35 — M2.4 verzije (popis, vrati verziju N, usporedba)
+- Živa specifikacija pročitana: bez promjena. Issue #7 (Pregled M1) još bez Markova odgovora; otvorenih PR-ova nema.
+- Novo: `verzije.py` — `popis` (svaka verzija s datumom, trajanjem, stilom, datotekom i jednim retkom što se promijenilo prema prethodnoj; ► verzija koju Marko gleda; nerenderirane izmjene), `vrati N` (edit.json kao u verziji N; novije ostaju, video već postoji pa nema novog rendera; `uredi.py vrati` to poništava), `usporedi [A] [B]` (izbačene/dodane rečenice s vremenom u svakoj verziji i razlogom, nove i poništene naredbe, postavke, ispravci teksta), `nazovi N "naziv"`.
+- `render.py` nakon uspješnog rendera upisuje verziju u `verzije/verzije.json` (datum, datoteka, trajanje, brzi pregled); broj verzije više ne može prepisati staru kad se video obriše. Vremena u naredbama čitaju se iz verzije koju Marko gleda (zadnji render ili vraćena verzija). Odluka i izvori u ODLUKE.md. Verzija 0.9.0.
+- Brzina: vremenska crta gotovog videa za sat snimke 1,5 s → 0,05 s (binarno pretraživanje, rezultat provjeren identičan), pa su i sve `uredi.py` naredbe brže; popis 9 verzija sata snimke < 1 s.
+- Provjera: ispis popisa, usporedbe i vraćanja na probnom reelu s tri verzije (makni, stil kino + veći titlovi + ispravak teksta, skrati na 10 s) — čitljivo, točne riječi i vremena.
+- Testovi: novi `tests/test_verzije.py` (20, uključujući dva prava rendera i sat snimke). Lokalno 134 prošlo, 3 preskočena.
+- Za Marka: ništa sad. Na pregledu M2 probaj „pokaži verzije", „vrati verziju 1" i „što se promijenilo".
+- Sljedeće: M2.5 titlovi (SRT/VTT, rječnik iz ispravaka, engleski prijevod).
