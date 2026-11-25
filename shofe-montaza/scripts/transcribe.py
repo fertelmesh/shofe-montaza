@@ -10,7 +10,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from common import SKILL_DIR, die, ffmpeg, fmt_time, save_json
+from common import die, ffmpeg, fmt_time, save_json
 
 SAMPLE_RATE = 16000
 
@@ -32,12 +32,18 @@ def load_audio(path, sr=SAMPLE_RATE):
     return np.frombuffer(r.stdout, np.int16).astype(np.float32) / 32768.0
 
 
-def vocabulary_prompt():
-    p = SKILL_DIR / "rjecnik.txt"
-    if not p.exists():
-        return None
-    words = [l.strip() for l in p.read_text(encoding="utf-8").splitlines() if l.strip() and not l.startswith("#")]
-    return ", ".join(words) + "." if words else None
+def vocabulary_prompt(model=None):
+    """Pojmovi iz rječnika (rjecnik.txt + ručno dodani + naučeni) kao početni upit, ≤ 200 tokena."""
+    import rjecnik
+    count = None
+    tok = getattr(model, "hf_tokenizer", None)
+    if tok is not None:
+        try:
+            tok.encode(" test", add_special_tokens=False)
+            count = lambda s: len(tok.encode(" " + s, add_special_tokens=False).ids)  # noqa: E731
+        except Exception:  # noqa: BLE001  (druga inačica tokenizera: procjena po znakovima)
+            count = None
+    return rjecnik.build_prompt(rjecnik.prompt_terms(), count)
 
 
 def load_model(name, device):
@@ -60,7 +66,7 @@ def main():
     ap.add_argument("--model", default="large-v3-turbo", help="large-v3-turbo | large-v3 | medium | small")
     ap.add_argument("--jezik", default="hr", help="hr | sr | bs | en ... ili auto")
     ap.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
-    ap.add_argument("--prompt", default=None, help="imena i pojmovi za bolji pravopis (inače rjecnik.txt)")
+    ap.add_argument("--prompt", default=None, help="imena i pojmovi za bolji pravopis (inače rječnik: rjecnik.txt + naučeno)")
     a = ap.parse_args()
 
     proj = Path(a.projekt)
@@ -83,7 +89,7 @@ def main():
         vad_filter=True,
         vad_parameters={"min_silence_duration_ms": 300},
         condition_on_previous_text=False,
-        initial_prompt=a.prompt or vocabulary_prompt(),
+        initial_prompt=a.prompt or vocabulary_prompt(model),
         beam_size=5,
     )
     words = []
