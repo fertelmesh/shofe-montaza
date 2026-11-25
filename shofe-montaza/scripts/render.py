@@ -5,12 +5,13 @@
   python render.py shofe_projekt --kadar 1,5,12  samo slike kadrova (sekunde gotovog reela) za provjeru izgleda
 """
 import argparse
-import re
+import bisect
 import shutil
 from pathlib import Path
 
+import verzije
 from common import (FONTS_DIR, GRADES, die, ffmpeg, filter_script_args, fmt_time, load_json,
-                    load_style, norm_word, run, save_json)
+                    load_style, norm_word, run)
 
 ZOOM = {"nema": None, "blago": (1.08, 1.6), "jako": (1.16, 0.7)}
 POS_FRAC = {"dolje": 0.24, "gore": 0.20}
@@ -114,13 +115,34 @@ def align_tokens(tokens, wtexts):
     return [o if o is not None else nxt for o in owner]
 
 
+def words_in(words, od, do, starts=None):
+    """Indeksi riječi unutar [od, do] (±10 ms). `starts` = početci riječi (ubrzanje za duge snimke)."""
+    if starts is None or len(starts) != len(words):
+        return [i for i, w in enumerate(words) if w["s"] >= od - 0.01 and w["e"] <= do + 0.01]
+    res = []
+    for i in range(bisect.bisect_left(starts, od - 0.01), len(words)):
+        w = words[i]
+        if w["s"] > do + 0.01:
+            break
+        if w["e"] <= do + 0.01:
+            res.append(i)
+    return res
+
+
+def word_starts(words):
+    """Početci riječi ako su poredane po vremenu (inače None → spori, ali sigurni put)."""
+    st = [w["s"] for w in words]
+    return st if all(a <= b for a, b in zip(st, st[1:])) else None
+
+
 def build_cuts(words, edit, st, fps, total):
     pre, post = st.get("rezanje", [0.05, 0.12])
     spans = cut_spans(edit)
     ranges, kept = [], []  # kept: (word_index, display_text)
     segs = sorted((s for s in edit["odsjecci"] if s.get("zadrzi", True)), key=lambda s: s["od"])
+    starts = word_starts(words)
     for seg in segs:
-        idx = [i for i, w in enumerate(words) if w["s"] >= seg["od"] - 0.01 and w["e"] <= seg["do"] + 0.01]
+        idx = words_in(words, seg["od"], seg["do"], starts)
         if not idx:
             continue
         cut = {norm_word(x) for x in seg.get("izbaci", [])}
@@ -174,19 +196,23 @@ def build_cuts(words, edit, st, fps, total):
     return out, kept, off
 
 
-def to_out(t, cuts):
-    for c in cuts:
-        if c["a"] - 1e-6 <= t <= c["b"] + 1e-6:
-            return c["o"] + (t - c["a"])
+def to_out(t, cuts, starts=None):
+    """Vrijeme izvornog videa → vrijeme gotovog videa (None ako je izrezano). Rezovi su poredani i
+    razmaknuti barem jedan okvir, pa je kandidat samo zadnji rez koji počinje prije t.
+    `starts` = [c["a"] for c in cuts], za mnogo poziva na istim rezovima."""
+    k = bisect.bisect_right(starts if starts is not None else [c["a"] for c in cuts], t + 1e-6) - 1
+    if k >= 0 and t <= cuts[k]["b"] + 1e-6:
+        return cuts[k]["o"] + (t - cuts[k]["a"])
     return None
 
 
 def out_words(words, kept, cuts, highlights):
     res = []
+    starts = [c["a"] for c in cuts]
     for item in kept:
         if isinstance(item[0], list):  # proporcionalna raspodjela ispravljenog teksta
             idxs, tokens = item
-            spans = [(to_out(words[i]["s"], cuts), to_out(words[i]["e"], cuts)) for i in idxs]
+            spans = [(to_out(words[i]["s"], cuts, starts), to_out(words[i]["e"], cuts, starts)) for i in idxs]
             spans = [(s, e) for s, e in spans if s is not None and e is not None]
             if not spans:
                 continue
@@ -200,7 +226,7 @@ def out_words(words, kept, cuts, highlights):
                 res.append({"t": t, "s": s, "e": e, "hl": norm_word(t) in highlights})
         else:
             i, t = item
-            s, e = to_out(words[i]["s"], cuts), to_out(words[i]["e"], cuts)
+            s, e = to_out(words[i]["s"], cuts, starts), to_out(words[i]["e"], cuts, starts)
             if s is None or e is None:
                 continue
             res.append({"t": t, "s": s, "e": max(e, s + 0.05), "hl": norm_word(t) in highlights})
@@ -359,6 +385,7 @@ def main():
     pj = load_json(proj / "project.json")
     words = load_json(proj / "transcript.json")["words"]
     edit = load_json(proj / "edit.json")
+    edit_raw = load_json(proj / "edit.json")  # neizmijenjena kopija za verzije/edit_vN.json
     W, H, fps = pj["width"], pj["height"], pj["fps"]
     st = resolve_style(edit)
     speed = float(edit.get("brzina") or 1.0)
@@ -445,11 +472,8 @@ def main():
     if a.izlaz:
         out = proj / a.izlaz
     else:
-        nums = [int(m.group(1)) for p in proj.glob("reel_v*.mp4") if (m := re.match(r"reel_v(\d+)", p.stem))]
-        v = max(nums, default=0) + 1
+        v = verzije.next_number(proj)
         out = proj / (f"reel_v{v}_pregled.mp4" if a.brzo else f"reel_v{v}.mp4")
-        (proj / "verzije").mkdir(exist_ok=True)
-        save_json(proj / "verzije" / f"edit_v{v}.json", edit)
 
     preset, crf = ("ultrafast", 26) if a.brzo else (("medium", 17) if a.kvaliteta == "visoka" else ("veryfast", 18))
     cmd = [ffmpeg(), "-y", "-v", "error", *inputs, *filter_script_args(fg),
@@ -460,8 +484,10 @@ def main():
     run(cmd, cwd=proj)
 
     final = total / speed
+    if not a.izlaz:  # nova verzija: točno ovaj edit.json, datum, trajanje; korisnik sada gleda nju
+        verzije.record_render(proj, v, edit_raw, out.name, final, a.brzo, a.kvaliteta)
     removed = [s["id"] for s in edit["odsjecci"] if not s.get("zadrzi", True)]
-    print(f"\nGotovo: {out}")
+    print(f"\nGotovo: {out}" + (f"  (verzija {v}; popis i usporedba: python verzije.py {proj.name})" if not a.izlaz else ""))
     print(f"Trajanje: {fmt_time(pj['duration'])} → {fmt_time(final)}  (izrezano {pj['duration'] - final:.1f}s, {n} kadrova, {len(zr)} zumova)")
     if removed:
         print(f"Izbačeni odsječci: {', '.join('#' + str(i) for i in removed)}")

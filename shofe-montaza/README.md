@@ -55,7 +55,16 @@ Možeš tražiti i **trajanje**:
 
 Shofe izbacuje cijele misli, nikad pola rečenice: pitanje ostaje sa svojim odgovorom, „Drugo, ugradnja." s onim što najavljuje, a rečenica koja počinje s „A…", „Zato…", „To…" ne ostaje bez one prije. Claude ocijeni koliko je svaka misao važna za taj video (i pazi na ono što si rekao da je glavno), a Shofe izračuna koja kombinacija stane u zadano vrijeme. Gotovi video je uvijek najviše toliko dug, obično tik ispod. Dijelove koji su već izrezani ne vraća.
 
-Svaka verzija se sprema kao `reel_v1.mp4`, `reel_v2.mp4`... u mapi `shofe_projekt`. Originalni klipovi se nikad ne diraju.
+## Verzije
+
+Svaki render je nova verzija: `reel_v1.mp4`, `reel_v2.mp4`... u mapi `shofe_projekt`. Ništa se ne briše, a originalni klipovi se nikad ne diraju. Možeš reći:
+
+- `pokaži verzije` — popis s datumom, trajanjem, stilom i jednim retkom što se promijenilo prema prethodnoj
+- `vrati verziju 2` ili `vrati kako je bilo u prvoj verziji` — montaža se vrati na tu verziju; video te verzije već postoji, pa nema čekanja na render. Novije verzije ostaju, a i ovo se može poništiti („ipak ne").
+- `što se promijenilo od verzije 2?` ili `usporedi verziju 1 i 3` — koje su rečenice otišle ili se vratile (s vremenom u videu i zašto), promijenjeni stil, titlovi, boje, naslov i ispravci teksta
+- `nazovi verziju 3 „za Instagram"` — da je poslije lakše nađeš
+
+Nakon „vrati verziju 2" vremena u sljedećim naredbama čitaju se iz `reel_v2`, jer tu verziju gledaš.
 
 ## Karta videa
 
