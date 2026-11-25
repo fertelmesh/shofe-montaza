@@ -501,6 +501,8 @@ def main():
     titlovi.write_srt(srt, cues)
     import prijevod  # engleski (ili drugi) titlovi, ako ih projekt već prevodi
     translated = prijevod.for_render(proj, cues, out)
+    import davinci  # timeline za DaVinci Resolve s istim rezovima (originalne snimke)
+    resolve_lines = davinci.for_render(proj, edit_raw, out)
     if not a.izlaz:  # nova verzija: točno ovaj edit.json, datum, trajanje; korisnik sada gleda nju
         verzije.record_render(proj, v, edit_raw, out.name, final, a.brzo, a.kvaliteta)
         learn_vocabulary(proj, edit_raw, words)
@@ -508,6 +510,8 @@ def main():
     print(f"\nGotovo: {out}" + (f"  (verzija {v}; popis i usporedba: python verzije.py {proj.name})" if not a.izlaz else ""))
     print(f"Titlovi za YouTube: {srt.name}")
     for line in translated:
+        print(line)
+    for line in resolve_lines:
         print(line)
     print(f"Trajanje: {fmt_time(pj['duration'])} → {fmt_time(final)}  (izrezano {pj['duration'] - final:.1f}s, {n} kadrova, {len(zr)} zumova)")
     if removed:

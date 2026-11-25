@@ -84,6 +84,18 @@ Reci „napravi i engleske titlove" (ili „prevedi titlove na engleski"). Claud
 - **VLC** ih nađe sam (Titlovi → Podnaslovna traka); prijevode možeš pročitati i ispraviti u `prijevod_en.json` u mapi projekta.
 - Može i drugi jezik: „prevedi titlove na njemački" → `reel_v3.de.srt`.
 
+## DaVinci Resolve
+
+Uz svaki video Shofe napravi i **timeline za DaVinci**: `reel_v3.mp4` → `reel_v3.fcpxml` (+ `reel_v3.srt`). U njemu su tvoje **originalne snimke** s mobitela s istim rezovima kao u Shofeovu videu, isto kadriranje i zumovi, glazba na zasebnoj traci i oznake (stil, naslov, zumovi). Zvuk i boja su neobrađeni — to doradiš sam. Radi i s besplatnim DaVincijem (verzija 18 ili novija).
+
+1. U DaVinciju otvori novi projekt (u postavkama projekta stavi 30 fps i rezoluciju videa, npr. 1080×1920 za reel).
+2. **File > Import > Timeline** → odaberi `reel_v3.fcpxml` (ostavi uključeno „Automatically import source clips into media pool").
+3. **File > Import > Subtitle** → `reel_v3.srt`, pa titlove povuci na timeline (počinju na 00:00).
+
+- Ako si originalne snimke premjestio, DaVinci pita gdje su (Relink). Ako ih više nema, Shofe sam koristi pripremljeni `source.mp4`.
+- Za stariju verziju reci „DaVinci za verziju 2".
+- Ako u DaVinciju kadar vodoravne snimke nije isti kao u Shofeu, reci „DaVinci iz pripremljenog videa" (koristi već izrezani `source.mp4`).
+
 ## Karta videa
 
 Prije montaže Shofe napravi „kartu videa" (`analiza.txt` u mapi `shofe_projekt`): gdje su tišine, koliko je glasno, koliko brzo pričaš, gdje su rezovi, i koji su dijelovi mutni, pretamni ili presvijetli. Claude zatim iz teksta dopiše teme i najjače trenutke (hook, poanta, smijeh, savjet). Pitaj npr.:

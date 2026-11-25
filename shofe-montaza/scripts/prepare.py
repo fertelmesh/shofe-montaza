@@ -82,7 +82,9 @@ def main():
         print(f"[{i}/{len(files)}] {f.name}  {info['w']}x{info['h']}  {info['dur']:.1f}s" + ("  HDR→SDR" if info["hdr"] else ""))
         run(cmd)
         d = video_info(dst)["dur"]
-        clips.append({"file": str(f.resolve()), "start": round(offset, 3), "dur": round(d, 3)})
+        # kadriranje se pamti za izvoz u DaVinci (davinci.py: isti kadar iz originalne snimke)
+        clips.append({"file": str(f.resolve()), "start": round(offset, 3), "dur": round(d, 3),
+                      "w": info["w"], "h": info["h"], "crop_x": cx, "crop_y": a.crop_y})
         offset += d
         parts.append(dst)
 
