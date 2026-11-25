@@ -59,8 +59,64 @@ def esc(t):
 
 
 # ---------------------------------------------------------------- rezovi
+def cut_spans(edit):
+    """Izrezani dijelovi izvornog videa (`izrezi` u edit.json, upisuje ih uredi.py): [(od, do), ...]."""
+    res = []
+    for r in edit.get("izrezi") or []:
+        a, b = float(r["od"]), float(r["do"])
+        if b > a:
+            res.append((a, b))
+    return sorted(res)
+
+
+def in_spans(t, spans):
+    return any(a <= t < b for a, b in spans)
+
+
+def subtract_spans(ranges, spans):
+    out = []
+    for a, b in ranges:
+        parts = [[a, b]]
+        for x, y in spans:
+            nxt = []
+            for p, q in parts:
+                if y <= p or x >= q:
+                    nxt.append([p, q])
+                    continue
+                if x > p:
+                    nxt.append([p, x])
+                if y < q:
+                    nxt.append([y, q])
+            parts = nxt
+        out += parts
+    return out
+
+
+def align_tokens(tokens, wtexts):
+    """Za svaki token (ispravljeni tekst iz edit.json) indeks riječi iz transkripta kojoj pripada."""
+    if len(tokens) == len(wtexts):
+        return list(range(len(tokens)))
+    import difflib
+    a = [norm_word(t) for t in tokens]
+    b = [norm_word(w) for w in wtexts]
+    owner = [None] * len(tokens)
+    for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
+        if op == "equal":
+            for k in range(i2 - i1):
+                owner[i1 + k] = j1 + k
+        elif op == "replace":
+            for k in range(i2 - i1):
+                owner[i1 + k] = j1 + min(int(k * (j2 - j1) / (i2 - i1)), j2 - j1 - 1)
+    for k in range(len(owner)):  # umetnuti tokeni idu uz susjednu riječ
+        if owner[k] is None:
+            owner[k] = owner[k - 1] if k > 0 and owner[k - 1] is not None else None
+    nxt = next((o for o in owner if o is not None), 0)
+    return [o if o is not None else nxt for o in owner]
+
+
 def build_cuts(words, edit, st, fps, total):
     pre, post = st.get("rezanje", [0.05, 0.12])
+    spans = cut_spans(edit)
     ranges, kept = [], []  # kept: (word_index, display_text)
     segs = sorted((s for s in edit["odsjecci"] if s.get("zadrzi", True)), key=lambda s: s["od"])
     for seg in segs:
@@ -68,10 +124,18 @@ def build_cuts(words, edit, st, fps, total):
         if not idx:
             continue
         cut = {norm_word(x) for x in seg.get("izbaci", [])}
-        keep_idx = [i for i in idx if norm_word(words[i]["w"]) not in cut]
+        base_idx = [i for i in idx if norm_word(words[i]["w"]) not in cut]
+        if not base_idx:
+            continue
+        tokens = [t for t in seg.get("tekst", "").split() if norm_word(t) not in cut] or [words[i]["w"] for i in base_idx]
+        gone = {i for i in base_idx if in_spans((words[i]["s"] + words[i]["e"]) / 2, spans)}
+        if gone:  # dio odsječka izrezan naredbom po vremenu: makni i pripadni ispravljeni tekst
+            owner = align_tokens(tokens, [words[i]["w"] for i in base_idx])
+            tokens = [t for t, o in zip(tokens, owner) if base_idx[o] not in gone]
+        keep_idx = [i for i in base_idx if i not in gone]
         if not keep_idx:
             continue
-        tokens = [t for t in seg.get("tekst", "").split() if norm_word(t) not in cut] or [words[i]["w"] for i in keep_idx]
+        tokens = tokens or [words[i]["w"] for i in keep_idx]
         # tekst je ispravljen u edit.json: 1:1 ili proporcionalno po slovima
         if len(tokens) == len(keep_idx):
             kept += list(zip(keep_idx, tokens))
@@ -91,6 +155,8 @@ def build_cuts(words, edit, st, fps, total):
                 ranges.append([max(lo, 0.0), min(hi, total)])
                 if j + 1 < len(keep_idx):
                     run_start = keep_idx[j + 1]
+    if spans:
+        ranges = subtract_spans(ranges, spans)
     ranges.sort()
     merged = []
     for a, b in ranges:
@@ -399,6 +465,8 @@ def main():
     print(f"Trajanje: {fmt_time(pj['duration'])} → {fmt_time(final)}  (izrezano {pj['duration'] - final:.1f}s, {n} kadrova, {len(zr)} zumova)")
     if removed:
         print(f"Izbačeni odsječci: {', '.join('#' + str(i) for i in removed)}")
+    if edit.get("izrezi"):
+        print(f"Izrezano naredbama po vremenu (dijelova: {len(edit['izrezi'])}), popis: python uredi.py {proj.name} popis")
 
 
 def stills_mode(a, proj, cuts, zr, factor, grade, subs, speed, W, H, total):

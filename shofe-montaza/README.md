@@ -28,6 +28,15 @@ Prvi put transkripcija skida model (~1,6 GB), pa traje nekoliko minuta. Poslije 
 Ispravci se traže običnim riječima, novi render traje oko minutu:
 "povećaj titlove", "titlovi gore", "bez zumova", "toplije boje", "malo brže", "makni dio o cijeni", "promijeni naslov u ...", "plava boja", "glazba tiša", "probaj stil udarno".
 
+Možeš reći i **vremena iz gotovog videa** — onako kako ih vidiš dok ga gledaš:
+
+- `makni od 1:20 do 1:45` ili `izreži 0:05-0:08 i 1:10-1:12`
+- `zadrži samo 0:10-0:40`
+- `što je na 1:20?`
+- `vrati kako je bilo` (poništi zadnju naredbu, može i više puta)
+
+Vremena se uvijek čitaju iz zadnjeg videa koji si dobio, pa možeš reći nekoliko naredbi zaredom dok gledaš isti video. Rez nikad ne pada usred riječi: Claude ti javi koje su riječi otišle i koliko je video sad dug.
+
 Svaka verzija se sprema kao `reel_v1.mp4`, `reel_v2.mp4`... u mapi `shofe_projekt`. Originalni klipovi se nikad ne diraju.
 
 ## Karta videa

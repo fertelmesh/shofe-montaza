@@ -2,6 +2,16 @@
 
 Svaka značajna odluka: datum, odluka, zašto, alternative, izvori. Najnovije na vrhu.
 
+## 2026-11-25 — Naredbe po vremenu (uredi.py): rezovi u vremenu izvornog videa, poravnati na riječi
+- Odluka: „makni 1:20–1:45" / „zadrži samo 0:10–0:40" pretvaraju se u popis `izrezi` u edit.json: dijelovi **izvornog** videa (`od`, `do` u sekundama source.mp4) + broj naredbe, tekst naredbe i izrezane riječi. `render.py` (build_cuts) iz zadržanih odsječaka izbacuje riječi kojima je sredina u izrezu i oduzima te dijelove od rezova. Odsječci i njihovi brojevi ostaju isti (karta videa i transcript.txt i dalje odgovaraju).
+- Vremena se čitaju iz **zadnjeg renderiranog videa** (`verzije/edit_vN.json`), jer korisnik gleda taj video: dvije naredbe zaredom bez novog rendera obje se odnose na isti video, a vremena izvornog videa u `izrezi` se ne pomiču kad se kasnije nešto drugo promijeni. `--verzija N` za stariji reel, `--trenutno` za trenutni edit.json.
+- Granice se poravnaju na riječi: riječ ide van ako joj je sredina u zadanom dijelu; rez pada u sredinu pauze između riječi (najviše 0,3 s od riječi). Kad zadano vrijeme pada usred riječi, alat to javi i kaže je li riječ otišla ili ostala. Isto rade alati za montažu po tekstu (Premiere/Firefly text-based editing, Descript): korisnik bira riječi, rez ide na granicu riječi.
+- Ispravljeni tekst (Claude ga mijenja u edit.json, pa broj riječi ne mora odgovarati transkriptu) poravna se s riječima transkripta preko difflib, pa izrez usred odsječka miče i pravi dio ispravljenog teksta.
+- „Vrati": prije svake naredbe kopija edit.json ide u `povijest/NNN_naredba.json`; `uredi.py vrati` vraća zadnju. Puni sustav verzija je M2.4.
+- Alternative: (a) mijenjati `od`/`do` odsječaka i dijeliti odsječke na dva — mijenja brojeve odsječaka i lomi ispravljeni tekst; (b) izrezi u vremenu gotovog videa — pomiču se nakon svake druge izmjene; (c) rez točno na zadanim sekundama — reže usred riječi.
+- Bez novih paketa.
+- Izvori: https://helpx.adobe.com/premiere-pro/using/text-based-editing-faq.html , https://helpx.adobe.com/firefly/web/firefly-video-editor/work-with-transcript/text-based-editing.html , https://docs.python.org/3/library/difflib.html
+
 ## 2026-11-25 — Pregled karte videa: jedna HTML datoteka s vlastitim SVG-om, bez biblioteka
 - Odluka: `pregled.py` piše `pregled.html` u mapu projekta: jedna datoteka, sav CSS i JavaScript unutra, podaci kao JSON u `<script type="application/json">`, vremenska crta crtana kao SVG u čistom JavaScriptu. Video se pušta iz `source.mp4` iz iste mape (H.264 + AAC, faststart — Edge i Chrome ga puštaju s diska). Radi bez interneta i bez servera: dvoklik u Exploreru.
 - Sadržaj: brojke (trajanje, LUFS, udio govora, tišine, govornici, loši kadrovi), video, najjači trenuci po ocjeni, vremenska crta u 5 traka (glasnoća s tišinama, govornici, teme, trenuci, slika: loši kadrovi, rezovi, spojevi klipova) sa zumom, teme, udio govornika, upozorenja, transkript po odsječcima s pretragom. Klik bilo gdje skače u videu, a trenutni odsječak se ističe dok video ide.
