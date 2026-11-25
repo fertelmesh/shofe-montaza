@@ -1,6 +1,6 @@
 ---
 name: shofe-montaza
-description: Shofe Video Editor - edits raw talking-head phone clips into finished reels (9:16) or YouTube videos (16:9) - cuts pauses, fillers and bad takes, adds Croatian word-by-word subtitles, punch-in zooms, colour grade, hook title, background music with ducking. Use when the user says "montiraj", "montiraj ga", "napravi reel", "izreži pauze", "dodaj titlove", "analiziraj video", "što je u ovom videu", "pokaži kartu videa", "najjači trenuci", "tko govori", or asks to edit/cut/analyse video clips; also for revisions of a reel made with it ("povećaj titlove", "drugi stil", "makni dio o...").
+description: Shofe Video Editor - edits raw talking-head phone clips into finished reels (9:16) or YouTube videos (16:9) - cuts pauses, fillers and bad takes, adds Croatian word-by-word subtitles, punch-in zooms, colour grade, hook title, background music with ducking. Use when the user says "montiraj", "montiraj ga", "napravi reel", "izreži pauze", "dodaj titlove", "analiziraj video", "što je u ovom videu", "pokaži kartu videa", "najjači trenuci", "tko govori", or asks to edit/cut/analyse video clips; also for revisions of a reel made with it ("povećaj titlove", "drugi stil", "makni dio o..."), and time-based commands on a rendered video ("makni od 1:20 do 1:45", "izreži 0:05-0:08", "zadrži samo 0:10-0:40", "što je na 1:20", "vrati kako je bilo").
 ---
 
 # Shofe montaža
@@ -38,6 +38,19 @@ On Windows use forward slashes and quote every path: `python "<skill>/scripts/re
 9. **Render**: `python "<skill>/scripts/render.py" shofe_projekt` → `reel_vN.mp4` (new version each time; the edit used is saved in `verzije/`). `--brzo` gives a fast half-resolution preview; `--kvaliteta visoka` for the final YouTube upload.
 10. **Report** in 3–4 lines: file path, length before → after, what was cut (segment numbers + a few words each), style. Offer the most useful next tweak, not a list.
 
+## Commands by time in the finished video (`uredi.py`)
+
+When the user names times they saw in the rendered video ("makni od 1:20 do 1:45", "izreži 0:05–0:08 i 1:10–1:12", "zadrži samo 0:10–0:40"), do NOT convert them to segments yourself — the finished video is cut, sped up and shifted, so its times differ from `transcript.txt`. Use:
+
+- `python "<skill>/scripts/uredi.py" shofe_projekt makni 1:20-1:45 [more ranges]` — removes that part of the finished video.
+- `python "<skill>/scripts/uredi.py" shofe_projekt zadrzi 0:10-0:40` — keeps only that part (everything else goes out).
+- Times are read from the **last rendered version** (`reel_vN`, what the user watched), so several commands in a row without a new render all use the same video. `--verzija N` if the user means an older reel; `--trenutno` to use the current edit.json (e.g. after `popis`). Formats: `1:20`, `1:20.5`, `0:01:20`, `80`, `od 1:20 do 1:45`.
+- Cuts snap to whole words (a word goes out if its middle is inside the range) and are written to `edit.json` → `izrezi` (source seconds, with the command and the removed text). It prints the removed words and the new length: read them and tell the user in one line what was removed („…prve riječi … zadnje…“). If the cut leaves a broken sentence (it prints notes when a time falls inside a word), suggest extending it to the sentence end.
+- Add `--proba` to preview without changing anything (use it when the user's range looks odd, e.g. very long).
+- `python "<skill>/scripts/uredi.py" shofe_projekt popis` — finished-video timeline: each kept segment with its times and text, plus the time cuts. Use it to answer "što je na 1:20?" or to check a range before cutting.
+- `python "<skill>/scripts/uredi.py" shofe_projekt vrati` — undo the last uredi.py command (repeat to go further back; history is in `povijest/`). "Vrati kako je bilo" for a whole render version: copy `verzije/edit_vN.json` over `edit.json`.
+- Then render (`render.py`, or `--kadar` first if the cut is near the hook). `plan.py --prepisi` starts from scratch and drops `izrezi`.
+
 ## Revisions (no re-transcribing)
 
 Change `edit.json`, then run `render.py` again. Only rerun `prepare.py` + `transcribe.py` (+ `govornici.py`, `analyze.py`) if clips were added/replaced; rerun `prepare.py` alone (same clips) to change cropping — the transcript stays valid.
@@ -56,6 +69,7 @@ Change `edit.json`, then run `render.py` again. Only rerun `prepare.py` + `trans
 | dodaj glazbu | `glazba`: path to an mp3/wav the user owns or has rights to |
 | glazba tiša / glasnija | `glazba_glasnoca`: -24 / -16 (dB, default -20) |
 | makni dio o X | find the segment(s) in `odsjecci`, set `"zadrzi": false` |
+| makni 1:20–1:45 / zadrži samo 0:10–0:40 | `uredi.py` (see above), never by hand |
 | vrati dio o X | set `"zadrzi": true` |
 | promijeni naslov | `hook`; `hook_trajanje` for how long it shows |
 | traka napretka | `traka_napretka`: true |

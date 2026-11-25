@@ -58,3 +58,12 @@ Jedan unos po krugu, najnoviji na dnu.
 - Proizvod nepromijenjen (verzija ostaje 0.5.0). Testovi lokalno: 50 prošlo, 1 preskočen.
 - Za Marka: issue „Pregled M1" — instalacija, jedan pravi reel, jedna dulja snimka s 2–3 osobe (izmjeriti vrijeme karte videa; cilj sat snimke ≤ 20 min), testni klipovi u `tests/real/`, otvorene odluke (laptop, kamere u R4).
 - Sljedeće: M2.1 `uredi.py` (naredbe po vremenu).
+
+## 2026-11-25 08:50 — M2.1 naredbe po vremenu (uredi.py)
+- Živa specifikacija pročitana: bez promjena. Issue #7 (Pregled M1) još bez Markova odgovora; otvorenih PR-ova nema.
+- Novo: `uredi.py` — `makni 1:20-1:45` (i više dijelova odjednom), `zadrzi 0:10-0:40`, `popis` (što je gdje u gotovom videu), `vrati` (poništi zadnju naredbu, može i više puta), `--proba`. Vremena se čitaju iz zadnjeg renderiranog videa (ono što je Marko gledao); `--verzija N`, `--trenutno`. Prima `1:20`, `1:20,5`, `0:01:20`, `80`, `od 1:20 do 1:45`, dugu crticu s mobitela.
+- Rezovi se poravnaju na cijele riječi i upisuju u edit.json kao `izrezi` u vremenu izvornog videa; `render.py` ih poštuje (i ispravljeni tekst titlova prati rez). Brojevi odsječaka se ne mijenjaju. Odluka u ODLUKE.md. Verzija 0.6.0.
+- SKILL.md: Claude za vremena iz videa uvijek koristi uredi.py, javi koje su riječi otišle i novo trajanje. README za Marka dopunjen.
+- Provjera očima: kadrovi nakon „makni" — titlovi nastavljaju točno iza reza, bez izrezanih riječi.
+- Testovi: novi `tests/test_uredi.py` (23: oblici vremena, točne riječi, granica usred riječi, zadrži, vrati, proba, vremena iz zadnjeg rendera, ispravljeni tekst, pravi render s duljinom). Lokalno 71 prošlo, 3 preskočena.
+- Sljedeće: M2.2 naredbe po sadržaju (testni skup od 10 naredbi).
