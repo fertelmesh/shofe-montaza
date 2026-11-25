@@ -115,8 +115,10 @@ def test_srt_and_vtt_format(tmp_path):
     titlovi.write_vtt(tmp_path / "a.vtt", cues)
     raw = (tmp_path / "a.srt").read_bytes()
     assert raw.startswith(b"\xef\xbb\xbf")                 # BOM za Windows programe
-    parsed = parse_srt(raw.decode("utf-8-sig"))
+    assert b"\r\n" in raw and b"\n" not in raw.replace(b"\r\n", b"")   # CRLF na svakom sustavu
+    parsed = parse_srt(raw.decode("utf-8-sig").replace("\r\n", "\n"))
     assert len(parsed) == len(cues) and "Šteta!" in parsed[-1][2][0]
+    assert b"\r" not in (tmp_path / "a.vtt").read_bytes()
     vtt = (tmp_path / "a.vtt").read_text(encoding="utf-8")
     assert vtt.startswith("WEBVTT\n\n") and "00:00:00.000 --> " in vtt
     assert titlovi._ts(3725.4567, ",") == "01:02:05,457"

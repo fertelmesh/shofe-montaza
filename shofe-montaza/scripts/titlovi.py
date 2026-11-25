@@ -137,13 +137,15 @@ def vtt_text(cues):
 
 
 def write_srt(path, cues):
-    # UTF-8 s BOM-om: YouTube ga prihvaća, a Windows programi (DaVinci, Premiere, Notepad) tada
-    # sigurno čitaju č ć š ž đ
-    Path(path).write_text(srt_text(cues), encoding="utf-8-sig")
+    # UTF-8 s BOM-om i CRLF (klasični SubRip) na svakom sustavu: YouTube ga prihvaća, a Windows
+    # programi (DaVinci, Premiere, Notepad) tada sigurno čitaju č ć š ž đ
+    with open(path, "w", encoding="utf-8-sig", newline="\r\n") as f:  # Path.write_text(newline=) tek od 3.10
+        f.write(srt_text(cues))
 
 
 def write_vtt(path, cues):
-    Path(path).write_text(vtt_text(cues), encoding="utf-8")
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(vtt_text(cues))
 
 
 # ---------------------------------------------------------------- iz projekta
