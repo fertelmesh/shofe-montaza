@@ -1,0 +1,99 @@
+{
+  "opis": "Testni skup za M2.2 (naredbe po sadržaju). Izmišljeni reel 'SF klima savjeti' s tri pokušaja uvoda i zabunom u cijeni. 'koraci' su argumenti koje Claude preda uredi.py nakon čitanja transcript.txt; 'van' / 'vraca' / 'ostaje' je točan očekivani tekst gotovog videa u odnosu na početni plan (plan.py). Svaka naredba kreće od početnog plana.",
+  "recenice": [
+    ["Bok ekipa, ovdje Marko iz SF klime.", 0.6],
+    ["Danas vam pokazujem tri", 1.0],
+    ["Danas vam pokazujem tri stvari o klima uređajima.", 0.9],
+    ["Danas vam pokazujem tri stvari koje morate znati o klima uređajima.", 1.0],
+    ["Prvo, koliko košta klima uređaj?", 0.4],
+    ["Dobar uređaj za dnevni boravak košta oko tisuću eura.", 0.4],
+    ["Ugradnja je još dvjesto, ne, tristo eura.", 0.9],
+    ["Drugo, ugradnja.", 0.4],
+    ["Ugradnja traje jedan dan i radimo je mi.", 0.4],
+    ["Radimo i subotom ako vam radnim danom ne odgovara.", 0.4],
+    ["Ugradnja zimi nije problem.", 0.9],
+    ["Treće, održavanje.", 0.4],
+    ["Filter čistite svakih mjesec dana.", 0.4],
+    ["Samo ga isperite pod mlakom vodom i osušite.", 0.4],
+    ["Servis jednom godišnje produljuje život uređaja.", 0.9],
+    ["Zimi klima i grije, i to jeftinije od radijatora.", 0.6],
+    ["Pratite SF klimu za još savjeta!", 0.5]
+  ],
+  "teme": [
+    {"naslov": "Uvod i pozdrav", "recenice": [0, 3]},
+    {"naslov": "Koliko košta klima", "sazetak": "Cijena uređaja i ugradnje.", "recenice": [4, 6]},
+    {"naslov": "Ugradnja", "recenice": [7, 10]},
+    {"naslov": "Održavanje i servis", "recenice": [11, 14]},
+    {"naslov": "Grijanje zimi", "recenice": [15, 15]},
+    {"naslov": "Poziv na praćenje", "recenice": [16, 16]}
+  ],
+  "naredbe": [
+    {
+      "naredba": "izreži dio gdje pričam o cijeni",
+      "koraci": [["makni", "--od", "Prvo, koliko košta", "--do", "tristo eura."]],
+      "van": "Prvo, koliko košta klima uređaj? Dobar uređaj za dnevni boravak košta oko tisuću eura. Ugradnja je još dvjesto, ne, tristo eura."
+    },
+    {
+      "naredba": "makni rečenicu o suboti",
+      "koraci": [["makni", "--od", "Radimo i subotom", "--cijele-recenice"]],
+      "van": "Radimo i subotom ako vam radnim danom ne odgovara."
+    },
+    {
+      "naredba": "zadrži drugi pokušaj uvoda",
+      "koraci": [
+        ["dodaj", "--od", "Danas vam pokazujem tri stvari o klima uređajima."],
+        ["makni", "--od", "tri stvari koje morate znati", "--cijele-recenice"]
+      ],
+      "van": "Danas vam pokazujem tri stvari koje morate znati o klima uređajima.",
+      "vraca": "Danas vam pokazujem tri stvari o klima uređajima."
+    },
+    {
+      "naredba": "makni dio o održavanju",
+      "koraci": [["makni", "--tema", "održavanje"]],
+      "van": "Treće, održavanje. Filter čistite svakih mjesec dana. Samo ga isperite pod mlakom vodom i osušite. Servis jednom godišnje produljuje život uređaja."
+    },
+    {
+      "naredba": "izbaci ono gdje se zabunim s cijenom ugradnje",
+      "koraci": [["makni", "--od", "dvjesto, ne,"]],
+      "van": "dvjesto, ne,"
+    },
+    {
+      "naredba": "zadrži samo savjet o filteru",
+      "koraci": [["zadrzi", "--od", "Filter čistite", "--do", "osušite."]],
+      "ostaje": "Filter čistite svakih mjesec dana. Samo ga isperite pod mlakom vodom i osušite."
+    },
+    {
+      "naredba": "makni dio gdje pričam o grijanju zimi",
+      "koraci": [
+        {"args": ["makni", "--od", "zimi", "--cijele-recenice"], "greska": "pojavljuje 2 puta"},
+        ["makni", "--od", "zimi", "--pojava", "2", "--cijele-recenice"]
+      ],
+      "van": "Zimi klima i grije, i to jeftinije od radijatora."
+    },
+    {
+      "naredba": "makni cijenu, ali ostavi rečenicu o tisuću eura",
+      "koraci": [
+        ["makni", "--tema", "koliko košta"],
+        ["dodaj", "--od", "tisuću eura", "--cijele-recenice"]
+      ],
+      "van": "Prvo, koliko košta klima uređaj? Ugradnja je još dvjesto, ne, tristo eura."
+    },
+    {
+      "naredba": "makni dio o servisu (Claude citira bez kvačica i u drugom padežu)",
+      "koraci": [["makni", "--od", "servis jednom godisnje produljuje zivot uredaja"]],
+      "van": "Servis jednom godišnje produljuje život uređaja."
+    },
+    {
+      "naredba": "makni odsječak 9 (Claude ga je našao u transcript.txt)",
+      "koraci": [["makni", "--odsjecak", "9"]],
+      "van": "Ugradnja traje jedan dan i radimo je mi."
+    },
+    {
+      "naredba": "citat kojeg nema u transkriptu se ne reže (zaštita od krivog reza)",
+      "koraci": [
+        {"args": ["makni", "--od", "kolko kosta klima", "--do", "jeftinije od peći"], "greska": "nije u transkriptu"}
+      ],
+      "van": ""
+    }
+  ]
+}

@@ -67,3 +67,13 @@ Jedan unos po krugu, najnoviji na dnu.
 - Provjera očima: kadrovi nakon „makni" — titlovi nastavljaju točno iza reza, bez izrezanih riječi.
 - Testovi: novi `tests/test_uredi.py` (23: oblici vremena, točne riječi, granica usred riječi, zadrži, vrati, proba, vremena iz zadnjeg rendera, ispravljeni tekst, pravi render s duljinom). Lokalno 71 prošlo, 3 preskočena.
 - Sljedeće: M2.2 naredbe po sadržaju (testni skup od 10 naredbi).
+
+## 2026-11-25 10:25 — M2.2 naredbe po sadržaju
+- Živa specifikacija pročitana: bez promjena. Issue #7 (Pregled M1) još bez Markova odgovora; otvorenih PR-ova nema.
+- Novo: `uredi.py` radi i po sadržaju. Claude u transcript.txt nađe dio i preda doslovni citat: `makni --od "Prvo, koliko košta" --do "tristo eura."`; ili `--tema "održavanje"` (iz analiza.json), `--odsjecak 5-7`, `--rijeci 40-62`. `--cijele-recenice` širi na cijele rečenice. Nove naredbe: `dodaj` (vrati izbačeni dio, npr. drugi pokušaj ili maknutu temu) i `trazi "riječ"` (gdje se spominje, s vremenima u gotovom videu). `zadrzi` po sadržaju može vratiti i izbačene riječi.
+- Novi `sadrzaj.py`: citat mora postojati u transkriptu (inače greška + najsličniji dijelovi), više pojava → popis s vremenima i `--pojava N`. Ne smetaju mu kvačice, velika slova, drugi padež ni sitne greške prepoznavanja; traži i u Claudeovim ispravcima teksta. Upozori kad odabir počinje/završava usred rečenice. Odluka i izvori u ODLUKE.md. Verzija 0.7.0.
+- Testni skup od 11 naredbi (`tests/fixtures/naredbe_sadrzaj.json`, izmišljeni reel SF klima s tri pokušaja uvoda): „izreži dio o cijeni", „zadrži drugi pokušaj uvoda", „makni dio o održavanju", „zadrži samo savjet o filteru", „makni cijenu ali ostavi rečenicu o tisuću eura", citat bez kvačica, dvosmislen citat, izmišljeni citat… — svih 11 pogađa točne riječi.
+- Provjera očima: render nakon „vrati drugi pokušaj + makni cijenu" — vremenski kod izvornog videa u kadrovima potvrđuje da su na pravim mjestima drugi pokušaj (6,4 s) i rečenica o tisuću eura (20,6 s); titlovi odgovaraju.
+- Testovi: novi `tests/test_sadrzaj.py` (23 testa, uključujući pravi render). Lokalno 93 prošlo, 3 preskočena.
+- Za Marka: ništa sad. Pravo mjerilo („9 od 10 naredbi pogodi pravi dio") provjerit ćemo na tvojim snimkama u pregledu M2.
+- Sljedeće: M2.3 „skrati na N sekundi".

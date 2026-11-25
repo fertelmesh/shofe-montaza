@@ -1,6 +1,6 @@
 ---
 name: shofe-montaza
-description: Shofe Video Editor - edits raw talking-head phone clips into finished reels (9:16) or YouTube videos (16:9) - cuts pauses, fillers and bad takes, adds Croatian word-by-word subtitles, punch-in zooms, colour grade, hook title, background music with ducking. Use when the user says "montiraj", "montiraj ga", "napravi reel", "izreži pauze", "dodaj titlove", "analiziraj video", "što je u ovom videu", "pokaži kartu videa", "najjači trenuci", "tko govori", or asks to edit/cut/analyse video clips; also for revisions of a reel made with it ("povećaj titlove", "drugi stil", "makni dio o..."), and time-based commands on a rendered video ("makni od 1:20 do 1:45", "izreži 0:05-0:08", "zadrži samo 0:10-0:40", "što je na 1:20", "vrati kako je bilo").
+description: Shofe Video Editor - edits raw talking-head phone clips into finished reels (9:16) or YouTube videos (16:9) - cuts pauses, fillers and bad takes, adds Croatian word-by-word subtitles, punch-in zooms, colour grade, hook title, background music with ducking. Use when the user says "montiraj", "montiraj ga", "napravi reel", "izreži pauze", "dodaj titlove", "analiziraj video", "što je u ovom videu", "pokaži kartu videa", "najjači trenuci", "tko govori", or asks to edit/cut/analyse video clips; also for revisions of a reel made with it ("povećaj titlove", "drugi stil", "makni dio o..."), time-based commands on a rendered video ("makni od 1:20 do 1:45", "izreži 0:05-0:08", "zadrži samo 0:10-0:40", "što je na 1:20", "vrati kako je bilo") and content-based commands ("izreži dio gdje pričam o cijeni", "zadrži drugi pokušaj", "zadrži samo savjet o X", "vrati dio o X", "gdje spominjem X").
 ---
 
 # Shofe montaža
@@ -51,6 +51,19 @@ When the user names times they saw in the rendered video ("makni od 1:20 do 1:45
 - `python "<skill>/scripts/uredi.py" shofe_projekt vrati` — undo the last uredi.py command (repeat to go further back; history is in `povijest/`). "Vrati kako je bilo" for a whole render version: copy `verzije/edit_vN.json` over `edit.json`.
 - Then render (`render.py`, or `--kadar` first if the cut is near the hook). `plan.py --prepisi` starts from scratch and drops `izrezi`.
 
+## Commands by content (`uredi.py` with quotes)
+
+When the user describes WHAT to cut or keep ("izreži dio gdje pričam o cijeni", "makni rečenicu o suboti", "zadrži drugi pokušaj", "zadrži samo savjet o filteru", "vrati dio o održavanju"), **you** find the part in `transcript.txt` (and `analiza.json` topics), then let the tool cut by exact words — never edit `odsjecci`/`izrezi` by hand for this:
+
+- `python "<skill>/scripts/uredi.py" shofe_projekt makni --od "Prvo, koliko košta" --do "tristo eura."` — from the first quote to the end of the second (quotes copied verbatim from transcript.txt, 2–5 words each; the end is searched after the start). Without `--do` the quote itself is the selection.
+- `--cijele-recenice` extends the selection to whole sentences. Use it whenever the user talks about a sentence/part/topic, not specific words.
+- `--tema "održavanje"` or `--tema 4` — a whole topic from `analiza.json` `teme`. `--odsjecak 5-7,9` — segment numbers from transcript.txt. `--rijeci 40-62` — word numbers from `trazi`. Several selectors add up.
+- Commands: `makni` (out of the video), `zadrzi` (only this stays; it also brings back words that were cut), `dodaj` (put back a cut part: a dropped retake, a removed topic — the segment is switched on and earlier cuts over it shrink).
+- "zadrži drugi pokušaj" = two commands: `dodaj --od "<start of take 2>" --cijele-recenice`, then `makni` the take that was kept (check transcript.txt: `X` segments are dropped takes).
+- `python "<skill>/scripts/uredi.py" shofe_projekt trazi "cijena"` — where a word/phrase is said: word number, source time, time in the last rendered video, segment, context, and whether it is currently cut. Use it when unsure.
+- Matching ignores case, punctuation and diacritics and accepts other forms of a word (cijena/cijenu) and small ASR errors; your corrected `tekst` in edit.json is searchable too. A quote that is not in the transcript is an error with the closest matches — never guess, re-read transcript.txt. If a quote occurs more than once it lists all with times: add words or `--pojava N` (ask the user only if the request itself is ambiguous).
+- Read the output: it prints the selected text, every part that goes out / comes back with its time in the finished video, notes when a selection starts or ends mid-sentence, and the new length. Tell the user in one or two lines what went out or came back. `--proba` first when the selection is large (a whole topic) or you are unsure. `vrati` undoes it like any uredi.py command.
+
 ## Revisions (no re-transcribing)
 
 Change `edit.json`, then run `render.py` again. Only rerun `prepare.py` + `transcribe.py` (+ `govornici.py`, `analyze.py`) if clips were added/replaced; rerun `prepare.py` alone (same clips) to change cropping — the transcript stays valid.
@@ -68,9 +81,9 @@ Change `edit.json`, then run `render.py` again. Only rerun `prepare.py` + `trans
 | brže / sporije | `brzina`: 1.1 (max ~1.25 for speech) / 1.0 |
 | dodaj glazbu | `glazba`: path to an mp3/wav the user owns or has rights to |
 | glazba tiša / glasnija | `glazba_glasnoca`: -24 / -16 (dB, default -20) |
-| makni dio o X | find the segment(s) in `odsjecci`, set `"zadrzi": false` |
+| makni dio o X | `uredi.py makni --od … --do …` / `--tema` (see "Commands by content") |
 | makni 1:20–1:45 / zadrži samo 0:10–0:40 | `uredi.py` (see above), never by hand |
-| vrati dio o X | set `"zadrzi": true` |
+| vrati dio o X / zadrži drugi pokušaj | `uredi.py dodaj --od … --cijele-recenice` (+ `makni` the other take) |
 | promijeni naslov | `hook`; `hook_trajanje` for how long it shows |
 | traka napretka | `traka_napretka`: true |
 | kraće pauze / više zraka | pick a style with tighter/looser cuts, or edit `rezanje` in that style's JSON |
