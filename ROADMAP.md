@@ -29,7 +29,7 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
   - [x] M2.5b Rječnik se sam nadopunjuje iz Markovih/Claudeovih ispravaka teksta (edit.json `tekst` vs transkript) (#14)
   - [x] M2.5c Engleski prijevod titlova (opcija): Claude prevodi po titlovima, `reel_vN.en.srt` (#15)
 - [x] M2.6 Izvoz u DaVinci: FCPXML timeline s originalnim klipovima i istim rezovima + SRT; validacija XML-a u testu; upute u README (#16)
-- [ ] M2.7 Pregled M2: demo + issue
+- [x] M2.7 Pregled M2: demo + issue (#PR)
 
 ## M3 Isječci za mreže
 

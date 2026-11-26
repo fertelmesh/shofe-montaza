@@ -137,3 +137,12 @@ Jedan unos po krugu, najnoviji na dnu.
 - Testovi: novi `tests/test_davinci.py` (6). Lokalno 181 prošlo, 3 preskočena (prije DTD testova). `lxml` dodan u requirements-dev.
 - Za Marka (na pregledu M2): otvori `reel_vN.fcpxml` u DaVinciju — jedina nesigurnost je kadriranje vodoravnih snimki (mjerna jedinica pozicije u FCPXML-u nije službeno opisana); ako je krivo, `--izvor priprema` uvijek radi.
 - Sljedeće: M2.7 Pregled M2 (demo + issue).
+
+## 2026-11-26 00:40 — M2.7 pregled M2 (demo + issue)
+- Živa specifikacija pročitana: bez promjena u zahtjevima (samo procjena trajanja i rečenica o tjednoj probi na laptopu). Issue #7 (Pregled M1) još bez Markova odgovora; otvorenih PR-ova nema.
+- Novo: `tests/make_demo_m2.py` napravi demo u `demo/` iz probnog reela „SF klima" (2 klipa, espeak glas, na slici vremenski kod izvornog klipa): `M2_naredbe.mp4` (88 s, 5,3 MB: automatski plan → „zadrži drugi pokušaj uvoda + izreži dio o cijeni" → „makni od 0:10,5 do 0:13,8" → „skrati na 20 s, filter ostaje"; prije svakog koraka kartica s naredbom, odgovorom alata i trajanjem), `M2_engleski.mp4` (zadnja verzija + engleski SRT), `M2_verzije.png` (popis verzija, usporedba, Claudeove ocjene misli), `M2_davinci.png` (timeline nacrtan iz `reel_v4.fcpxml`: 7 kadrova iz originala, vremenski kod, zumovi, glazba, oznake).
+- Stari M1 demo maknut iz `demo/` (ostaje u povijesti, poveznica u `demo/README.md`); issue #7 sada pokazuje na tu trajnu poveznicu.
+- Provjera očima: kartice, kadrovi svake verzije (vremenski kod izvornog klipa vidljivo skače na mjestima rezova), engleski titlovi točno uz govor, slika timelinea.
+- Proizvod nepromijenjen (verzija ostaje 0.13.0). Testovi: novi `tests/test_demo_m2.py` (3); lokalno 184 prošlo, 3 preskočena.
+- Za Marka: issue „Pregled M2" — pravi reel s naredbama (cilj 9 od 10 naredbi po sadržaju), titlovi (≤ 2 ispravka), DaVinci uvoz; i dalje otvoreno iz #7 (dulja snimka, testne snimke, laptop).
+- Sljedeće: M3.1 kandidati za isječke.
