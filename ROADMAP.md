@@ -45,7 +45,9 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
 
 - [x] M4.1 Sinkronizacija više izvora po zvuku (unakrsna korelacija), test sa sintetskim pomakom ±10 s (#26)
 - [x] M4.2 Tko govori → koja kamera; pravila (najkraći kadar, široki kadar kad pričaju svi) (#27)
-- [ ] M4.2b Podcast dalje: DaVinci timeline s originalnim kamerama i glavnim zvukom; isječci 9:16 iz krupnih kadrova kamera (ne iz 16:9 programa)
+- M4.2b Podcast dalje (podijeljeno):
+  - [x] M4.2b1 DaVinci timeline podcasta: program iz originalnih kamera, ostale kamere na trakama iznad (isključene), glavni zvuk ispod (#PR)
+  - [ ] M4.2b2 Isječci 9:16 iz podcasta: iz krupnih kadrova originalnih kamera (ne iz 16:9 programa), široki kadar → kadar.py po govorniku
 - [ ] M4.3 Nastupi bendova: prepoznavanje glazbe, nikad ne rezati unutar pjesme, mix za glazbu
 - [ ] M4.4 Intro/outro/špice, poglavlja za YouTube, MP3 za podcast platforme (−16 LUFS), opis epizode
 - [ ] M4.5 Pregled M4: demo + issue
