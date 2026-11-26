@@ -186,3 +186,13 @@ Jedan unos po krugu, najnoviji na dnu.
 - Testovi: novi `tests/test_objava.py` (10). Lokalno 222 prošlo, 3 preskočena.
 - Za Marka: kad objavljuješ, reci „napiši tekstove za objavu" i javi koliko si morao mijenjati (cilj: samo sitnice). Za svaku seriju (SF klima, Sunčani put, Sunčano AJMO!, Sunčani4M) reci jednom potpis i stalne hashtagove.
 - Sljedeće: M3.4b naslovna sličica.
+
+## 2026-11-26 10:10 — M3.4b naslovna sličica
+- Živa specifikacija pročitana: bez promjena. Issues #7 i #18 (pregledi M1 i M2) još bez Markova odgovora; otvorenih PR-ova nema.
+- Novo: `naslovna.py`. Za video koji gledaš, sve isječke ili `K1,K3` ocijeni kadrove gotovog videa svakih 0,5 s (iz `source.mp4`, bez titlova, s bojom stila): veličina i oštrina lica, otvorene oči (u odnosu na isto lice drugdje u videu), svjetlo, lice prema kameri, ne uz rub, + mali bonus u Claudeovim najjačim trenucima. Napravi uz video `…naslovna_9x16.jpg` (1080×1920; lice i tekst u sredini 3:4 koju Instagram pokazuje na profilu, tekst izvan gornjih 14 % i donjih 35 % gdje su gumbi), `…naslovna_16x9.jpg` (1280×720; iz originalne vodoravne snimke krupno lice osobe koju je pokazivao uspravni kadar, tekst sa strane; iz uspravne snimke osoba desno i mutna pozadina), `…naslovna_kandidati.jpg` (6 najboljih kadrova s ocjenom i razlogom) i `…naslovna_pregled.jpg`.
+- Tekst piše Claude (2–5 riječi, `*riječ*` u boji isticanja stila, font stila); prijelom poštuje pravopis (jednoslovni prijedlog ne ostaje na kraju retka) i bira manje redaka ako su slova tek malo manja. `--kadar N`, `--vrijeme 0:12`, `--bez-teksta`; izbor kadra i tekst pamte se u `naslovna.json`. Upozorenja: dug tekst, tekst preko druge osobe, lice izvan 3:4, nema lica, zatvorene oči. `objava.py` u `.objava.txt` navodi sličice; `isjecci.py render` predlaže naslovne. SKILL.md (Claude mora pogledati pregled i kandidate) i README dopunjeni.
+- Nova ovisnost Pillow (MIT-CMU), `doctor.py` je provjerava. `requirements-dev.txt` sad ima i OpenCV i Pillow: do sada CI nije instalirao OpenCV pa su se testovi kadra (M3.2) na GitHubu preskakali. Odluka i izvori u ODLUKE.md. Verzija 0.18.0.
+- Provjera očima: probni uspravni klip (5 dijelova: malo lice, zatvorene oči, najbolje, mutno, tamno) → izabran kadar iz najboljeg dijela, kandidati s točnim razlozima; vodoravni razgovor dvije osobe → 16:9 krupno lice govornika, tekst „ŠTO RENAULT 4 KRIJE?" s druge strane, 9:16 tekst unutar 3:4.
+- Testovi: novi `tests/test_naslovna.py` (10) + `tests/make_naslovna_klip.py`.
+- Za Marka: kad imaš gotov reel, reci „napravi naslovnu sličicu" i javi bi li je objavio (ili koji kadar/tekst bi promijenio). Oči i izraz lica Shofe procjenjuje približno; Claude zato uvijek pogleda kandidate.
+- Sljedeće: M3.5 Pregled M3 (demo + issue).
