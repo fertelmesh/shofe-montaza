@@ -176,3 +176,13 @@ Jedan unos po krugu, najnoviji na dnu.
 - Za Marka: ništa sad. Kad budeš imao dulju snimku (vidi #7): „napravi isječke", odaberi, pa „napravi odabrane isječke" i pogledaj `isjecci/pregled.png`.
 - Sljedeće: M3.4 tekstovi za objavu po mreži + naslovna sličica.
 
+
+## 2026-11-26 09:00 — M3.4a tekstovi za objavu po mreži
+- Živa specifikacija pročitana: bez promjena. Issues #7 i #18 (pregledi M1 i M2) još bez Markova odgovora; otvorenih PR-ova nema.
+- M3.4 podijeljen: M3.4a tekstovi (ovaj krug), M3.4b naslovna sličica (sljedeći).
+- Novo: `objava.py`. Za reel koji gledaš (`reel_vN`), sve renderirane isječke ili `K1,K3` napravi `objava.json` s onim što se u videu stvarno čuje (iz `.srt`), hookom, naslovom i razlogom isječka. Claude piše poseban tekst za Instagram (prvi redak kao hook, korist, poziv, 3–5 hashtagova), TikTok (kraće, pitanje, ključne riječi) i YouTube (naslov ≤ ~60 znakova, kratki opis); Shofe provjeri pravila mreža (IG/TikTok najviše 5 hashtagova, duljine, YouTube bez < >, zamjenski tekst) i upozori na broj koji se ne čuje u videu, isti opis na dvije mreže, dug prvi redak, hashtag s kvačicama. Gotov tekst za kopiranje: `<video>.objava.txt` uz video + `objava.txt` u projektu. Uspravni video do 3 min → sve tri mreže (YouTube Short), 16:9 → samo YouTube; `--mreze` bira.
+- Serije: `objava.py serija "SF klima" --hashtagovi … --potpis … --napomena …` pamti Markov potpis, do 3 stalna hashtaga i ton u `%LOCALAPPDATA%/Shofe` (vrijedi za sve projekte); `--serija` ih dodaje u projektu. `isjecci.py render` na kraju predloži tekstove. SKILL.md i README dopunjeni; odluka i izvori u ODLUKE.md. Verzija 0.17.0.
+- Provjera: probni reel „čišćenje klime" (pravi render) + serija SF klima → tekstovi za sve tri mreže s potpisom i 5 hashtagova; upozorenje na „broj 2" nestalo nakon dodavanja rednih brojeva („Prvi korak… Drugi korak").
+- Testovi: novi `tests/test_objava.py` (10). Lokalno 222 prošlo, 3 preskočena.
+- Za Marka: kad objavljuješ, reci „napiši tekstove za objavu" i javi koliko si morao mijenjati (cilj: samo sitnice). Za svaku seriju (SF klima, Sunčani put, Sunčano AJMO!, Sunčani4M) reci jednom potpis i stalne hashtagove.
+- Sljedeće: M3.4b naslovna sličica.

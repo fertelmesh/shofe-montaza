@@ -760,6 +760,7 @@ def cmd_render(proj, sn, a):
     if pr:
         print(f"Pregled (prva sekunda s hookom + sredina svakog isječka): {pr}")
     print("Uz svaki video: .srt (titlovi za YouTube), .fcpxml (DaVinci), .edit.json (što je montirano).")
+    print(f"Tekstovi za objavu (Instagram, TikTok, YouTube): python objava.py \"{proj}\" isjecci")
     return 0
 
 

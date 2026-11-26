@@ -36,7 +36,9 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
 - [x] M3.1 Kandidati za isječke iz dulje snimke: heuristike (jak početak, zaokružena misao, 20–60 s) + Claudeova ocjena → `isjecci.json` s ocjenom i razlogom (#19)
 - [x] M3.2 Kadar 9:16 prati govornika: detekcija lica (permisivna licenca), zaglađeni pomak, test na vodoravnom klipu s dvije osobe (#20)
 - [x] M3.3 Render odabranih isječaka u seriji, svaki sa stilom, titlovima i hookom (#21)
-- [ ] M3.4 Tekstovi za objavu po mreži + naslovna sličica (kadar + tekst)
+- M3.4 Tekstovi za objavu po mreži + naslovna sličica (podijeljeno):
+  - [x] M3.4a Tekstovi za objavu: naslov, opis i hashtagovi posebno za Instagram, TikTok i YouTube, provjera pravila mreža, serije s potpisom (#22)
+  - [ ] M3.4b Naslovna sličica: najbolji kadar (lice, oštrina, otvorene oči) + tekst, 9:16 (sigurna zona 3:4 za Instagram mrežu) i 16:9 za YouTube
 - [ ] M3.5 Pregled M3: demo + issue
 
 ## M4 Podcast Sunčani4M

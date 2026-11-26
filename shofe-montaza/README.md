@@ -73,6 +73,18 @@ Kad odabereš, reci `napravi odabrane isječke` (ili `napravi K1 i K3`, `K2 u st
 
 Za vertikalne isječke iz vodoravne snimke razgovora prvo neka kadar prati govornika (vidi niže), pa tek onda isječci.
 
+## Tekstovi za objavu
+
+Za gotov reel ili isječke reci `napiši tekstove za objavu` (ili `opis za Instagram`, `naslov za YouTube`). Claude napiše poseban tekst za svaku mrežu:
+
+- **Instagram**: prvi redak koji uvuče (to se vidi prije „više"), kratki savjet iz videa, poziv (spremi, pošalji, komentiraj) i 3–5 hashtagova
+- **TikTok**: kraće, s riječima koje ljudi traže, često pitanje za komentare
+- **YouTube**: naslov do ~60 znakova (tema na početku) i kratki opis; za uspravni video do 3 min to je Short
+
+Shofe provjeri pravila mreža (Instagram i TikTok dopuštaju najviše 5 hashtagova, YouTube naslov do 100 znakova…) i upozori na broj ili cijenu koja se ne čuje u videu, da ništa ne bude izmišljeno. Gotovo je u `reel_v3.objava.txt` (ili `isjecci/K1_….objava.txt`) uz video: tekst za svaku mrežu između crta, samo kopiraš. Sve zajedno je u `shofe_projekt/objava.txt`. Shofe ništa ne objavljuje sam.
+
+**Serije**: reci jednom `za SF klimu uvijek dodaj #sfklima i #kutina, a na kraju napiši „SF klima Kutina — montaža i servis"` i Claude to zapamti kao seriju (vrijedi u svim budućim projektima, i nakon ponovne instalacije). Isto za Sunčani put, Sunčano AJMO! i Sunčani4M, s napomenom o tonu („opuštenije", „uvijek pozovi na poruku za ponudu").
+
 ## Verzije
 
 Svaki render je nova verzija: `reel_v1.mp4`, `reel_v2.mp4`... u mapi `shofe_projekt`. Ništa se ne briše, a originalni klipovi se nikad ne diraju. Možeš reći:
