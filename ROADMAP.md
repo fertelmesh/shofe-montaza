@@ -39,7 +39,7 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
 - M3.4 Tekstovi za objavu po mreži + naslovna sličica (podijeljeno):
   - [x] M3.4a Tekstovi za objavu: naslov, opis i hashtagovi posebno za Instagram, TikTok i YouTube, provjera pravila mreža, serije s potpisom (#22)
   - [x] M3.4b Naslovna sličica: najbolji kadar (lice, oštrina, otvorene oči) + tekst, 9:16 (sigurna zona 3:4 za Instagram mrežu) i 16:9 za YouTube (#23)
-- [x] M3.5 Pregled M3: demo + issue (#PR)
+- [x] M3.5 Pregled M3: demo + issue (#24)
 
 ## M4 Podcast Sunčani4M
 
