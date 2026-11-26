@@ -155,3 +155,13 @@ Jedan unos po krugu, najnoviji na dnu.
 - Testovi: novi `tests/test_isjecci.py` (14). Lokalno 198 prošlo, 3 preskočena (prije dodavanja dokumentacije; isjecci + verzija ponovno prošli nakon).
 - Za Marka: ništa sad. Kad budeš imao dulju snimku (vidi #7), reci „napravi isječke iz ove epizode" i javi koliko od 10 bi objavio — to je cilj iz specifikacije (≥ 5).
 - Sljedeće: M3.2 kadar 9:16 prati govornika (detekcija lica).
+
+## 2026-11-26 04:40 — M3.2 kadar 9:16 prati govornika
+- Živa specifikacija pročitana: bez promjena. Issues #7 i #18 (pregledi M1 i M2) još bez Markova odgovora; otvorenih PR-ova nema.
+- Novo: `kadar.py`. Za vodoravnu snimku u 9:16 (i 4:5, 1:1) Shofe nađe lica u originalnim klipovima (YuNet u OpenCV-u, na procesoru), iz `govornici.json` i pokreta usana zaključi tko kada govori i ponovno složi `source.mp4` s kadrom koji prati govornika (ffmpeg `sendcmd` mijenja crop po sličici). Vremena se ne mijenjaju, pa transkript, govornici, analiza i edit.json ostaju valjani. Bez govornika radi samo po usnama.
+- Ponašanje: na drugog govornika rez (ne švenk), kadar najmanje 1,5 s, rez 0,15 s prije prve riječi, kamera miruje dok se lice samo njiše, a ide glatko za licem kad se osoba pomakne; glas izvan kadra ne mijenja kadar; bez lica ostaje `--crop-x`. `--analiza` (samo kadar.json), `--vrati` (natrag na nepomični kadar). DaVinci timeline dobije rez na svakoj promjeni osobe, svaki dio sa svojim položajem.
+- `prepare.py`: priprema klipa i spajanje izdvojeni u `norm_clip`/`concat` (koristi ih i kadar.py). `doctor.py` provjerava OpenCV. Nova ovisnost opencv-python-headless (Apache-2.0); model YuNet (MIT, 230 kB) u `shofe-montaza/models/`. Odluka i izvori u ODLUKE.md. Verzija 0.15.0.
+- Provjera očima: sintetski razgovor dvije nacrtane osobe (A lijevo, B desno, usta po stvarnom glasu, glas C izvan kadra) → kadrovi na 2 / 7 / 11 / 16,7 / 21,3 / 26 s pokazuju A, B, A, B, B (C govori, kadar ostaje), A; lice na sredini 9:16.
+- Testovi: novi `tests/test_kadar.py` (9: kadrovi i rupe, crop iz položaja lica, naredbe za ffmpeg bez švenka na rezu, spajanje govornika i usana, miruje/prati, cijeli put s govornicima i samo s usnama, DaVinci slika iz originala = source.mp4, `--vrati`, uspravni klip i klip bez lica) + `tests/make_kadar_klip.py`.
+- Za Marka: ništa sad. Kad pošalješ vodoravnu snimku razgovora (vidi #7), reci „napravi reel 9:16, kadar neka prati onoga tko priča" i javi je li kadar ikad na krivoj osobi.
+- Sljedeće: M3.3 render odabranih isječaka u seriji.

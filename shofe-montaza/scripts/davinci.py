@@ -139,14 +139,37 @@ def pieces_for(cuts, clips, fps, use_originals):
                 break
             res.append({"clip": k, "src": Fraction(pos - ca, fps), "frames": end - pos, "out": O + (pos - A)})
             pos = end
+    res = split_by_framing(res, clips, fps) if use_originals else res
     # zaokruživanje početaka klipova (ms) zna dati kadar od 1 sličice na spoju: pripoji ga susjedu
     merged = []
     for p in res:
-        if merged and p["frames"] <= 1 and merged[-1]["out"] + merged[-1]["frames"] == p["out"]:
+        if (merged and p["frames"] <= 1 and merged[-1]["out"] + merged[-1]["frames"] == p["out"]
+                and merged[-1].get("crop_x") == p.get("crop_x")):
             merged[-1]["frames"] += p["frames"]
         else:
             merged.append(p)
     return merged
+
+
+def split_by_framing(pieces, clips, fps):
+    """Kadar prati govornika (kadar.py): kadar iz originala se dijeli na promjeni govornika, a svaki dio
+    dobije svoj crop_x (kao rez u multicam montaži). Kadar u kojem kamera ide za licem dobije srednji položaj."""
+    out = []
+    for p in pieces:
+        c = clips[p["clip"]] if p["clip"] is not None else {}
+        ks = c.get("kadrovi") or []
+        if not ks:
+            out.append(p)
+            continue
+        a0 = round(p["src"] * fps)
+        pos, end = a0, a0 + p["frames"]
+        while pos < end:
+            k = next((k for k in ks if round(k["od"] * fps) <= pos < round(k["do"] * fps)), ks[-1])
+            stop = min(end, max(pos + 1, round(k["do"] * fps))) if k is not ks[-1] else end
+            out.append({**p, "src": Fraction(pos, fps), "frames": stop - pos, "out": p["out"] + (pos - a0),
+                        "crop_x": k["crop_x"]})
+            pos = stop
+    return out
 
 
 def framing(clip, W, H, zoom=1.0):
@@ -264,7 +287,7 @@ def build(proj, edit, use_originals=True, name=None):
         else:
             c = clips[p["clip"]]
             a = asset_for(p["clip"], c["file"], Path(c["file"]).name)
-            clip = c
+            clip = {**c, "crop_x": p["crop_x"]} if "crop_x" in p else c
         src_start = a["tc"] + on_grid(p["src"], a["afd"])
         mid = (p["out"] + p["frames"] / 2) / fps          # sredina kadra u vremenu prije brzine
         z = factor if factor and any(s <= mid < e for s, e in zr) else 1.0

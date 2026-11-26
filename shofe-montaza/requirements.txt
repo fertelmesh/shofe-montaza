@@ -1,5 +1,6 @@
 # Python paketi koje Shofe treba (install.ps1 i doctor.py --popravi instaliraju iz ove datoteke).
-# Licence: faster-whisper MIT, numpy BSD-3-Clause, sherpa-onnx Apache-2.0.
+# Licence: faster-whisper MIT, numpy BSD-3-Clause, sherpa-onnx Apache-2.0, opencv-python-headless Apache-2.0.
 faster-whisper>=1.1,<2
 numpy>=1.24
 sherpa-onnx>=1.12,<3
+opencv-python-headless>=4.8

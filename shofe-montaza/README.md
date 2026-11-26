@@ -128,6 +128,15 @@ Kad u snimci govori više ljudi (podcast, intervju, gost u autu), Shofe prepozna
 
 Radi na procesoru, bez interneta (prvi put skine dva mala modela, ~36 MB), oko 7× brže od trajanja snimke. Ako znaš koliko vas govori, reci Claudeu — tada je točnije. Vrlo kratki odgovori („Da.", „Točno.") ponekad dobiju krivog govornika.
 
+## Kadar prati govornika
+
+Kad od vodoravne snimke (podcast, intervju, dvoje u autu) radiš reel ili isječak 9:16, Shofe može sam pomicati kadar na onoga tko govori. Reci npr.:
+
+- `kadar neka prati onoga tko priča`
+- `vrati kadar na sredinu`
+
+Shofe nađe lica u originalnim snimkama, iz govornika i pokreta usana zaključi tko kada govori i ponovno složi video. Ponaša se kao montažer: na drugog govornika prelazi rezom (ne švenkom), kratko „da" ili smijeh ne mijenja kadar, kamera miruje dok se samo njišeš, a ide za tobom kad se pomakneš. Kad govori netko koga nema u slici, kadar ostaje gdje je. Najbolje radi nakon „tko govori" (vidi gore). Rezovi, titlovi i verzije ostaju isti, a i DaVinci timeline dobije rez na svakoj promjeni govornika. Radi na procesoru, bez interneta.
+
 ## Stilovi
 
 | Stil | Za što |
