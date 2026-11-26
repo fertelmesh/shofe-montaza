@@ -43,7 +43,7 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
 
 ## M4 Podcast Sunčani4M
 
-- [ ] M4.1 Sinkronizacija više izvora po zvuku (unakrsna korelacija), test sa sintetskim pomakom ±10 s
+- [x] M4.1 Sinkronizacija više izvora po zvuku (unakrsna korelacija), test sa sintetskim pomakom ±10 s (#26)
 - [ ] M4.2 Tko govori → koja kamera; pravila (najkraći kadar, široki kadar kad pričaju svi)
 - [ ] M4.3 Nastupi bendova: prepoznavanje glazbe, nikad ne rezati unutar pjesme, mix za glazbu
 - [ ] M4.4 Intro/outro/špice, poglavlja za YouTube, MP3 za podcast platforme (−16 LUFS), opis epizode

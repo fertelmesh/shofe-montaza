@@ -166,6 +166,15 @@ Kad od vodoravne snimke (podcast, intervju, dvoje u autu) radiš reel ili isječ
 
 Shofe nađe lica u originalnim snimkama, iz govornika i pokreta usana zaključi tko kada govori i ponovno složi video. Ponaša se kao montažer: na drugog govornika prelazi rezom (ne švenkom), kratko „da" ili smijeh ne mijenja kadar, kamera miruje dok se samo njišeš, a ide za tobom kad se pomakneš. Kad govori netko koga nema u slici, kadar ostaje gdje je. Najbolje radi nakon „tko govori" (vidi gore). Rezovi, titlovi i verzije ostaju isti, a i DaVinci timeline dobije rez na svakoj promjeni govornika. Radi na procesoru, bez interneta.
 
+## Podcast: više kamera i zasebni zvuk
+
+Kad epizodu snimaš s 2–3 kamere i možda zasebnim snimačem zvuka, Shofe ih sam poravna po zvuku — bez klapne i bez ručnog pomicanja. Kamere smiju krenuti u različito vrijeme. Reci npr.:
+
+- `ovo su snimke epizode 12, sinkroniziraj kamere i zvuk` (i daj mapu sa snimkama)
+- `kamera 3 nije dobro sjela, počinje otprilike 12 sekundi prije zvuka`
+
+Glavna vremenska crta je zasebni zvuk (ako ga ima), inače najdulja kamera. Shofe za svaku kameru izmjeri gdje počinje (na tisućinku sekunde) i koliko joj sat žuri ili kasni (kamere znaju odlutati i desetinku-dvije na sat; Shofe to ispravi). Dobiješ `sinkro_provjera.mp4` — 10 sekundi svih kamera jedna uz drugu sa zvukom: usne moraju pratiti glas — i `sinkro.png`, gdje se vrhovi glasnoće svih izvora moraju poklapati. Snimka koja nije iz iste epizode ili nema zvuka bit će označena za provjeru. Za sat snimke treba oko minutu (najviše traje čitanje zvuka iz videa). Sljedeći korak (u izradi): kadar na onoga tko govori.
+
 ## Stilovi
 
 | Stil | Za što |
