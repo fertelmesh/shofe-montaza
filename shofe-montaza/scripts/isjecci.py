@@ -147,6 +147,7 @@ class Snimka:
         self.med_db = float(np.median(dbs)) if dbs else None
         self.trajanje = float(self.an.get("trajanje") or (words[-1]["e"] if words else 0.0))
         self.idf = self._idf()
+        self.pjesme = []  # [(od, do)] nastupi bendova: isječak govora ne ide preko pjesme (nastupi.py)
 
     def _idf(self):
         docs = [set(sk._terms(m.tekst)) for m in self.misli]
@@ -392,6 +393,8 @@ def svi_prozori(sn, min_s=MIN_S, max_s=MAX_S):
             d = sn.est(a, b)
             if d > max_s:
                 break
+            if sn.pjesme and any(_overlap(sn.words[a]["s"], sn.words[b]["e"], p0, p1) > 0 for p0, p1 in sn.pjesme):
+                break  # dalje bi isječak uključio pjesmu
             if d >= min_s:
                 h, _, _ = ocijeni(sn, a, b)
                 out.append((h, a, b))
@@ -448,7 +451,10 @@ def ucitaj(proj):
             an = load_json(proj / "analiza.json")
         except Exception:  # noqa: BLE001
             an = {}
-    return Snimka(words, an, speaker_names(proj))
+    sn = Snimka(words, an, speaker_names(proj))
+    import nastupi
+    sn.pjesme = [(n["od"], n["do"]) for n in nastupi.active(nastupi.load(proj))]
+    return sn
 
 
 def path_of(proj):

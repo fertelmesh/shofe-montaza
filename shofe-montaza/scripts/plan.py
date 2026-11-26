@@ -10,6 +10,7 @@ import difflib
 import re
 from pathlib import Path
 
+import nastupi as NA
 import rjecnik
 from common import die, fmt_time, list_styles, load_json, norm_word, save_json
 from govornici import load_words, speaker_names
@@ -112,10 +113,18 @@ def main():
         "odsjecci": segs,
     }
     fixed = [] if a.bez_rjecnika else rjecnik.apply_edit(edit)
+    songs = NA.active(NA.load(proj))
+    if songs:
+        NA.apply_to_edit(edit, NA.load(proj))
     save_json(proj / "edit.json", edit)
 
     lines = []
+    pending = list(songs)
     for s, g in zip(segs, groups):
+        while pending and pending[0]["od"] <= s["od"] + 0.01:
+            n = pending.pop(0)
+            lines.append(f" ♪  {n['id']}  {fmt_time(n['od'])}-{fmt_time(n['do'])}  PJESMA"
+                         + (f" „{n['naziv']}“" if n.get("naziv") else "") + " — ide cijela, ne reže se (nastupi.py)")
         unsure = [words[i]["w"] for i in g if words[i].get("p", 1) < 0.5]
         mark = "   " if s["zadrzi"] else " X "
         who = f"{names.get(s['govornik']) or s['govornik']}: " if s.get("govornik") else ""
@@ -126,7 +135,12 @@ def main():
             line += f"   [nesigurno: {', '.join(unsure)}]"
         if s.get("rjecnik"):
             line += f"   [rječnik: {', '.join(x['u'] for x in s['rjecnik'])}]"
+        song = next((n for n in songs if n["od"] <= (s["od"] + s["do"]) / 2 < n["do"]), None)
+        if song:
+            line += f"   [u pjesmi {song['id']}]"
         lines.append(line)
+    for n in pending:
+        lines.append(f" ♪  {n['id']}  {fmt_time(n['od'])}-{fmt_time(n['do'])}  PJESMA — ide cijela, ne reže se")
     (proj / "transcript.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     dropped = sum(not s["zadrzi"] for s in segs)
@@ -138,6 +152,10 @@ def main():
         print(f"\nRječnik ispravio {n} {'riječ' if n == 1 else 'riječi'}: {', '.join(uniq)}"
               f" (python rjecnik.py popis; pogrešan ispravak samo vrati u tekstu)")
     print(f"\n{len(segs)} odsječaka, {dropped} označeno za izbacivanje, ~{kept:.1f}s govora ostaje.")
+    if songs:
+        print(f"Pjesme ({len(songs)}) idu cijele, bez titlova: {', '.join(n['id'] for n in songs)} (nastupi.py popis)")
+    elif (proj / "rezija.json").exists() and not (proj / "nastupi.json").exists():
+        print(f"Podcast: ako u epizodi svira bend, prvo python nastupi.py {proj.name} (pjesme se onda ne režu)")
     print(f"Pregledaj {proj / 'edit.json'}, zatim: python render.py {proj}")
 
 

@@ -194,6 +194,16 @@ Shofe prvo složi epizodu u širokom kadru, prepozna tko govori (transkript + go
 
 **Isječci iz epizode (9:16).** Kad iz epizode napraviš isječke (`napravi odabrane isječke`), Shofe ih ne reže iz 16:9 epizode nego ih ponovno složi iz originalnih kamera, uspravno: dok netko govori, cijeli kadar je njegovo lice iz njegove kamere (mobitel snimljen uspravno ide kakav jest); ako nema svoju kameru, Shofe izreže njegovo lice iz širokog kadra. Kad pričate u isti glas ili se brzo dobacujete, kadar se podijeli: gore jedan, dolje drugi. Kad govori gost kojeg nijedna kamera ne snima, vidite se vas dvojica kako slušate. Zvuk, titlovi, hook i rezovi isti su kao inače. Ako ipak želiš vodoravne isječke (npr. za YouTube), reci `isječke vodoravno` (`--format 16:9`). Za svaki isječak u mapi `isjecci/izvor_9x16/` ostaje njegov uspravni izvor; ne briši ga ako ćeš isječak otvarati u DaVinciju.
 
+### Nastupi bendova: pjesma se ne reže
+
+Kad u autu svira bend, Shofe pjesmu pronađe sam (prvi put skine mali model od 6 MB) i nikad je ne reže iznutra: pauze između strofa, instrumentalni dijelovi i pljesak na kraju ostaju, nema titlova preko pjesme, a zvuk pjesme ne prolazi kroz čišćenje šuma i kompresor za govor (oni pojedu činele i bas) nego kroz blagu obradu za glazbu. Pozadinska glazba šuti dok bend svira. Radio koji svira ispod razgovora i kratki džinglovi nisu pjesme. Reci npr.:
+
+- `u epizodi svira bend` / `gdje su pjesme?` — dobiješ popis i `nastupi.png` (zeleno = pjesma)
+- `pjesma počinje na 12:28, ne na 12:30` / `ono na 40:00 nije pjesma` / `prva pjesma je „Kutina" od benda X`
+- `makni drugu pjesmu` / `vrati pjesmu` / `ostavi samo pjesmu` (npr. za zaseban video pjesme)
+
+Naredba „makni 3:10–3:20" koja pada usred pjesme ne reže pjesmu (Shofe javi da pjesma ostaje cijela); dio koji pokriva cijelu pjesmu makne je cijelu. Ako stvarno želiš izrezati dio pjesme (npr. solo), reci to izričito: `izreži solo iz pjesme od 3:10 do 3:40`. „Skrati na N minuta" skraćuje samo razgovor, a isječci za mreže nikad ne idu preko pjesme.
+
 ## Stilovi
 
 | Stil | Za što |
