@@ -33,6 +33,42 @@ def collect(inputs):
     return files
 
 
+def norm_clip(f, info, dst, W, H, fps, cx, cy, cmd_file=None):
+    """Jedan klip → norm_NN.mp4 u formatu projekta. cmd_file: sendcmd datoteka (ime u istoj mapi kao dst)
+    s pomacima kadra kroz vrijeme (kadar.py: kadar prati govornika); tada je cx samo početni položaj."""
+    vf = []
+    if info["hdr"]:
+        vf.append(HDR_CHAIN)
+    vf.append(f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos")
+    if cmd_file:
+        # ffmpeg čita datoteku iz radne mape (cwd), tako put nema dvotočke ni razmake (Windows)
+        vf += [f"sendcmd=f={Path(cmd_file).name}", f"crop@kadar={W}:{H}:(iw-{W})*{cx}:(ih-{H})*{cy}"]
+    else:
+        vf.append(f"crop={W}:{H}:(iw-{W})*{cx}:(ih-{H})*{cy}")
+    vf += [f"fps={fps}", "setsar=1", "format=yuv420p"]
+    dst = Path(dst)
+    cmd = [ffmpeg(), "-y", "-v", "error", "-i", Path(f).resolve()]
+    if not info["has_audio"]:
+        cmd += ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-shortest"]
+    cmd += [
+        "-vf", ",".join(vf),
+        "-map", "0:v:0", "-map", "0:a:0" if info["has_audio"] else "1:a:0",
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "15",
+        "-c:a", "aac", "-b:a", "256k", "-ar", "48000", "-ac", "2",
+        "-video_track_timescale", "15360",
+        dst.resolve(),
+    ]
+    run(cmd, cwd=dst.parent)
+    return video_info(dst)["dur"]
+
+
+def concat(parts, tmp, src):
+    lst = Path(tmp) / "concat.txt"
+    lst.write_text("".join(f"file '{Path(p).resolve().as_posix()}'\n" for p in parts), encoding="utf-8")
+    run([ffmpeg(), "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", lst, "-c", "copy",
+         "-movflags", "+faststart", src])
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("klipovi", nargs="+", help="video datoteke ili mapa (redoslijed = redoslijed u reelu)")
@@ -57,41 +93,17 @@ def main():
     for i, f in enumerate(files, 1):
         info = video_info(f)
         cx = per_clip.get(f.name.lower(), per_clip.get(f.stem.lower(), a.crop_x))
-        vf = []
-        if info["hdr"]:
-            vf.append(HDR_CHAIN)
-        vf += [
-            f"scale={W}:{H}:force_original_aspect_ratio=increase:flags=lanczos",
-            f"crop={W}:{H}:(iw-{W})*{cx}:(ih-{H})*{a.crop_y}",
-            f"fps={a.fps}",
-            "setsar=1",
-            "format=yuv420p",
-        ]
         dst = out / "_tmp" / f"norm_{i:02d}.mp4"
-        cmd = [ffmpeg(), "-y", "-v", "error", "-i", f]
-        if not info["has_audio"]:
-            cmd += ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-shortest"]
-        cmd += [
-            "-vf", ",".join(vf),
-            "-map", "0:v:0", "-map", "0:a:0" if info["has_audio"] else "1:a:0",
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "15",
-            "-c:a", "aac", "-b:a", "256k", "-ar", "48000", "-ac", "2",
-            "-video_track_timescale", "15360",
-            dst,
-        ]
         print(f"[{i}/{len(files)}] {f.name}  {info['w']}x{info['h']}  {info['dur']:.1f}s" + ("  HDR→SDR" if info["hdr"] else ""))
-        run(cmd)
-        d = video_info(dst)["dur"]
+        d = norm_clip(f, info, dst, W, H, a.fps, cx, a.crop_y)
         # kadriranje se pamti za izvoz u DaVinci (davinci.py: isti kadar iz originalne snimke)
         clips.append({"file": str(f.resolve()), "start": round(offset, 3), "dur": round(d, 3),
                       "w": info["w"], "h": info["h"], "crop_x": cx, "crop_y": a.crop_y})
         offset += d
         parts.append(dst)
 
-    lst = out / "_tmp" / "concat.txt"
-    lst.write_text("".join(f"file '{p.resolve().as_posix()}'\n" for p in parts), encoding="utf-8")
     src = out / "source.mp4"
-    run([ffmpeg(), "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", lst, "-c", "copy", "-movflags", "+faststart", src])
+    concat(parts, out / "_tmp", src)
 
     save_json(out / "project.json", {
         "format": a.format, "width": W, "height": H, "fps": a.fps,

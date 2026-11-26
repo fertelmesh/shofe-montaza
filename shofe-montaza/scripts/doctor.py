@@ -44,6 +44,15 @@ def check_sherpa():
         return False, "sherpa-onnx nije instaliran (treba za prepoznavanje govornika)"
 
 
+def check_opencv():
+    try:
+        import cv2
+        ok = hasattr(cv2, "FaceDetectorYN")
+        return ok, f"OpenCV {cv2.__version__} (lica: kadar prati govornika)" + ("" if ok else " — prestar, treba 4.8+")
+    except ImportError:
+        return False, "OpenCV nije instaliran (treba za kadar koji prati govornika)"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--popravi", action="store_true")
@@ -59,6 +68,7 @@ def main():
         "ffmpeg": check_ffmpeg(),
         "whisper": check_whisper(),
         "govornici": check_sherpa(),
+        "lica": check_opencv(),
         "fontovi": (len(list(FONTS_DIR.glob("*.ttf"))) >= 3, f"{len(list(FONTS_DIR.glob('*.ttf')))} fontova"),
         "stilovi": (len(list(STYLES_DIR.glob("*.json"))) >= 1, f"{len(list(STYLES_DIR.glob('*.json')))} stilova"),
     }
@@ -66,7 +76,7 @@ def main():
         print(f"{OK if ok else BAD} {k}: {msg}")
 
     if a.popravi:
-        if not (checks["whisper"][0] and checks["govornici"][0]):
+        if not (checks["whisper"][0] and checks["govornici"][0] and checks["lica"][0]):
             print("\nInstaliram Python pakete...")
             subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "-r", str(REQUIREMENTS)])
         if not checks["ffmpeg"][0]:
