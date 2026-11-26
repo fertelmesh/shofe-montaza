@@ -36,24 +36,7 @@ def load(p):
     return json.loads(Path(p).read_text(encoding="utf-8"))
 
 
-@pytest.fixture(scope="module")
-def podcast(tmp_path_factory):
-    """Probna epizoda iz make_rezija (zasebni zvuk + široka, kamA, uspravni kamB do 45 s), mapa s kvačicama,
-    režija s govornicima iz scenarija, transkript iz razgovor.json, plan stila Podcast."""
-    pytest.importorskip("cv2")
-    import make_rezija as MR
-    base = tmp_path_factory.mktemp("podcast čž")
-    MR.make(base / "Sunčani4M snimke")
-    proj = base / "epizoda"
-    run("sinkro.py", base / "Sunčani4M snimke", "--out", proj, "--bez-provjere")
-    run("rezija.py", proj)
-    MR.govornici_json(proj)
-    raz = load(FIX / "razgovor.json")
-    (proj / "transcript.json").write_text(json.dumps({"language": "hr", "model": "mock", "words": raz["words"]},
-                                                     ensure_ascii=False), encoding="utf-8")
-    run("rezija.py", proj)
-    run("plan.py", proj, "--stil", "podcast")
-    return proj
+# fixture `podcast` (probna epizoda) je u conftest.py: dijele je test_davinci_podcast i test_uspravno
 
 
 def build(proj, **kw):

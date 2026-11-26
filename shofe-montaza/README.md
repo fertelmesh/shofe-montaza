@@ -71,7 +71,7 @@ Kad odabereš, reci `napravi odabrane isječke` (ili `napravi K1 i K3`, `K2 u st
 - uz svaki: `.srt` (titlovi za YouTube), `.fcpxml` (DaVinci) i `pregled.png` (prva sekunda i sredina svakog isječka na jednoj slici, za brzi pogled)
 - glavni video i njegove verzije ostaju netaknuti; ako promijeniš naslov ili stil i ponovno napraviš isječak, stari se zamijeni
 
-Za vertikalne isječke iz vodoravne snimke razgovora prvo neka kadar prati govornika (vidi niže), pa tek onda isječci.
+Za vertikalne isječke iz vodoravne snimke razgovora prvo neka kadar prati govornika (vidi niže), pa tek onda isječci. Kod podcasta s više kamera (Sunčani4M) to ne treba: isječci su sami uspravni iz kamera (vidi „Podcast").
 
 ## Tekstovi za objavu
 
@@ -191,6 +191,8 @@ Nakon sinkronizacije reci npr.:
 - `manje širokih kadrova` / `više širokih kadrova` / `brži rezovi`
 
 Shofe prvo složi epizodu u širokom kadru, prepozna tko govori (transkript + govornici), pa sam pogleda svaku kameru: kamera s jednim licem je krupni kadar te osobe (prepozna je po usnama dok govori), kamera s dvoje-troje ljudi je široki kadar. Onda montira kao režiser: dok netko govori, vidi se njegova kamera; kad pričate u isti glas ili se brzo dobacujete, široki kadar; gost bez svoje kamere i dulja tišina također idu u široki kadar; kratko „aha" ne prebacuje kameru, a svaki kadar traje barem 2 sekunde. U dugom monologu svakih 30-ak sekundi na tren uskoči široki kadar. Kamera koja je u tom trenutku ugašena se ne bira. Zvuk je uvijek onaj najbolji (zasebni snimač). Dobiješ `rezija.png` (koja kamera kad) i gotov 16:9 video epizode, na kojem dalje radi sve ostalo: rezanje, titlovi, isječci, DaVinci. Timeline za DaVinci je iz originalnih kamera, s ostalim kamerama na trakama iznad (vidi „Podcast u DaVinciju").
+
+**Isječci iz epizode (9:16).** Kad iz epizode napraviš isječke (`napravi odabrane isječke`), Shofe ih ne reže iz 16:9 epizode nego ih ponovno složi iz originalnih kamera, uspravno: dok netko govori, cijeli kadar je njegovo lice iz njegove kamere (mobitel snimljen uspravno ide kakav jest); ako nema svoju kameru, Shofe izreže njegovo lice iz širokog kadra. Kad pričate u isti glas ili se brzo dobacujete, kadar se podijeli: gore jedan, dolje drugi. Kad govori gost kojeg nijedna kamera ne snima, vidite se vas dvojica kako slušate. Zvuk, titlovi, hook i rezovi isti su kao inače. Ako ipak želiš vodoravne isječke (npr. za YouTube), reci `isječke vodoravno` (`--format 16:9`). Za svaki isječak u mapi `isjecci/izvor_9x16/` ostaje njegov uspravni izvor; ne briši ga ako ćeš isječak otvarati u DaVinciju.
 
 ## Stilovi
 

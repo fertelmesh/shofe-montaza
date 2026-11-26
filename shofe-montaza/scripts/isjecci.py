@@ -8,7 +8,7 @@
   python isjecci.py shofe_projekt dodaj --od "citat" [--do "citat"] [--umjesto K3]
   python isjecci.py shofe_projekt odobri K1,K3        Marko je odabrao
   python isjecci.py shofe_projekt odbaci K2 [--razlog "…"]
-  python isjecci.py shofe_projekt render [K1,K3] [--brzo] [--stil podcast] [--kadar 1,10]
+  python isjecci.py shofe_projekt render [K1,K3] [--brzo] [--stil podcast] [--kadar 1,10] [--format 16:9]
                                                       odobreni (ili navedeni) → isjecci/K1_naslov.mp4
 
 Postupak (isti duh kao Spotifyjevi pregledi epizoda i PodReels, vidi ODLUKE.md):
@@ -745,7 +745,8 @@ def cmd_render(proj, sn, a):
         print(f"Napomena: {', '.join(nije)} {'nije odobren' if len(nije) == 1 else 'nisu odobreni'} "
               f"(renderiram jer je izričito navedeno)")
     try:
-        gotovi = serija.renderiraj(proj, data, cs, brzo=a.brzo, kvaliteta=a.kvaliteta, stil=a.stil, kadar=a.kadar)
+        gotovi = serija.renderiraj(proj, data, cs, brzo=a.brzo, kvaliteta=a.kvaliteta, stil=a.stil, kadar=a.kadar,
+                                   oblik=a.format)
     except serija.Greska as e:
         raise sadrzaj.Greska(str(e))
     if a.kadar:
@@ -785,6 +786,8 @@ def main():
     ap.add_argument("--stil", help="render: isti stil za sve isječke u ovom renderu")
     ap.add_argument("--kadar", help="render: samo slike kadrova (sekunde isječka, npr. 1,10)")
     ap.add_argument("--bez-hooka", action="store_true", help="render: dopusti isječke bez hooka")
+    ap.add_argument("--format", choices=["9:16", "16:9"], default=None,
+                    help="render podcasta: 9:16 iz originalnih kamera (zadano) ili 16:9 iz programa")
     a = ap.parse_args()
     proj = Path(a.projekt)
     if not proj.is_dir():
