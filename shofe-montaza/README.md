@@ -137,6 +137,13 @@ Uz svaki video Shofe napravi i **timeline za DaVinci**: `reel_v3.mp4` → `reel_
 - Za stariju verziju reci „DaVinci za verziju 2".
 - Ako u DaVinciju kadar vodoravne snimke nije isti kao u Shofeu, reci „DaVinci iz pripremljenog videa" (koristi već izrezani `source.mp4`).
 
+**Podcast u DaVinciju.** Za epizodu Sunčani4M timeline nije gotov video nego tvoje **originalne kamere**:
+
+- **V1** — program kakav je Shofe montirao: na svakom kadru originalna snimka kamere koju je Shofe izabrao (isti izrez, i za uspravni mobitel), bez zvuka kamere.
+- **V2, V3, V4…** — iznad svakog kadra ostale kamere u istom trenutku, svaka kamera uvijek na svojoj traci. **Isključene su** (sive). Ako želiš drugu kameru na nekom mjestu, klikni taj komad i pritisni **D** (Enable Clip) — on prekrije kadar ispod. Ili ga razreži (B) pa uključi samo dio.
+- **A1** — zvuk glavnog snimača (ili glavne kamere) ispod cijele epizode; glazba, ako je ima, ispod njega.
+- Postavke projekta: 1920×1080, 30 fps. Ako se ipak pojavi i zvuk kamera, utišan je (−96 dB) — možeš ga pojačati ako želiš zvuk prostora.
+
 ## Karta videa
 
 Prije montaže Shofe napravi „kartu videa" (`analiza.txt` u mapi `shofe_projekt`): gdje su tišine, koliko je glasno, koliko brzo pričaš, gdje su rezovi, i koji su dijelovi mutni, pretamni ili presvijetli. Claude zatim iz teksta dopiše teme i najjače trenutke (hook, poanta, smijeh, savjet). Pitaj npr.:
@@ -183,7 +190,7 @@ Nakon sinkronizacije reci npr.:
 - `kamera 2 snima Ivana` (ako Shofe krivo pogodi)
 - `manje širokih kadrova` / `više širokih kadrova` / `brži rezovi`
 
-Shofe prvo složi epizodu u širokom kadru, prepozna tko govori (transkript + govornici), pa sam pogleda svaku kameru: kamera s jednim licem je krupni kadar te osobe (prepozna je po usnama dok govori), kamera s dvoje-troje ljudi je široki kadar. Onda montira kao režiser: dok netko govori, vidi se njegova kamera; kad pričate u isti glas ili se brzo dobacujete, široki kadar; gost bez svoje kamere i dulja tišina također idu u široki kadar; kratko „aha" ne prebacuje kameru, a svaki kadar traje barem 2 sekunde. U dugom monologu svakih 30-ak sekundi na tren uskoči široki kadar. Kamera koja je u tom trenutku ugašena se ne bira. Zvuk je uvijek onaj najbolji (zasebni snimač). Dobiješ `rezija.png` (koja kamera kad) i gotov 16:9 video epizode, na kojem dalje radi sve ostalo: rezanje, titlovi, isječci, DaVinci.
+Shofe prvo složi epizodu u širokom kadru, prepozna tko govori (transkript + govornici), pa sam pogleda svaku kameru: kamera s jednim licem je krupni kadar te osobe (prepozna je po usnama dok govori), kamera s dvoje-troje ljudi je široki kadar. Onda montira kao režiser: dok netko govori, vidi se njegova kamera; kad pričate u isti glas ili se brzo dobacujete, široki kadar; gost bez svoje kamere i dulja tišina također idu u široki kadar; kratko „aha" ne prebacuje kameru, a svaki kadar traje barem 2 sekunde. U dugom monologu svakih 30-ak sekundi na tren uskoči široki kadar. Kamera koja je u tom trenutku ugašena se ne bira. Zvuk je uvijek onaj najbolji (zasebni snimač). Dobiješ `rezija.png` (koja kamera kad) i gotov 16:9 video epizode, na kojem dalje radi sve ostalo: rezanje, titlovi, isječci, DaVinci. Timeline za DaVinci je iz originalnih kamera, s ostalim kamerama na trakama iznad (vidi „Podcast u DaVinciju").
 
 ## Stilovi
 

@@ -228,3 +228,12 @@ Jedan unos po krugu, najnoviji na dnu.
 - Novi zadatak M4.2b: DaVinci timeline podcasta s originalnim kamerama i isječci 9:16 iz krupnih kadrova (sad DaVinci dobije gotov program, a isječci se rade iz 16:9 programa).
 - Za Marka: kad snimiš epizodu: „sinkroniziraj kamere i zvuk", pa „montiraj epizodu, kamera neka prati onoga tko priča". Javi je li ikad kamera na krivoj osobi i odgovara li ti koliko često uskače široki kadar.
 - Sljedeće: M4.2b podcast u DaVinci s originalnim kamerama + isječci iz krupnih kadrova.
+
+## 2026-11-26 18:27 — M4.2b1 DaVinci timeline podcasta s originalnim kamerama
+- Živa specifikacija pročitana (rev 13): bez promjena. Issues #7, #18 i #25 (pregledi M1–M3) još bez Markova odgovora; otvorenih PR-ova nema.
+- M4.2b podijeljen: M4.2b1 DaVinci timeline (ovaj krug), M4.2b2 isječci 9:16 iz krupnih kadrova originalnih kamera (sljedeći).
+- Novo u `davinci.py`: za podcast projekt (`rezija.py`) timeline više nije `source.mp4` nego originalne kamere. V1 = program kakav je Shofe montirao, kadar po kadar iz originalne kamere (vrijeme iz `sinkro.json` za svaki kadar posebno, pa i drift sata; isti izrez, i za uspravni mobitel; zumovi stila; bez zvuka kamere). Iznad svakog kadra ostale kamere u istom trenutku, svaka uvijek na svojoj traci, **isključene** — u DaVinciju klik + D i kamera je promijenjena. Ispod zvuk glavnog snimača (uloga dialogue), glazba traku niže. Bez `sinkro.json`/`rezija.json` ili bez neke snimke → `source.mp4` kao prije, s napomenom. Radi sam uz svaki render. Pravi multicam (mc-clip) namjerno ne: DaVinci ga iz FCPXML-a ne uvozi pouzdano (ODLUKE.md). Usput: 15 fps snimke više nisu u FCPXML-u opisane kao 30 fps. Verzija 0.21.0.
+- Provjera: probna epizoda (zasebni zvuk + široka + krupni A + uspravni mobitel B koji se gasi na 45 s) → FCPXML prolazi Appleov DTD; slika složena iz originala po FCPXML-u = Shofeov program (pogledano očima na 6 kadrova, razlika najviše 1 sličica kamere od 15 fps); zvuk na traci ispod = zvuk programa; kamera B nakon 45 s nije ni u programu ni iznad.
+- Testovi: novi `tests/test_davinci_podcast.py` (4: valjan XML i trake, ista slika i zvuk kao program, kamera koja ne snima + nestali original + `--izvor priprema`, dijeljenje reza na promjeni kamere bez videa).
+- Za Marka: kad otvoriš epizodu u DaVinciju (File > Import > Timeline), javi jesu li kamere na trakama iznad sive (isključene) i čuje li se samo glavni zvuk. To ne mogu provjeriti bez pravog DaVincija.
+- Sljedeće: M4.2b2 isječci 9:16 iz podcasta iz krupnih kadrova kamera.

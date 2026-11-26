@@ -13,6 +13,12 @@ Timeline koristi ORIGINALNE snimke (mobitel, kamera) s istim rezovima, kadriranj
 vodoravne snimke) i zumovima; zvuk i boja ostaju neobrađeni. Glazba ide na zasebnu traku.
 Naslov (hook), stil i zumovi upisani su i kao oznake (markeri) da se vidi što je Shofe radio.
 Ako originalna snimka više ne postoji, cijeli timeline koristi pripremljeni source.mp4.
+
+Podcast (projekt iz rezija.py, M4.2b): V1 = program iz ORIGINALNIH kamera (kadar po kadar iz rezija.json, vrijeme
+iz sinkro.json, isti izrez; zvuk kamere isključen), iznad svakog kadra ostale kamere u istom trenutku, svaka na
+svojoj traci (lane = 1 + redni broj kamere) i isključene (enabled=0) — u DaVinciju se uključe za ručnu promjenu
+kadra; ispod zvuk glavnog izvora (lane −1, uloga dialogue), glazba još niže. Multicam (mc-clip) namjerno ne:
+DaVinci ga iz FCPXML-a ne uvozi pouzdano (vidi ODLUKE.md).
 """
 import argparse
 import re
@@ -24,7 +30,7 @@ from pathlib import Path, PureWindowsPath
 from common import GRADES, die, ffmpeg, fmt_time, load_json, probe, run
 
 FCPXML_VERSION = "1.10"   # DaVinci Resolve 18+ uvozi 1.10 (17 samo do 1.8/1.9)
-COMMON_RATES = [Fraction(24000, 1001), Fraction(24), Fraction(25), Fraction(30000, 1001), Fraction(30),
+COMMON_RATES = [Fraction(15), Fraction(24000, 1001), Fraction(24), Fraction(25), Fraction(30000, 1001), Fraction(30),
                 Fraction(48), Fraction(50), Fraction(60000, 1001), Fraction(60), Fraction(100),
                 Fraction(120000, 1001), Fraction(120)]
 ZOOM_Y = 0.38             # render.zoom_chain kadrira zum na 38 % visine, ne na sredini
@@ -172,6 +178,83 @@ def split_by_framing(pieces, clips, fps):
     return out
 
 
+# ---------------------------------------------------------------- podcast (M4.2b): originalne kamere
+def podcast_sources(proj, pj):
+    """Podcast projekt (rezija.py): kamere i glavni zvuk iz sinkro.json + uloge iz rezija.json.
+    Vrati None ako projekt nije podcast; (None, napomena) ako originali ne postoje."""
+    pc = pj.get("podcast")
+    if not pc:
+        return None
+    sp, rp = proj / "sinkro.json", proj / "rezija.json"
+    if not sp.exists() or not rp.exists():
+        return None, "nema sinkro.json ili rezija.json → koristim source.mp4"
+    sync, rez = load_json(sp), load_json(rp)
+    src = {e["ime"]: e for e in sync["izvori"]}
+    master = next((e for e in sync["izvori"] if e.get("glavni")), None)
+    clips = []
+    for r in rez.get("kamere", []):
+        e = src.get(r["ime"])
+        if not e or e.get("vrsta") != "video" or not e.get("pronaden", True):
+            continue
+        uloga = r.get("uloga") or ""
+        tko = f" {r['govornik']}" if r.get("govornik") else ""
+        clips.append({"file": e["datoteka"], "ime": e["ime"], "w": e.get("w"), "h": e.get("h"),
+                      "crop_x": r.get("crop_x", 0.5), "crop_y": r.get("crop_y", 0.4), "sync": e,
+                      "uloga": uloga, "naziv": f"{e['ime']} ({uloga}{tko})" if uloga else e["ime"]})
+    files = [c["file"] for c in clips] + ([master["datoteka"]] if master else [])
+    missing = [f for f in files if not Path(f).exists()]
+    if not clips or not master or missing:
+        what = Path(missing[0]).name if missing else "kamere/glavni zvuk"
+        return None, f"originalna snimka podcasta ne postoji ({what}) → koristim source.mp4"
+    return {"clips": clips, "master": master, "pocetak": float(rez.get("pocetak", pc.get("pocetak", 0.0))),
+            "kadrovi": rez.get("kadrovi", [])}, None
+
+
+def podcast_pieces(cuts, pc, fps):
+    """Rezovi u vremenu programa (source.mp4) → kadrovi iz originalnih kamera. Rez se dijeli na svakoj
+    promjeni kamere iz rezija.json. Svaki kadar: clip (indeks kamere ili None za crno → source.mp4), src u
+    datoteci kamere, frames, out, cut (indeks reza), prog (početak u programu, sličice) i alts: ostale kamere
+    koje u tom dijelu snimaju [(indeks, src)] — idu na gornje trake, isključene, za ručnu promjenu kadra."""
+    clips, p0 = pc["clips"], pc["pocetak"]
+    by = {c["ime"]: k for k, c in enumerate(clips)}
+    shots = [(round(s["od"] * fps), round(s["do"] * fps), by.get(s.get("kamera"))) for s in pc["kadrovi"]]
+    import sinkro as S
+
+    def src_of(k, frame):
+        return Fraction(max(0.0, S.to_source(clips[k]["sync"], p0 + frame / fps)))
+
+    def films(k, a, b):  # kamera snima cijeli dio [a, b) sličica programa
+        e = clips[k]["sync"]
+        return e["od"] - 1e-3 <= p0 + a / fps and p0 + b / fps <= e["do"] + 1e-3
+
+    res = []
+    for ci, c in enumerate(cuts):
+        A, B, O = round(c["a"] * fps), round(c["b"] * fps), round(c["o"] * fps)
+        pos = A
+        while pos < B:
+            sh = next((s for s in shots if s[0] <= pos < s[1]), None)
+            end = min(B, sh[1]) if sh else B
+            if sh is None:  # izvan režije (ne bi se smjelo dogoditi): kamera koja snima, inače crno
+                k = next((k for k in range(len(clips)) if films(k, pos, end)), None)
+            else:
+                k = sh[2]
+            if k is not None and not films(k, pos, end):
+                k = None
+            alts = [(j, src_of(j, pos)) for j in range(len(clips)) if j != k and films(j, pos, end)]
+            res.append({"clip": k, "src": src_of(k, pos) if k is not None else Fraction(pos, fps),
+                        "frames": end - pos, "out": O + (pos - A), "cut": ci, "prog": pos, "alts": alts})
+            pos = end
+    # dio od 1 sličice na spoju reza i promjene kamere pripoji prethodnom kadru iste kamere
+    merged = []
+    for p in res:
+        if (merged and p["frames"] <= 1 and merged[-1]["clip"] == p["clip"] and merged[-1]["cut"] == p["cut"]
+                and merged[-1]["out"] + merged[-1]["frames"] == p["out"]):
+            merged[-1]["frames"] += p["frames"]
+        else:
+            merged.append(p)
+    return merged
+
+
 def framing(clip, W, H, zoom=1.0):
     """Pomak slike (FCPXML adjust-transform position, postotak visine kadra) da se vidi isti dio
     snimke kao u Shofeovu videu: prepare.py reže širu snimku na crop_x/crop_y, render zumira na 38 %."""
@@ -222,14 +305,23 @@ def build(proj, edit, use_originals=True, name=None):
     factor, zr = render.zoom_ranges(cuts, st)
 
     clips = pj.get("clips") or []
-    missing = [c["file"] for c in clips if not Path(c["file"]).exists()]
     notes = []
-    if use_originals and (not clips or missing):
-        if missing:
-            notes.append(f"originalna snimka ne postoji ({Path(missing[0]).name}"
-                         + (f" i još {len(missing) - 1}" if len(missing) > 1 else "") + ") → koristim source.mp4")
-        use_originals = False
-    pieces = pieces_for(cuts, clips, fps, use_originals)
+    pc = podcast_sources(proj, pj) if use_originals else None
+    if pc is not None:
+        pc, note = pc
+        if note:
+            notes.append(note)
+    if pc:
+        clips = pc["clips"]
+        pieces = podcast_pieces(cuts, pc, fps)
+    else:
+        missing = [c["file"] for c in clips if not Path(c["file"]).exists()]
+        if use_originals and (not clips or missing):
+            if missing:
+                notes.append(f"originalna snimka ne postoji ({Path(missing[0]).name}"
+                             + (f" i još {len(missing) - 1}" if len(missing) > 1 else "") + ") → koristim source.mp4")
+            use_originals = False
+        pieces = pieces_for(cuts, clips, fps, use_originals)
 
     fd = Fraction(1, fps)
     root = ET.Element("fcpxml", version=FCPXML_VERSION)
@@ -262,6 +354,19 @@ def build(proj, edit, use_originals=True, name=None):
         assets[key] = {"id": aid, "afd": afd, "tc": on_grid(info["tc"], afd), "info": info, "name": display_name}
         return assets[key]
 
+    def audio_asset(key, path):
+        if key in assets:
+            return assets[key]
+        info = media_info_audio(path)
+        aid = new_id()
+        afd = Fraction(1, info["audio_rate"])
+        el = ET.SubElement(res, "asset", id=aid, name=Path(path).name, start="0s",
+                           duration=ftime(on_grid(info["dur"], fd)), hasVideo="0", hasAudio="1",
+                           audioSources="1", audioChannels=str(info["channels"]), audioRate=str(info["audio_rate"]))
+        ET.SubElement(el, "media-rep", kind="original-media", src=file_uri(Path(path).resolve()))
+        assets[key] = {"id": aid, "afd": afd, "tc": Fraction(0), "info": info, "name": Path(path).name}
+        return assets[key]
+
     lib = ET.SubElement(root, "library")
     event = ET.SubElement(lib, "event", name="Shofe")
     title = name or proj.name
@@ -278,6 +383,39 @@ def build(proj, edit, use_originals=True, name=None):
         t += n
     total_frames = t
 
+    def make_clip(parent, a, offset, src_start, dur, name, **extra):
+        """asset-clip od src_start (vrijeme u datoteci, s vremenskim kodom) u trajanju dur gotovog videa.
+        parent = spine (offset u vremenu timelinea) ili kadar u spineu (offset u njegovu lokalnom vremenu)."""
+        if speed != 1:
+            # timeMap: vrijeme kadra (time) ↔ vrijeme snimke (value); početak je u usporenom/ubrzanom vremenu
+            el = ET.Element("asset-clip", ref=a["id"], name=name, **extra, offset=ftime(offset),
+                            start=ftime(on_grid(src_start / speed, fd)), duration=ftime(dur), tcFormat="NDF")
+            tm = ET.SubElement(el, "timeMap")
+            adur = on_grid(a["info"]["dur"], a["afd"]) + a["tc"]
+            ET.SubElement(tm, "timept", time="0s", value="0s", interp="linear")
+            ET.SubElement(tm, "timept", time=ftime(on_grid(adur / speed, fd)), value=ftime(adur), interp="linear")
+        else:
+            el = ET.Element("asset-clip", ref=a["id"], name=name, **extra, offset=ftime(offset),
+                            start=ftime(src_start), duration=ftime(dur), tcFormat="NDF")
+        if parent is spine:
+            spine.append(el)
+        else:
+            _insert_anchored(parent, el)
+        return el
+
+    def place(el, clip, z):
+        """Kadriranje kao u Shofeovu videu: popuni kadar, pomakni na izrez, zum."""
+        ET.SubElement(el, "adjust-conform", type="fill")
+        px, py = framing(clip, W, H, z)
+        attrs = {}
+        if abs(px) >= 0.05 or abs(py) >= 0.05:
+            attrs["position"] = f"{px:g} {py:g}"
+        if z != 1.0:
+            attrs["scale"] = f"{z:g} {z:g}"
+        if attrs:
+            ET.SubElement(el, "adjust-transform", **attrs)
+
+    mute = {"srcEnable": "video"} if pc else {}   # podcast: zvuk je glavni izvor na traci ispod
     clip_els = []
     zoomed_pieces = 0
     for p, (o, n) in zip(pieces, out_frames):
@@ -291,32 +429,58 @@ def build(proj, edit, use_originals=True, name=None):
         src_start = a["tc"] + on_grid(p["src"], a["afd"])
         mid = (p["out"] + p["frames"] / 2) / fps          # sredina kadra u vremenu prije brzine
         z = factor if factor and any(s <= mid < e for s, e in zr) else 1.0
-        dur = n * fd
-        if speed != 1:
-            # timeMap: vrijeme kadra (time) ↔ vrijeme snimke (value); početak je u usporenom/ubrzanom vremenu
-            start = on_grid(src_start / speed, fd)
-            el = ET.SubElement(spine, "asset-clip", ref=a["id"], name=a["name"], offset=ftime(o * fd),
-                               start=ftime(start), duration=ftime(dur), tcFormat="NDF")
-            tm = ET.SubElement(el, "timeMap")
-            adur = on_grid(a["info"]["dur"], a["afd"]) + a["tc"]
-            ET.SubElement(tm, "timept", time="0s", value="0s", interp="linear")
-            ET.SubElement(tm, "timept", time=ftime(on_grid(adur / speed, fd)), value=ftime(adur), interp="linear")
-        else:
-            el = ET.SubElement(spine, "asset-clip", ref=a["id"], name=a["name"], offset=ftime(o * fd),
-                               start=ftime(src_start), duration=ftime(dur), tcFormat="NDF")
+        name = clip.get("naziv", a["name"])
+        el = make_clip(spine, a, o * fd, src_start, n * fd, name, **mute)
         if p["clip"] is not None:
-            ET.SubElement(el, "adjust-conform", type="fill")
-        if p["clip"] is not None or z != 1.0:
-            px, py = framing(clip, W, H, z) if p["clip"] is not None else framing({}, W, H, z)
-            attrs = {}
+            place(el, clip, z)
+        elif z != 1.0:
+            px, py = framing({}, W, H, z)
+            attrs = {"scale": f"{z:g} {z:g}"}
             if abs(px) >= 0.05 or abs(py) >= 0.05:
                 attrs["position"] = f"{px:g} {py:g}"
-            if z != 1.0:
-                attrs["scale"] = f"{z:g} {z:g}"
-                zoomed_pieces += 1
-            if attrs:
-                ET.SubElement(el, "adjust-transform", **attrs)
+            ET.SubElement(el, "adjust-transform", **attrs)
+        if z != 1.0:
+            zoomed_pieces += 1
+        if mute:
+            # ako DaVinci ipak donese i zvuk kamere, neka bude utišan (zvuk je glavni izvor ispod)
+            ET.SubElement(el, "adjust-volume", amount="-96dB")
         clip_els.append((el, o, n, parse_time(el.get("start"))))
+
+    if pc:
+        # gornje trake: svaka kamera na svojoj traci (V2 = prva kamera…), isključeno — u DaVinciju uključi
+        # kadar na traci iznad (ili ga povuci dolje) i program pokazuje tu kameru umjesto Shofeova izbora
+        alt_clips = 0
+        for p, (el, o, n, start) in zip(pieces, clip_els):
+            for j, src in p.get("alts", []):
+                c = clips[j]
+                a = asset_for(j, c["file"], Path(c["file"]).name)
+                mid = (p["out"] + p["frames"] / 2) / fps
+                z = factor if factor and any(s <= mid < e for s, e in zr) else 1.0
+                alt = make_clip(el, a, start, a["tc"] + on_grid(src, a["afd"]), n * fd, c["naziv"],
+                                lane=str(j + 1), enabled="0", srcEnable="video")
+                place(alt, c, z)
+                ET.SubElement(alt, "adjust-volume", amount="-96dB")
+                alt_clips += 1
+        # zvuk glavnog izvora (zasebni mikrofon ili glavna kamera) ispod slike, jedan komad po rezu
+        m = pc["master"]
+        same = next((j for j, c in enumerate(clips) if c["ime"] == m["ime"]), "master")
+        ma = asset_for(same, m["datoteka"], Path(m["datoteka"]).name) if m.get("vrsta") == "video" \
+            else audio_asset("master", m["datoteka"])
+        import sinkro as S
+        k = 0
+        while k < len(pieces):
+            ci = pieces[k]["cut"]
+            e = k
+            while e < len(pieces) and pieces[e]["cut"] == ci:
+                e += 1
+            el, o, n, start = clip_els[k]
+            nfr = sum(clip_els[i][2] for i in range(k, e))
+            src = Fraction(max(0.0, S.to_source(m, pc["pocetak"] + pieces[k]["prog"] / fps)))
+            make_clip(el, ma, start, ma["tc"] + on_grid(src, ma["afd"]), nfr * fd, ma["name"],
+                      lane="-1", srcEnable="audio", audioRole="dialogue")
+            k = e
+        notes.append(f"podcast: program iz {len(clips)} originalnih kamera (V1), ostale kamere na trakama iznad "
+                     f"(isključeno, {alt_clips} kadrova), zvuk: {ma['name']}")
 
     # glazba: zasebna traka ispod (lane −1), usidrena na prvi kadar, ponavlja se do kraja videa
     music = edit.get("glazba")
@@ -344,7 +508,8 @@ def build(proj, edit, use_originals=True, name=None):
                 anchors.append((pos, d))
                 pos += d
             for pos, d in anchors:
-                m = ET.Element("asset-clip", ref=aid, name=mp.name, lane="-1", offset=ftime(fstart + pos),
+                m = ET.Element("asset-clip", ref=aid, name=mp.name, lane="-2" if pc else "-1",
+                               offset=ftime(fstart + pos),
                                start="0s", duration=ftime(d), audioRole="music")
                 ET.SubElement(m, "adjust-volume", amount=f"{gain:g}dB")
                 _insert_anchored(first, m)
@@ -379,8 +544,8 @@ def build(proj, edit, use_originals=True, name=None):
 
     seq.set("duration", ftime(total_frames * fd))
     ET.indent(root, space="  ")
-    summary = {"kadrova": len(pieces), "sekundi": float(total_frames * fd), "izvor": "originali" if use_originals
-               else "source.mp4", "datoteke": sorted({a["name"] for a in assets.values()}), "zumova": zoomed_pieces,
+    summary = {"kadrova": len(pieces), "sekundi": float(total_frames * fd), "izvor": "podcast" if pc else
+               "originali" if use_originals else "source.mp4", "datoteke": sorted({a["name"] for a in assets.values()}), "zumova": zoomed_pieces,
                "napomene": notes, "brzina": float(speed), "pieces": pieces, "fps": fps}
     return root, summary
 
@@ -438,7 +603,8 @@ def for_render(proj, edit, out_video):
             base = ov.stem
         out, summ = export(proj, edit, base, name=f"{Path(proj).name} {ov.stem}")
         lines = [f"DaVinci timeline: {out.name}  ({summ['kadrova']} kadrova iz "
-                 + ("originalnih snimki" if summ["izvor"] == "originali" else "source.mp4") + ")"]
+                 + {"originali": "originalnih snimki", "podcast": "originalnih kamera, ostale kamere na trakama iznad"}
+                 .get(summ["izvor"], "source.mp4") + ")"]
         lines += [f"  ({n})" for n in summ["napomene"] if "ne postoji" in n]
         return lines
     except SystemExit as e:  # die() u izvozu
