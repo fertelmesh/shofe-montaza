@@ -55,6 +55,18 @@ Možeš tražiti i **trajanje**:
 
 Shofe izbacuje cijele misli, nikad pola rečenice: pitanje ostaje sa svojim odgovorom, „Drugo, ugradnja." s onim što najavljuje, a rečenica koja počinje s „A…", „Zato…", „To…" ne ostaje bez one prije. Claude ocijeni koliko je svaka misao važna za taj video (i pazi na ono što si rekao da je glavno), a Shofe izračuna koja kombinacija stane u zadano vrijeme. Gotovi video je uvijek najviše toliko dug, obično tik ispod. Dijelove koji su već izrezani ne vraća.
 
+## Isječci za mreže
+
+Iz dulje snimke (epizoda podcasta, dulji YouTube video) Shofe predloži kratke isječke od 20 do 60 sekundi:
+
+- `napravi isječke iz ove epizode` ili `predloži 10 klipova za Instagram i TikTok`
+- `daj još isječaka` (novi se ne preklapaju s onima koje već imaš ni s odbačenima)
+- `uzmi K1 i K3`, `K2 ne, preduga je uvodna priča`
+
+Shofe isproba svaki niz cijelih misli koji traje 20–60 s i ocijeni ga: počinje li jako (pitanje, broj, obraćanje gledatelju, prijelaz s pauzom), završava li zaokruženo (kraj rečenice, misao ne ide dalje, nema pozdrava ni promjene teme u sredini), koliko je sadržajan i živ. Isječak nikad ne počinje rečenicom kojoj treba ona prije („A onda…", „To je zato…"). Zatim Claude pročita svaki prijedlog i da mu ocjenu 1–10 s jednom rečenicom zašto, plus naslov i hook za one dobre. Dobiješ popis od najboljeg prema slabijem; cijeli tekst svakog isječka je u `shofe_projekt/isjecci.txt`.
+
+Isječci se zasad samo predlažu i biraju; automatski render odabranih u 9:16 (kadar prati govornika, titlovi, hook) stiže u sljedećim verzijama. Do tada Claude može odabrani isječak napraviti kao običan reel ako ga zamoliš.
+
 ## Verzije
 
 Svaki render je nova verzija: `reel_v1.mp4`, `reel_v2.mp4`... u mapi `shofe_projekt`. Ništa se ne briše, a originalni klipovi se nikad ne diraju. Možeš reći:

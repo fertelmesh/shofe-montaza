@@ -146,3 +146,12 @@ Jedan unos po krugu, najnoviji na dnu.
 - Proizvod nepromijenjen (verzija ostaje 0.13.0). Testovi: novi `tests/test_demo_m2.py` (3); lokalno 184 prošlo, 3 preskočena.
 - Za Marka: issue „Pregled M2" — pravi reel s naredbama (cilj 9 od 10 naredbi po sadržaju), titlovi (≤ 2 ispravka), DaVinci uvoz; i dalje otvoreno iz #7 (dulja snimka, testne snimke, laptop).
 - Sljedeće: M3.1 kandidati za isječke.
+
+## 2026-11-26 02:30 — M3.1 kandidati za isječke
+- Živa specifikacija pročitana: bez promjena. Issues #7 i #18 (pregledi M1 i M2) još bez Markova odgovora; otvorenih PR-ova nema.
+- Novo: `isjecci.py` → `isjecci.json` + `isjecci.txt`. Shofe isproba svaki niz cijelih misli od 20–60 s (trajanje kad se izrežu pauze), ocijeni ga 0–10 (početak, zaokruženost, sadržaj iz Claudeovih trenutaka, energija; 25–45 s idealno) i predloži 10 najboljih bez preklapanja. Isječak nikad ne počinje rečenicom kojoj treba ona prije („A…", „To…", „Zato…"), a gubi bodove za pozdrav/odjavu, dugu stanku ili promjenu teme u sredini i misao koja se nastavlja iza kraja.
+- Claude zatim ocijeni svaki kandidat (1–10 + jedna rečenica zašto, naslov i hook za dobre), može pomaknuti granice citatom (`dodaj --umjesto K3`) ili dodati svoj; `provjeri` poreda po Claudeovoj ocjeni i javi što fali. Marko: `odobri`, `odbaci` (s napomenom), `vrati`, `novi` (još kandidata bez preklapanja s postojećima i odbačenima). SKILL.md i README dopunjeni; render odabranih isječaka u 9:16 je M3.2–M3.3 (do tada SKILL.md opisuje ručni put preko `uredi.py zadrzi` + `render.py --izlaz`). Odluka i izvori (Spotify, PodReels, OpusClip) u ODLUKE.md. Verzija 0.14.0.
+- Provjera: izmišljeni dio epizode Sunčani4M (8 blokova: 4 prirodna isječka, čavrljanje, lutanje, nedovršena priča, odjava) → predložena točno 4 dobra bloka, svaki cijeli od prve do zadnje rečenice, s temama iz analize i bez njih; svi nizovi iz loših blokova ≥ 2,5 boda ispod najboljeg. Sat snimke: ~5 600 nizova ocijenjeno za ~2 s.
+- Testovi: novi `tests/test_isjecci.py` (14). Lokalno 198 prošlo, 3 preskočena (prije dodavanja dokumentacije; isjecci + verzija ponovno prošli nakon).
+- Za Marka: ništa sad. Kad budeš imao dulju snimku (vidi #7), reci „napravi isječke iz ove epizode" i javi koliko od 10 bi objavio — to je cilj iz specifikacije (≥ 5).
+- Sljedeće: M3.2 kadar 9:16 prati govornika (detekcija lica).
