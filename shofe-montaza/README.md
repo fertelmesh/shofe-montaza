@@ -85,6 +85,17 @@ Shofe provjeri pravila mreža (Instagram i TikTok dopuštaju najviše 5 hashtago
 
 **Serije**: reci jednom `za SF klimu uvijek dodaj #sfklima i #kutina, a na kraju napiši „SF klima Kutina — montaža i servis"` i Claude to zapamti kao seriju (vrijedi u svim budućim projektima, i nakon ponovne instalacije). Isto za Sunčani put, Sunčano AJMO! i Sunčani4M, s napomenom o tonu („opuštenije", „uvijek pozovi na poruku za ponudu").
 
+## Naslovna sličica
+
+Reci `napravi naslovnu sličicu` (ili `thumbnail za K1`, `cover za reel`). Shofe pregleda video svakih pola sekunde i izabere najbolji kadar: lice veliko, oštro, otvorene oči, dobro osvijetljeno, okrenuto prema kameri. Claude napiše kratki tekst (2–5 riječi, ključna riječ u boji stila), pogleda rezultat i napravi:
+
+- `reel_v3.naslovna_9x16.jpg` — za Instagram, TikTok i YouTube Shorts; lice i tekst su u sredini koju Instagram pokazuje na tvom profilu (3:4), daleko od gumba aplikacija
+- `reel_v3.naslovna_16x9.jpg` — za YouTube; iz vodoravne snimke uzme širi kadar s krupnim licem, a tekst stavi sa strane
+- `reel_v3.naslovna_kandidati.jpg` — 6 najboljih kadrova s ocjenom; reci `uzmi treći kadar` ili `naslovna iz 0:12`
+- `reel_v3.naslovna_pregled.jpg` — obje sličice na jednoj slici (crvene crtice = što Instagram odreže na profilu)
+
+Možeš reći i `drugi tekst na naslovnoj: …` (kadar ostaje) ili `naslovna bez teksta`. Za isječke: `napravi naslovne za sve isječke`. Shofe ništa ne objavljuje sam: na Instagramu i TikToku izabereš „Uredi naslovnicu → iz galerije", na YouTubeu u Studiju „Sličica → Prenesi".
+
 ## Verzije
 
 Svaki render je nova verzija: `reel_v1.mp4`, `reel_v2.mp4`... u mapi `shofe_projekt`. Ništa se ne briše, a originalni klipovi se nikad ne diraju. Možeš reći:

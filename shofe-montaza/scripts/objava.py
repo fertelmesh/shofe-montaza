@@ -471,10 +471,25 @@ def provjeri(e, serija):
     return fali, list(dict.fromkeys(gr)), list(dict.fromkeys(up))
 
 
-def tekst_datoteke(vid, e, serija):
+def naslovne(proj, video):
+    """Naslovne sličice uz video (naslovna.py) → [(ime datoteke, za što)]."""
+    out = []
+    stem = (Path(proj) / video).with_suffix("")
+    for suf, za in (("9x16", "Instagram, TikTok, YouTube Shorts"), ("16x9", "YouTube")):
+        f = Path(f"{stem}.naslovna_{suf}.jpg")
+        if f.exists():
+            out.append((f.name, za))
+    return out
+
+
+def tekst_datoteke(vid, e, serija, proj=None):
     zag = e.get("naslov_isjecka") or e.get("hook") or ""
     lines = [f"OBJAVA — {vid}" + (f" „{zag}”" if zag else "") + f" ({e['video']}, {e['trajanje']:.0f} s)",
              "Kopiraj tekst između crta.", ""]
+    if proj is not None:
+        nsl = naslovne(proj, e["video"])
+        for ime, za in nsl:
+            lines.insert(-1, f"Naslovna sličica ({za}): {ime}")
     for m in e.get("mreze_popis") or []:
         naslov, full, tags = slozi(e, m, serija)
         if m == "youtube":
@@ -493,7 +508,7 @@ def napisi(proj, d, ids, serija):
     for vid in ids:
         e = d["videi"][vid]
         p = (Path(proj) / e["video"]).with_suffix(".objava.txt")
-        p.write_text(tekst_datoteke(vid, e, serija), encoding="utf-8-sig")
+        p.write_text(tekst_datoteke(vid, e, serija, proj), encoding="utf-8-sig")
         out.append(p)
     svi = []
     for vid, e in d["videi"].items():
@@ -501,7 +516,7 @@ def napisi(proj, d, ids, serija):
             continue
         fali, gr, _ = provjeri(e, serija)
         if not fali and not gr:
-            svi.append(tekst_datoteke(vid, e, serija))
+            svi.append(tekst_datoteke(vid, e, serija, proj))
     if svi:
         (Path(proj) / "objava.txt").write_text(("\n" + "=" * 60 + "\n\n").join(svi), encoding="utf-8-sig")
     return out
@@ -587,10 +602,14 @@ def cmd_projekt(proj, a):
         files = napisi(proj, d, gotovi, serija)
         print(f"\nGotovo ({len(gotovi)}): " + ", ".join(str(f) for f in files))
         print(f"Svi gotovi tekstovi zajedno: {Path(proj) / 'objava.txt'}")
+        bez = [vid for vid in gotovi if not naslovne(proj, d["videi"][vid]["video"])]
+        if bez:
+            print(f"Naslovne sličice još nema za {', '.join(bez)}: python naslovna.py \"{proj}\" "
+                  + (bez[0] if len(bez) == 1 else "isjecci" if all(b.startswith("K") for b in bez) else ""))
         if a.ispis:
             for vid in gotovi:
                 print()
-                print(tekst_datoteke(vid, d["videi"][vid], serija))
+                print(tekst_datoteke(vid, d["videi"][vid], serija, proj))
     return 1 if nedovrseno else 0
 
 

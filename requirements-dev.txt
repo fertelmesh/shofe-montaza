@@ -2,3 +2,6 @@ pytest>=8
 numpy
 sherpa-onnx>=1.12,<3
 lxml
+# lica (kadar.py) i naslovne sličice (naslovna.py): bez njih se ti testovi preskaču
+opencv-python-headless>=4.8
+pillow>=10
