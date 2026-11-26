@@ -65,7 +65,13 @@ Iz dulje snimke (epizoda podcasta, dulji YouTube video) Shofe predloži kratke i
 
 Shofe isproba svaki niz cijelih misli koji traje 20–60 s i ocijeni ga: počinje li jako (pitanje, broj, obraćanje gledatelju, prijelaz s pauzom), završava li zaokruženo (kraj rečenice, misao ne ide dalje, nema pozdrava ni promjene teme u sredini), koliko je sadržajan i živ. Isječak nikad ne počinje rečenicom kojoj treba ona prije („A onda…", „To je zato…"). Zatim Claude pročita svaki prijedlog i da mu ocjenu 1–10 s jednom rečenicom zašto, plus naslov i hook za one dobre. Dobiješ popis od najboljeg prema slabijem; cijeli tekst svakog isječka je u `shofe_projekt/isjecci.txt`.
 
-Isječci se zasad samo predlažu i biraju; automatski render odabranih u 9:16 (kadar prati govornika, titlovi, hook) stiže u sljedećim verzijama. Do tada Claude može odabrani isječak napraviti kao običan reel ako ga zamoliš.
+Kad odabereš, reci `napravi odabrane isječke` (ili `napravi K1 i K3`, `K2 u stilu udarno`). Shofe ih montira jedan za drugim u mapu `shofe_projekt/isjecci/`:
+
+- `K1_najveca-greska-kod-klime.mp4` — isti stil, titlovi i zvuk kao tvoj reel, s Claudeovim hookom u prvim sekundama; pauze, poštapalice i ispravci imena iz glavnog projekta vrijede i ovdje
+- uz svaki: `.srt` (titlovi za YouTube), `.fcpxml` (DaVinci) i `pregled.png` (prva sekunda i sredina svakog isječka na jednoj slici, za brzi pogled)
+- glavni video i njegove verzije ostaju netaknuti; ako promijeniš naslov ili stil i ponovno napraviš isječak, stari se zamijeni
+
+Za vertikalne isječke iz vodoravne snimke razgovora prvo neka kadar prati govornika (vidi niže), pa tek onda isječci.
 
 ## Verzije
 

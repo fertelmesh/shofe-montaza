@@ -8,6 +8,8 @@
   python isjecci.py shofe_projekt dodaj --od "citat" [--do "citat"] [--umjesto K3]
   python isjecci.py shofe_projekt odobri K1,K3        Marko je odabrao
   python isjecci.py shofe_projekt odbaci K2 [--razlog "…"]
+  python isjecci.py shofe_projekt render [K1,K3] [--brzo] [--stil podcast] [--kadar 1,10]
+                                                      odobreni (ili navedeni) → isjecci/K1_naslov.mp4
 
 Postupak (isti duh kao Spotifyjevi pregledi epizoda i PodReels, vidi ODLUKE.md):
   1. rečenice → misli (skrati.build_thoughts): pitanje ostaje s odgovorom, rečenica s „A/Ali/To…"
@@ -33,6 +35,7 @@ from pathlib import Path
 import numpy as np
 
 import sadrzaj
+import serija
 import skrati as sk
 from common import die, load_json, save_json, version
 from govornici import load_words, speaker_names
@@ -474,7 +477,7 @@ def resnap(sn, c):
         raise sadrzaj.Greska(f"{c.get('id')}: između {fmt(od)} i {fmt(do)} nema riječi")
     a, b = sadrzaj.sentence_bounds(w, idx[0], idx[-1])
     new = kandidat(sn, a, b, c.get("izvor", "shofe"))
-    for key in ("id", "ocjena", "razlog", "naslov", "hook", "status", "napomena_marka"):
+    for key in ("id", "ocjena", "razlog", "naslov", "hook", "status", "napomena_marka", *serija.PREUZMI, "izrezi"):
         if key in c:
             new[key] = c[key]
     c.clear()
@@ -566,6 +569,8 @@ def tekst_popisa(data, cijeli=True):
                  f"{h['sadrzaj']:.0f}, energija {h['energija']:.0f}" + (f" — {'; '.join(h['razlozi'])}" if h['razlozi'] else ""))
         if c.get("napomena_marka"):
             L.append(f"      Marko:  {c['napomena_marka']}")
+        if c.get("render"):
+            L.append(f"      video: {serija.jedan_redak(c).strip()[2:]}")
         if cijeli and c.get("status") != "odbacen":
             for line in textwrap.wrap(c["tekst"], 100):
                 L.append(f"      │ {line}")
@@ -676,7 +681,7 @@ def cmd_dodaj(proj, sn, a):
     i, j = sadrzaj.sentence_bounds(sn.words, i, j)
     c = kandidat(sn, i, j, izvor="claude")
     if old:
-        for key in ("naslov", "hook", "status", "napomena_marka"):
+        for key in ("naslov", "hook", "status", "napomena_marka", *serija.PREUZMI, "izrezi"):
             if old.get(key):
                 c[key] = old[key]
         c["id"] = old["id"]
@@ -716,11 +721,53 @@ def cmd_status(proj, sn, a, status):
     return 0
 
 
+def cmd_render(proj, sn, a):
+    data = load(proj)
+    if data is None:
+        die(f"nema {DATOTEKA}. Prvo: python isjecci.py {proj} predlozi")
+    st = data.get("postavke") or {}
+    gr, _ = provjeri(sn, data, st.get("min_s", MIN_S), st.get("max_s", MAX_S))
+    gr = [g for g in gr if "ocjen" not in g and "razlog" not in g]  # ocjene nisu nužne za render
+    try:
+        cs = serija.odaberi_isjecke(data, a.ids or None, find)
+        gr += [g.replace("<projekt>", str(proj)) for g in serija.provjeri_spremnost(cs, a.bez_hooka)]
+        if a.stil:
+            gr += [g for g in serija.provjeri_spremnost([{"id": "--stil", "stil": a.stil}], True)]
+    except serija.Greska as e:
+        raise sadrzaj.Greska(str(e))
+    if gr:
+        print(f"Ne mogu renderirati ({len(gr)}):")
+        for g in gr:
+            print(f"  - {g}")
+        return 1
+    nije = [c["id"] for c in cs if c.get("status") != "odobren"]
+    if nije and not a.kadar:
+        print(f"Napomena: {', '.join(nije)} {'nije odobren' if len(nije) == 1 else 'nisu odobreni'} "
+              f"(renderiram jer je izričito navedeno)")
+    try:
+        gotovi = serija.renderiraj(proj, data, cs, brzo=a.brzo, kvaliteta=a.kvaliteta, stil=a.stil, kadar=a.kadar)
+    except serija.Greska as e:
+        raise sadrzaj.Greska(str(e))
+    if a.kadar:
+        return 0
+    spremi(proj, data)
+    pr = serija.pregled(proj, gotovi)
+    print(f"\nGotovo {len(gotovi)} {isjecaka(len(gotovi))} u {Path(proj) / serija.MAPA}:")
+    for c, res in gotovi:
+        print(f"  {c['id']}  {res['trajanje']:4.0f} s  {Path(res['video']).name}")
+    for u in serija.provjera_trajanja(gotovi, st.get("min_s", MIN_S), st.get("max_s", MAX_S)):
+        print(f"Upozorenje: {u}")
+    if pr:
+        print(f"Pregled (prva sekunda s hookom + sredina svakog isječka): {pr}")
+    print("Uz svaki video: .srt (titlovi za YouTube), .fcpxml (DaVinci), .edit.json (što je montirano).")
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser(description="Kandidati za isječke za mreže (isjecci.json)")
     ap.add_argument("projekt")
     ap.add_argument("naredba", nargs="?", default="",
-                    help="predlozi | provjeri | popis | novi | dodaj | odobri | odbaci | vrati")
+                    help="predlozi | provjeri | popis | novi | dodaj | odobri | odbaci | vrati | render")
     ap.add_argument("ids", nargs="?", default="", help="za odobri/odbaci/vrati: npr. K1,K3")
     ap.add_argument("--broj", type=int, default=None, help="koliko kandidata (predlozi: 10, novi: 5)")
     ap.add_argument("--min", type=float, default=MIN_S, help="najkraći isječak u sekundama (20)")
@@ -731,6 +778,11 @@ def main():
     ap.add_argument("--pojava", type=int, help="dodaj: koja pojava citata (ako ih ima više)")
     ap.add_argument("--umjesto", help="dodaj: zamijeni granice postojećeg isječka (npr. K3)")
     ap.add_argument("--razlog", help="odbaci/odobri: Markova napomena")
+    ap.add_argument("--brzo", action="store_true", help="render: brzi pregled u pola rezolucije")
+    ap.add_argument("--kvaliteta", default="dobra", choices=["dobra", "visoka"], help="render: kvaliteta")
+    ap.add_argument("--stil", help="render: isti stil za sve isječke u ovom renderu")
+    ap.add_argument("--kadar", help="render: samo slike kadrova (sekunde isječka, npr. 1,10)")
+    ap.add_argument("--bez-hooka", action="store_true", help="render: dopusti isječke bez hooka")
     a = ap.parse_args()
     proj = Path(a.projekt)
     if not proj.is_dir():
@@ -738,9 +790,9 @@ def main():
     nar = fold(a.naredba) or ("provjeri" if path_of(proj).exists() else "predlozi")
     alias = {"predlozi": "predlozi", "predlozii": "predlozi", "provjeri": "provjeri", "popis": "popis",
              "novi": "novi", "jos": "novi", "dodaj": "dodaj", "odobri": "odobri", "odbaci": "odbaci",
-             "vrati": "vrati"}
+             "vrati": "vrati", "render": "render", "renderiraj": "render", "napravi": "render"}
     if nar not in alias:
-        die(f"nepoznata naredba '{a.naredba}' (predlozi, provjeri, popis, novi, dodaj, odobri, odbaci, vrati)")
+        die(f"nepoznata naredba '{a.naredba}' (predlozi, provjeri, popis, novi, dodaj, odobri, odbaci, vrati, render)")
     a.naredba = alias[nar]
     if a.min < 5 or a.max <= a.min:
         die("--min mora biti barem 5 s, a --max veći od --min")
@@ -758,6 +810,8 @@ def main():
             code = cmd_novi(proj, sn, a)
         elif a.naredba == "dodaj":
             code = cmd_dodaj(proj, sn, a)
+        elif a.naredba == "render":
+            code = cmd_render(proj, sn, a)
         else:
             code = cmd_status(proj, sn, a, {"odobri": "odobren", "odbaci": "odbacen", "vrati": "prijedlog"}[a.naredba])
     except sadrzaj.Greska as e:
