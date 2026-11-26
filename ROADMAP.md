@@ -39,7 +39,7 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
 - M3.4 Tekstovi za objavu po mreži + naslovna sličica (podijeljeno):
   - [x] M3.4a Tekstovi za objavu: naslov, opis i hashtagovi posebno za Instagram, TikTok i YouTube, provjera pravila mreža, serije s potpisom (#22)
   - [x] M3.4b Naslovna sličica: najbolji kadar (lice, oštrina, otvorene oči) + tekst, 9:16 (sigurna zona 3:4 za Instagram mrežu) i 16:9 za YouTube (#23)
-- [ ] M3.5 Pregled M3: demo + issue
+- [x] M3.5 Pregled M3: demo + issue (#PR)
 
 ## M4 Podcast Sunčani4M
 
@@ -58,7 +58,7 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
 - [ ] M5.5 10 HTML predložaka (kartica, ključna rečenica, brojač, graf, popis, prije/poslije, komentar, mobitel, citat, poziv na akciju)
 - [ ] M5.6 Galerija efekata (jedan render sa svim efektima)
 - [ ] M5.7 Izdvajanje osobe (permisivni model): tekst iza osobe, zamjena pozadine, klon
-- [ ] M5.8 Novi stilovi montaže i titlova + „stil iz uzorka"
+- [ ] M5.8 Novi stilovi montaže i titlova + „stil iz uzorka"; titlovi stila Udarno (riječ u sredini kadra) ne smiju prekriti usta — kad je lice u sredini, riječ ide ispod lica (primijećeno u demu M3)
 - [ ] M5.9 Pregled M5: demo + issue
 
 ## M6 Sučelje i objava
