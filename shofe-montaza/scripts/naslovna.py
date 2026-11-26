@@ -332,7 +332,8 @@ def slozi_tekst(tekst, font_path, box, max_size=200, min_size=40, max_redaka=3):
     while size >= min_size:
         f = ucitaj_font(font_path, size)
         lh = int(size * 1.08)
-        lines = prelomi(tok, f, bw, max_redaka=min(max_redaka, max(1, bh // lh)))
+        obrub = 2 * max(3, int(size * 0.09)) + 4   # obrub slova izlazi izvan getlength (+ razlike FreeTypea)
+        lines = prelomi(tok, f, bw - obrub, max_redaka=min(max_redaka, max(1, bh // lh)))
         if lines and (_dobar(lines) or size <= min_size + 30):
             po_broju.setdefault(len(lines), (f, lines, lh))
         size -= 6
