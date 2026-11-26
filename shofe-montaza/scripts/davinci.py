@@ -431,7 +431,12 @@ def export(proj, edit, base, use_originals=True, name=None):
 def for_render(proj, edit, out_video):
     """render.py: uz svaki video i .fcpxml. Greška ovdje nikad ne ruši render."""
     try:
-        out, summ = export(proj, edit, Path(out_video).stem, name=f"{Path(proj).name} {Path(out_video).stem}")
+        ov = Path(out_video)
+        try:  # isti folder kao video (npr. isjecci/K1.fcpxml)
+            base = ov.resolve().relative_to(Path(proj).resolve()).with_suffix("").as_posix()
+        except ValueError:
+            base = ov.stem
+        out, summ = export(proj, edit, base, name=f"{Path(proj).name} {ov.stem}")
         lines = [f"DaVinci timeline: {out.name}  ({summ['kadrova']} kadrova iz "
                  + ("originalnih snimki" if summ["izvor"] == "originali" else "source.mp4") + ")"]
         lines += [f"  ({n})" for n in summ["napomene"] if "ne postoji" in n]

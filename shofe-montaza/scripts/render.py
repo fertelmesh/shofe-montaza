@@ -390,13 +390,30 @@ def main():
     a = ap.parse_args()
 
     proj = Path(a.projekt).resolve()
-    for f in ("project.json", "transcript.json", "edit.json", "source.mp4"):
+    if not (proj / "edit.json").exists():
+        die(f"nedostaje {proj / 'edit.json'}")
+    render(proj, load_json(proj / "edit.json"), izlaz=a.izlaz, brzo=a.brzo, kvaliteta=a.kvaliteta, kadar=a.kadar)
+
+
+def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None, verzija=None,
+           prevedi=True, ispis=True):
+    """Montaža po `edit_raw` (rječnik u formatu edit.json) → video + SRT (+ FCPXML).
+
+    izlaz   = putanja izlaza relativno na projekt (npr. "isjecci/K1.mp4"); None = nova verzija reel_vN.
+    verzija = upiši u verzije/ (zadano: samo kad nema `izlaz`); prevedi = i prijevodi titlova.
+    Vraća {"video", "srt", "trajanje", "kadrova", "zumova"} (za `kadar`: {"slike": [...]}).
+    """
+    import copy
+    proj = Path(proj).resolve()
+    for f in ("project.json", "transcript.json", "source.mp4"):
         if not (proj / f).exists():
             die(f"nedostaje {proj / f}")
+    if verzija is None:
+        verzija = not izlaz
     pj = load_json(proj / "project.json")
     words = load_json(proj / "transcript.json")["words"]
-    edit = load_json(proj / "edit.json")
-    edit_raw = load_json(proj / "edit.json")  # neizmijenjena kopija za verzije/edit_vN.json
+    edit = copy.deepcopy(edit_raw)
+    edit_raw = copy.deepcopy(edit_raw)  # neizmijenjena kopija za verzije/edit_vN.json
     W, H, fps = pj["width"], pj["height"], pj["fps"]
     st = resolve_style(edit)
     speed = float(edit.get("brzina") or 1.0)
@@ -420,9 +437,8 @@ def main():
     grade = GRADES.get(st.get("boja_slike", "neutralno"), GRADES["neutralno"])
     factor, zr = zoom_ranges(cuts, st)
 
-    if a.kadar:
-        stills_mode(a, proj, cuts, zr, factor, grade, subs, speed, W, H, total)
-        return
+    if kadar:
+        return {"slike": stills_mode(kadar, proj, cuts, zr, factor, grade, subs, speed, W, H, total)}
 
     eps = 0.5 / fps
     sel = "+".join(f"between(t,{c['a'] - eps:.4f},{c['b'] - eps:.4f})" for c in cuts)
@@ -434,7 +450,7 @@ def main():
     vtail = f"[v1]{subs}"
     if speed != 1.0:
         vtail += f",setpts=PTS/{speed}"
-    if a.brzo:
+    if brzo:
         vtail += f",scale={W // 2}:-2"
     g.append(vtail + ",format=yuv420p[vout]")
 
@@ -480,18 +496,22 @@ def main():
     fg.parent.mkdir(exist_ok=True)
     fg.write_text(";\n".join(g), encoding="utf-8")
 
-    if a.izlaz:
-        out = proj / a.izlaz
+    v = None
+    if izlaz:
+        out = proj / izlaz
+        out.parent.mkdir(parents=True, exist_ok=True)
     else:
         v = verzije.next_number(proj)
-        out = proj / (f"reel_v{v}_pregled.mp4" if a.brzo else f"reel_v{v}.mp4")
+        out = proj / (f"reel_v{v}_pregled.mp4" if brzo else f"reel_v{v}.mp4")
+    rel = out.relative_to(proj).as_posix()  # ffmpeg radi u mapi projekta
 
-    preset, crf = ("ultrafast", 26) if a.brzo else (("medium", 17) if a.kvaliteta == "visoka" else ("veryfast", 18))
+    preset, crf = ("ultrafast", 26) if brzo else (("medium", 17) if kvaliteta == "visoka" else ("veryfast", 18))
     cmd = [ffmpeg(), "-y", "-v", "error", *inputs, *filter_script_args(fg),
            "-map", "[vout]", "-map", "[aout]", "-r", fps,
            "-c:v", "libx264", "-preset", preset, "-crf", crf, "-pix_fmt", "yuv420p", "-profile:v", "high",
-           "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", out.name]
-    print(f"Renderiram {out.name} ({st.get('naziv', edit.get('stil'))}, {n} rezova)...")
+           "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", rel]
+    if ispis:
+        print(f"Renderiram {rel} ({st.get('naziv', edit.get('stil'))}, {n} rezova)...")
     run(cmd, cwd=proj)
 
     final = total / speed
@@ -499,15 +519,21 @@ def main():
     srt = out.with_suffix(".srt")
     cues = titlovi.make_cues([dict(w, s=w["s"] / speed, e=w["e"] / speed) for w in ws], final, fps)
     titlovi.write_srt(srt, cues)
-    import prijevod  # engleski (ili drugi) titlovi, ako ih projekt već prevodi
-    translated = prijevod.for_render(proj, cues, out)
+    translated = []
+    if prevedi:
+        import prijevod  # engleski (ili drugi) titlovi, ako ih projekt već prevodi
+        translated = prijevod.for_render(proj, cues, out)
     import davinci  # timeline za DaVinci Resolve s istim rezovima (originalne snimke)
     resolve_lines = davinci.for_render(proj, edit_raw, out)
-    if not a.izlaz:  # nova verzija: točno ovaj edit.json, datum, trajanje; korisnik sada gleda nju
-        verzije.record_render(proj, v, edit_raw, out.name, final, a.brzo, a.kvaliteta)
+    if verzija and v is not None:  # nova verzija: točno ovaj edit.json, datum, trajanje; korisnik sada gleda nju
+        verzije.record_render(proj, v, edit_raw, out.name, final, brzo, kvaliteta)
         learn_vocabulary(proj, edit_raw, words)
+    res = {"video": out, "srt": srt, "trajanje": final, "kadrova": n, "zumova": len(zr),
+           "ispis": translated + resolve_lines}
+    if not ispis:
+        return res
     removed = [s["id"] for s in edit["odsjecci"] if not s.get("zadrzi", True)]
-    print(f"\nGotovo: {out}" + (f"  (verzija {v}; popis i usporedba: python verzije.py {proj.name})" if not a.izlaz else ""))
+    print(f"\nGotovo: {out}" + (f"  (verzija {v}; popis i usporedba: python verzije.py {proj.name})" if v else ""))
     print(f"Titlovi za YouTube: {srt.name}")
     for line in translated:
         print(line)
@@ -518,10 +544,11 @@ def main():
         print(f"Izbačeni odsječci: {', '.join('#' + str(i) for i in removed)}")
     if edit.get("izrezi"):
         print(f"Izrezano naredbama (dijelova: {len(edit['izrezi'])}), popis: python uredi.py {proj.name} popis")
+    return res
 
 
-def stills_mode(a, proj, cuts, zr, factor, grade, subs, speed, W, H, total):
-    times = [float(x) for x in a.kadar.split(",") if x.strip()]
+def stills_mode(kadar, proj, cuts, zr, factor, grade, subs, speed, W, H, total):
+    times = [float(x) for x in str(kadar).split(",") if x.strip()]
     pngs = []
     for k, t in enumerate(times):
         pre = min(max(t * speed, 0), total - 0.01)
@@ -544,8 +571,9 @@ def stills_mode(a, proj, cuts, zr, factor, grade, subs, speed, W, H, total):
         fc += "".join(f"[s{i}]" for i in range(len(pngs))) + f"hstack=inputs={len(pngs)}"
         run([ffmpeg(), "-y", "-v", "error", *args, "-filter_complex", fc, "kadrovi.png"], cwd=proj)
         print(f"Kadrovi: {proj / 'kadrovi.png'}")
-    else:
-        print(f"Kadar: {pngs[0]}")
+        return pngs + [proj / "kadrovi.png"]
+    print(f"Kadar: {pngs[0]}")
+    return pngs
 
 
 if __name__ == "__main__":

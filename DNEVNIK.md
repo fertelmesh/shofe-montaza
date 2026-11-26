@@ -165,3 +165,14 @@ Jedan unos po krugu, najnoviji na dnu.
 - Testovi: novi `tests/test_kadar.py` (9: kadrovi i rupe, crop iz položaja lica, naredbe za ffmpeg bez švenka na rezu, spajanje govornika i usana, miruje/prati, cijeli put s govornicima i samo s usnama, DaVinci slika iz originala = source.mp4, `--vrati`, uspravni klip i klip bez lica) + `tests/make_kadar_klip.py`.
 - Za Marka: ništa sad. Kad pošalješ vodoravnu snimku razgovora (vidi #7), reci „napravi reel 9:16, kadar neka prati onoga tko priča" i javi je li kadar ikad na krivoj osobi.
 - Sljedeće: M3.3 render odabranih isječaka u seriji.
+
+## 2026-11-26 06:40 — M3.3 render odabranih isječaka u seriji
+- Živa specifikacija pročitana: bez promjena. Issues #7 i #18 (pregledi M1 i M2) još bez Markova odgovora; otvorenih PR-ova nema.
+- Novo: `isjecci.py render` (+ `serija.py`). Svi odobreni isječci (ili `render K1,K3`) montiraju se jedan za drugim u `isjecci/K1_<naslov>.mp4` sa stilom, titlovima i Claudeovim hookom, uz `.srt`, `.fcpxml` (DaVinci) i `.edit.json`, plus `isjecci/pregled.png` (prva sekunda s hookom i sredina svakog isječka). Svaki isječak je kopija glavnog edit.json (ispravljena imena, poštapalice, ponovljeni pokušaji, stil, glazba) sa svime izvan isječka izrezanim; rezovi naredbama glavnog videa se ne prenose (javi se napomena). Glavni edit.json i verzije ostaju netaknuti.
+- Po isječku: vlastiti `stil`, `naglasi`, `zoom`, `glazba`…, vlastiti `izrezi`; `--stil` za cijelu seriju, `--kadar 1,15` slike kadrova, `--brzo`, `--kvaliteta visoka`. Bez hooka = greška (osim `--bez-hooka`). Novi naslov → stari video tog isječka se zamijeni.
+- `render.py` prepisan u funkciju `render(proj, edit, izlaz=…)` (naredbeni redak isti); izlaz smije biti u podmapi, FCPXML ide uz video. Odluka i izvori u ODLUKE.md. Verzija 0.16.0.
+- Provjera očima: probna epizoda (testni video s brojačem sekundi) → K1/K2/K3 na `pregled.png` počinju točno na 16 / 143 / 115 s snimke, hook čitljiv na vrhu, titlovi dolje, K2 u stilu udarno. 3 isječka (75 s videa, 540×960) za 28 s.
+- Testovi: novi `tests/test_serija.py` (5: rezovi i napomene isječka, imena datoteka, greške bez odobrenih/bez hooka/krivi stil, serija od 2 isječka — trajanje, titlovi = točno riječi isječka, glavni projekt netaknut — i promjena naslova + kadrovi).
+- Za Marka: ništa sad. Kad budeš imao dulju snimku (vidi #7): „napravi isječke", odaberi, pa „napravi odabrane isječke" i pogledaj `isjecci/pregled.png`.
+- Sljedeće: M3.4 tekstovi za objavu po mreži + naslovna sličica.
+
