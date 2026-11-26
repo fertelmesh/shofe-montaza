@@ -173,7 +173,17 @@ Kad epizodu snimaš s 2–3 kamere i možda zasebnim snimačem zvuka, Shofe ih s
 - `ovo su snimke epizode 12, sinkroniziraj kamere i zvuk` (i daj mapu sa snimkama)
 - `kamera 3 nije dobro sjela, počinje otprilike 12 sekundi prije zvuka`
 
-Glavna vremenska crta je zasebni zvuk (ako ga ima), inače najdulja kamera. Shofe za svaku kameru izmjeri gdje počinje (na tisućinku sekunde) i koliko joj sat žuri ili kasni (kamere znaju odlutati i desetinku-dvije na sat; Shofe to ispravi). Dobiješ `sinkro_provjera.mp4` — 10 sekundi svih kamera jedna uz drugu sa zvukom: usne moraju pratiti glas — i `sinkro.png`, gdje se vrhovi glasnoće svih izvora moraju poklapati. Snimka koja nije iz iste epizode ili nema zvuka bit će označena za provjeru. Za sat snimke treba oko minutu (najviše traje čitanje zvuka iz videa). Sljedeći korak (u izradi): kadar na onoga tko govori.
+Glavna vremenska crta je zasebni zvuk (ako ga ima), inače najdulja kamera. Shofe za svaku kameru izmjeri gdje počinje (na tisućinku sekunde) i koliko joj sat žuri ili kasni (kamere znaju odlutati i desetinku-dvije na sat; Shofe to ispravi). Dobiješ `sinkro_provjera.mp4` — 10 sekundi svih kamera jedna uz drugu sa zvukom: usne moraju pratiti glas — i `sinkro.png`, gdje se vrhovi glasnoće svih izvora moraju poklapati. Snimka koja nije iz iste epizode ili nema zvuka bit će označena za provjeru. Za sat snimke treba oko minutu (najviše traje čitanje zvuka iz videa).
+
+### Kamera na onoga tko govori
+
+Nakon sinkronizacije reci npr.:
+
+- `montiraj epizodu, kamera neka prati onoga tko priča`
+- `kamera 2 snima Ivana` (ako Shofe krivo pogodi)
+- `manje širokih kadrova` / `više širokih kadrova` / `brži rezovi`
+
+Shofe prvo složi epizodu u širokom kadru, prepozna tko govori (transkript + govornici), pa sam pogleda svaku kameru: kamera s jednim licem je krupni kadar te osobe (prepozna je po usnama dok govori), kamera s dvoje-troje ljudi je široki kadar. Onda montira kao režiser: dok netko govori, vidi se njegova kamera; kad pričate u isti glas ili se brzo dobacujete, široki kadar; gost bez svoje kamere i dulja tišina također idu u široki kadar; kratko „aha" ne prebacuje kameru, a svaki kadar traje barem 2 sekunde. U dugom monologu svakih 30-ak sekundi na tren uskoči široki kadar. Kamera koja je u tom trenutku ugašena se ne bira. Zvuk je uvijek onaj najbolji (zasebni snimač). Dobiješ `rezija.png` (koja kamera kad) i gotov 16:9 video epizode, na kojem dalje radi sve ostalo: rezanje, titlovi, isječci, DaVinci.
 
 ## Stilovi
 
