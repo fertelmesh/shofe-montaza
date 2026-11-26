@@ -33,7 +33,7 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
 
 ## M3 Isječci za mreže
 
-- [ ] M3.1 Kandidati za isječke iz dulje snimke: heuristike (jak početak, zaokružena misao, 20–60 s) + Claudeova ocjena → `isjecci.json` s ocjenom i razlogom
+- [x] M3.1 Kandidati za isječke iz dulje snimke: heuristike (jak početak, zaokružena misao, 20–60 s) + Claudeova ocjena → `isjecci.json` s ocjenom i razlogom (#PR)
 - [ ] M3.2 Kadar 9:16 prati govornika: detekcija lica (permisivna licenca), zaglađeni pomak, test na vodoravnom klipu s dvije osobe
 - [ ] M3.3 Render odabranih isječaka u seriji, svaki sa stilom, titlovima i hookom
 - [ ] M3.4 Tekstovi za objavu po mreži + naslovna sličica (kadar + tekst)

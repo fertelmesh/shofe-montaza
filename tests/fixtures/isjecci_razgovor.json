@@ -1,0 +1,62 @@
+{
+  "opis": "Izmišljeni dio epizode Sunčani4M (~4,5 min, dva govornika). Blokovi 'dobar' su prirodni isječci (jak početak, zaokružena misao, 20–60 s); 'los' su čavrljanje, nedovršeno ili nastavak bez konteksta. Pauza = sekunde tišine poslije rečenice.",
+  "blokovi": [
+    {"oznaka": "cavrljanje", "dobar": false, "tema": "Uvod", "recenice": [
+      ["A", "Bok svima, evo nas opet u autu.", 0.5],
+      ["B", "Je l' ovo snima?", 0.4],
+      ["A", "Snima, snima, sve je u redu.", 0.5],
+      ["B", "Dobro, ovaj, gdje smo ono stali prošli put?", 0.5],
+      ["A", "Ne znam, ono, svejedno je, ajmo krenuti.", 1.6]
+    ]},
+    {"oznaka": "greska_klima", "dobar": true, "tema": "Kupnja klime", "recenice": [
+      ["A", "Znate li koja je najveća greška kod kupnje klime?", 0.6],
+      ["A", "Ljudi gledaju samo cijenu uređaja u trgovini.", 0.4],
+      ["A", "A zaboravljaju na ugradnju i redovni servis.", 0.5],
+      ["A", "Jeftina klima koja je loše ugrađena troši dvostruko više struje.", 0.5],
+      ["A", "Prošle godine smo u Kutini imali četrdeset takvih slučajeva.", 0.5],
+      ["A", "Zato uvijek pitajte tko ugrađuje i daje li garanciju na ugradnju.", 0.4],
+      ["A", "To je savjet koji vam štedi stotine eura.", 1.8]
+    ]},
+    {"oznaka": "lutanje", "dobar": false, "tema": "Vožnja", "recenice": [
+      ["B", "A onda smo išli dalje, ono, ne sjećam se točno kuda.", 0.5],
+      ["B", "Bilo je kasno, mislim, i tako, eto, vozili smo se.", 0.5],
+      ["A", "I nije bilo ništa posebno, ovaj, stali smo na pumpi.", 0.5],
+      ["B", "Pa smo kupili kavu i onda smo nastavili.", 0.5],
+      ["A", "I to je to, eto, ništa.", 1.6]
+    ]},
+    {"oznaka": "prvi_koncert", "dobar": true, "tema": "Prvi koncert u autu", "recenice": [
+      ["A", "Nikad neću zaboraviti prvi koncert u ovom Renaultu.", 0.6],
+      ["A", "Bend je svirao na stražnjem sjedalu, a mi smo vozili kroz Kutinu.", 0.5],
+      ["A", "Ljudi su na semaforu otvarali prozore i pjevali s nama.", 0.5],
+      ["A", "U tom trenutku sam shvatio da Sunčani4M nije samo podcast.", 0.5],
+      ["A", "To je zajednica ljudi koji vole glazbu i ovaj grad.", 0.4],
+      ["A", "Zato svaki tjedan opet sjednemo u ovaj stari auto.", 1.8]
+    ]},
+    {"oznaka": "nedovrseno", "dobar": false, "tema": "Popovača", "recenice": [
+      ["B", "Kad smo kod toga, sjećaš se onog čovjeka iz Popovače, onog što je zvao tri puta?", 0.5],
+      ["A", "Da, njega, on je imao onu, kako se zove, staru klimu.", 0.5],
+      ["B", "I to je bilo, kako da kažem, malo čudno", 0.5],
+      ["A", "Ali dobro, to ćemo drugi put", 1.6]
+    ]},
+    {"oznaka": "odrzavanje", "dobar": true, "tema": "Održavanje klime", "recenice": [
+      ["B", "Koliko zapravo košta održavanje klime godišnje?", 0.6],
+      ["A", "Redovni servis je oko osamdeset eura.", 0.4],
+      ["A", "Uključuje čišćenje filtera, provjeru plina i dezinfekciju.", 0.5],
+      ["A", "Ako to preskočite, za tri godine imate kvar od tristo eura.", 0.5],
+      ["A", "Dakle, osamdeset eura godišnje je najjeftinije osiguranje koje možete kupiti.", 0.4],
+      ["B", "To je stvarno dobar savjet za sve koji imaju klimu doma.", 1.8]
+    ]},
+    {"oznaka": "tri_stvari", "dobar": true, "tema": "Priprema za ljeto", "recenice": [
+      ["A", "Tri stvari koje morate napraviti prije ljeta.", 0.6],
+      ["A", "Prvo, operite filtere mlakom vodom i ostavite ih da se osuše.", 0.5],
+      ["A", "Drugo, provjerite odvod kondenzata da vam ne curi po zidu.", 0.5],
+      ["A", "Treće, uključite klimu na pola sata prije prvog vrućeg dana.", 0.5],
+      ["A", "Ako napravite ove tri stvari, klima će raditi bez problema cijelo ljeto.", 1.8]
+    ]},
+    {"oznaka": "odjava", "dobar": false, "tema": "Odjava", "recenice": [
+      ["A", "Eto, to je bilo to za danas.", 0.4],
+      ["B", "Hvala vam što slušate, vidimo se za tjedan dana.", 0.4],
+      ["A", "Bok, bok.", 0.5]
+    ]}
+  ]
+}
