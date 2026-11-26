@@ -1,14 +1,14 @@
-# Demo — pregled M2 (Montaža po naredbi)
+# Demo — pregled M3 (Isječci za mreže)
 
-Sve je napravljeno iz probne snimke (sintetski glas, umjetna slika), ne iz tvojih klipova. Na slici je **vremenski kod izvornog klipa**, pa se vidi što je izrezano. Pravu kvalitetu provjeri na svojoj snimci (upute u issueu „Pregled M2").
+Sve je napravljeno iz probne epizode Sunčani4M (3 min, dva nacrtana voditelja u vodoravnom kadru, sintetski glasovi), ne iz tvojih snimki. Na slici je **vrijeme snimke**, pa se vidi iz kojeg dijela epizode je isječak. Ocjene, hookove i tekstove za objavu napisao je Claude kao što bi na tvom laptopu; sve ostalo (kandidati, kadar, montaža, titlovi, provjera pravila mreža, naslovne sličice) je Shofe. Pravu kvalitetu provjeri na svojoj snimci (upute u issueu „Pregled M3").
 
 | Datoteka | Što pokazuje |
 |---|---|
-| `M2_naredbe.mp4` | Probni reel „SF klima" (2 klipa, tri pokušaja uvoda, zabuna u cijeni). Prije svakog videa kartica: što je Marko rekao i što je Shofe napravio. 1) automatski plan izbaci loše pokušaje uvoda; 2) „zadrži drugi pokušaj uvoda, a izreži dio gdje pričam o cijeni"; 3) „makni od 0:10,5 do 0:13,8" (po vremenu, rez poravnat na cijele riječi); 4) „skrati na 20 sekundi, savjet o filteru mora ostati". Svaki korak je nova verzija. |
-| `M2_engleski.mp4` | Zadnja verzija s Shofeovim titlovima i engleskim SRT-om (`reel_v4.en.srt`) kako ga prikazuje VLC/YouTube. |
-| `M2_verzije.png` | Što Claude vidi kad kažeš „pokaži verzije", „što se promijenilo" i kako ocjenjuje misli za „skrati". |
-| `M2_davinci.png` | Timeline iz `reel_v4.fcpxml` nacrtan iz XML-a (nije snimka DaVincija): 7 kadrova iz originalnih klipova, vremenski kod u originalu, zumovi, glazba na A2, oznake. |
+| `M3_isjecci.mp4` | „Napravi isječke iz ove epizode": 4 kandidata s Claudeovom ocjenom i Shofeovim bodovima (čavrljanje, lutanje, nedovršena priča i odjava nisu predloženi), Marko odobri K1–K3 i odbaci K4, pa sva tri gotova isječka 9:16 jedan za drugim — svaki sa svojim stilom (čisto, podcast, kino), hookom i titlovima. |
+| `M3_kadar.mp4` | Lijevo vodoravna snimka s narančastim okvirom koji Shofe izreže, desno gotov 9:16 kadar. Uvodno čavrljanje (brze izmjene) i pitanje–odgovor o održavanju klime: kadar uvijek na onome tko govori, rez a ne švenk. |
+| `M3_objava.png` | Za K1: naslovna sličica 9:16 (Reels/TikTok/Shorts) i 16:9 (YouTube, krupno lice iz vodoravne snimke) + tekstovi za Instagram, TikTok i YouTube sa stalnim potpisom i hashtagovima serije Sunčani4M (iz `K1_….objava.txt`). |
+| `M3_naslovna.jpg` | 6 najboljih kadrova za naslovnu s ocjenom i razlogom — to Claude pogleda prije nego predloži sličicu. |
 
-Demo za M1 (reel, 5 stilova, karta videa) je u povijesti repozitorija: [demo M1](https://github.com/fertelmesh/shofe-montaza/tree/d322cb95f66afc3efe74ee8e4a33de2c4f3063a0/demo).
+Ranije: [demo M2](https://github.com/fertelmesh/shofe-montaza/tree/8e13791/demo) (naredbe, engleski titlovi, verzije, DaVinci), [demo M1](https://github.com/fertelmesh/shofe-montaza/tree/d322cb95f66afc3efe74ee8e4a33de2c4f3063a0/demo) (reel, 5 stilova, karta videa).
 
-Ponovno napraviti: `python tests/make_demo_m2.py` (treba ffmpeg, espeak-ng i Playwright s Chromiumom). Demo M1: `python tests/make_demo.py`.
+Ponovno napraviti: `python tests/make_demo_m3.py` (treba ffmpeg, espeak-ng, OpenCV, Pillow i Playwright s Chromiumom; ~6 min). Ranije: `python tests/make_demo_m2.py`, `python tests/make_demo.py`.

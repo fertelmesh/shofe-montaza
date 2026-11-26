@@ -196,3 +196,16 @@ Jedan unos po krugu, najnoviji na dnu.
 - Testovi: novi `tests/test_naslovna.py` (10) + `tests/make_naslovna_klip.py`.
 - Za Marka: kad imaš gotov reel, reci „napravi naslovnu sličicu" i javi bi li je objavio (ili koji kadar/tekst bi promijenio). Oči i izraz lica Shofe procjenjuje približno; Claude zato uvijek pogleda kandidate.
 - Sljedeće: M3.5 Pregled M3 (demo + issue).
+
+## 2026-11-26 13:40 — M3.5 Pregled M3 (demo + issue)
+- Živa specifikacija pročitana (rev 13): bez promjena. Issues #7 i #18 (pregledi M1 i M2) još bez Markova odgovora; otvorenih PR-ova nema.
+- Novo: `tests/make_demo_m3.py` → `demo/`. Probna epizoda Sunčani4M (3 min iz `isjecci_razgovor.json`, dva nacrtana voditelja u vodoravnom kadru, dva sintetska glasa espeak-ng, usta po glasu, vrijeme snimke na slici) prolazi cijeli put M3 kao na laptopu: prepare 9:16 → govornici (iz scenarija, modeli nisu u sandboxu) → analiza + Claudeove teme i trenuci → `kadar.py` → `isjecci.py` → Claudeove ocjene → odobri K1–K3, odbaci K4 → `isjecci.py render` → serija Sunčani4M + `objava.py` → `naslovna.py`.
+  - `M3_isjecci.mp4` (112 s, 4,5 MB): kandidati s ocjenama + tri gotova isječka (stilovi čisto, podcast, kino).
+  - `M3_kadar.mp4` (29 s, 1,3 MB): vodoravna snimka s okvirom izreza uz gotov 9:16 kadar.
+  - `M3_objava.png`: naslovne 9:16 i 16:9 + tekstovi za IG/TikTok/YouTube za K1; `M3_naslovna.jpg`: kandidati za naslovnu.
+  - M2 demo maknut iz `demo/` (ostaje u povijesti, link u `demo/README.md`).
+- Provjera očima: Shofe je predložio točno 4 dobra dijela epizode (čavrljanje, lutanje, nedovršena priča i odjava nisu predloženi); svaki isječak od prve do zadnje rečenice; kadar.py napravio 21 kadar, svaki na govorniku iz scenarija (pogledano očima na 5 mjesta: lice na sredini, rez bez švenka); naslovne s licem i tekstom u sigurnoj zoni; tekstovi s potpisom serije i ≤ 5 hashtagova.
+- Primijećeno: stil Udarno stavlja riječ u sredinu kadra, a kod uspravnog kadra lica to je točno preko usta → dodano u M5.8 (riječ ispod lica kad kadar.py zna gdje je lice). Za demo isječak K1 zato u stilu Čisto.
+- Testovi: novi `tests/test_demo_m3.py` (4: Claudeove ocjene pokrivaju sve dijelove epizode, tekstovi po pravilima mreža, okviri izreza, vrijeme). Lokalno 236 prošlo, 3 preskočena.
+- Za Marka: issue „Pregled M3" — demo, instalacija 0.18.0, isječci iz prave epizode, tekstovi i naslovne. Najvažnije: koliko od 10 predloženih isječaka bi objavio (cilj ≥ 5) i je li kadar ikad na krivoj osobi.
+- Sljedeće: M4.1 sinkronizacija više izvora po zvuku.
