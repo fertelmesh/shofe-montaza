@@ -1,13 +1,18 @@
 name: testovi
 
 on:
-  push:
-    branches: [main]
+  # Testira se samo PR. Push na main se ne testira ponovno: squash merge zelenog PR-a je isti kod,
+  # a dupli krug je trošio trećinu besplatnih minuta (vidi ODLUKE 2026-11-27).
   pull_request:
   workflow_dispatch:
   schedule:
     # svakog ponedjeljka: uhvati pakete koji su se u međuvremenu pokvarili (npr. nova verzija PyAV-a)
     - cron: "17 4 * * 1"
+
+# Novi push na istu granu prekida stari krug koji još radi (agent često gura dva commita zaredom).
+concurrency:
+  group: testovi-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   pipeline:
@@ -61,7 +66,7 @@ jobs:
           PYTHONUTF8: "1"
           SHOFE_GOVORNICI_TEST: "1"
           SHOFE_MODELI: ${{ runner.temp }}/shofe-modeli
-        run: python -m pytest tests -q -rs
+        run: python -m pytest tests -q -rs --durations=15
 
   transkripcija:
     strategy:
