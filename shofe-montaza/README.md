@@ -233,7 +233,14 @@ Kad Claude napravi kartu epizode, upiše i **teme** (npr. „Kako smo kupili Ren
 - `poglavlja za YouTube` — dobiješ popis za kopiranje
 - `preimenuj treće poglavlje u „Gost iz Zagreba"` / `spoji prva dva poglavlja` / `novo poglavlje na 23:10`
 
-**MP3 za podcast platforme** (Spotify, Apple Podcasts…): reci `napravi MP3` (ili `napravi MP3, naslov „Sunčani4M #12: Gost"`). Shofe iz gotove epizode napravi `reel_vN.mp3`: glasnoća **−16 LUFS** (što traže podcast platforme; video ostaje na −14 za mreže), vrhovi ispod −1 dB, 128 kbps stereo, a **poglavlja su upisana u MP3**, pa ih aplikacije za podcaste pokažu. Pjesme su jednako glasne kao u videu. Ako želiš, Shofe u MP3 stavi i naslovnu sliku (kvadratnu). Za sat epizode treba oko minutu. MP3 zatim sam učitaš na svoju podcast platformu — Shofe ništa ne objavljuje.
+**MP3 za podcast platforme** (Spotify, Apple Podcasts…): reci `napravi MP3` (ili `napravi MP3, naslov „Gost iz Zagreba"`). Shofe iz gotove epizode napravi `reel_vN.mp3`: glasnoća **−16 LUFS** (što traže podcast platforme; video ostaje na −14 za mreže), vrhovi ispod −1 dB, 128 kbps stereo, a **poglavlja su upisana u MP3**, pa ih aplikacije za podcaste pokažu. Pjesme su jednako glasne kao u videu. Ako želiš, Shofe u MP3 stavi i naslovnu sliku (kvadratnu). Za sat epizode treba oko minutu. MP3 zatim sam učitaš na svoju podcast platformu — Shofe ništa ne objavljuje.
+
+**Opis epizode** — reci `napiši opis epizode` (ili `tekst za YouTube i Spotify`). Claude napiše dva teksta, a Shofe ih provjeri i složi u `reel_vN.objava.txt`:
+
+- **YouTube**: naslov, opis i hashtagovi; **poglavlja Shofe sam doda na kraj opisa** (iz gotovog videa, nikad ručno upisana vremena koja bi nakon nove montaže bila kriva).
+- **Podcast platforme** (Spotify for Creators, Apple Podcasts…): naslov epizode, opis s poglavljima u obliku koji Spotify pretvori u poglavlja (svako barem 30 s) i **broj epizode zasebno** — Apple traži da broj i ime podcasta ne budu u naslovu epizode, nego u svom polju (Shofe upozori ako jesu). Bez hashtagova, jer ih podcast aplikacije ne koriste.
+
+Ako je MP3 već napravljen s drugim naslovom, Shofe kaže kako ga ponovno napraviti s istim naslovom kao na platformama. Potpis serije (npr. `za Sunčani4M na kraju napiši „Slušaj nas svaki petak"`) dodaje se i na podcast tekst; za samo podcast reci `potpis samo za Spotify`.
 
 ## Stilovi
 

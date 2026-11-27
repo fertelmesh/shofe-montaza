@@ -131,6 +131,19 @@ def youtube_tekst(ch, trajanje):
     return "\n".join(f"{yt_vrijeme(c['od'], sat)} {c['naslov']}" for c in ch) + "\n"
 
 
+def podcast_vrijeme(t, sat):
+    t = int(math.floor(t + 1e-6))
+    h, r = divmod(t, 3600)
+    m, s = divmod(r, 60)
+    return f"{h:02d}:{m:02d}:{s:02d}" if sat else f"{m:02d}:{s:02d}"
+
+
+def podcast_tekst(ch, trajanje):
+    """Poglavlja u opisu epizode za Spotify for Creators: MM:SS ili HH:MM:SS, prvo 00:00, jedno po retku."""
+    sat = trajanje >= 3600
+    return "\n".join(f"{podcast_vrijeme(c['od'], sat)} {c['naslov']}" for c in ch) + "\n"
+
+
 def chapters_json(ch, trajanje):
     """Podcasting 2.0 JSON Chapters (podcastindex.org), za hostove koji ga primaju (<podcast:chapters>)."""
     out = []
