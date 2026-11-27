@@ -224,6 +224,8 @@ Glasnoću pjesme Shofe namjesti sam: izmjeri koliko je glasan razgovor, a koliko
 
 U `pregled.html` pjesme su na vremenskoj crti (zeleno; tamnije = refren, narančasti okvir = isječak), a ispod je popis pjesama s gumbom ▶ koji pusti isječak iz pjesme.
 
+Kod podcasta je isječak pjesme **uspravan (9:16) i u ritmu**: počne i završi na **bendu** iz širokog kadra, a između se izmjenjuju vaše krupne kamere, rez je točno na udarac na početku takta (prosječno svakih 6 s, malo brže nego u epizodi jer je isječak za mreže). Kad u širokom kadru svi ne stanu u uski uspravni kadar, Shofe pokaže **cijeli bend u širini**, malo iznad sredine, a iznad i ispod je ista slika zamućena i potamnjena — nitko nije odrezan. Za vrijeme pjesme kadar se ne dijeli i ne prati onoga tko pjeva. Ako želiš cijelu pjesmu na bendu, reci `cijela pjesma u širokom kadru`. U DaVinciju je bend na dvije trake: V2 cijeli bend, V1 ista kamera kao pozadina (ondje nije zamućena — ako želiš kao u Shofeu, na V1 dodaj efekt Gaussian Blur).
+
 ## Stilovi
 
 | Stil | Za što |
