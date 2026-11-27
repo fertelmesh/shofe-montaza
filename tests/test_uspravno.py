@@ -213,6 +213,130 @@ def test_kadrovi_vodoravno_i_ispis(isjecci):
     assert "podijeljen kadar" in out and "kamB.mp4" in out
 
 
+# ---------------------------------------------------------------- M4.2b3a: titlovi na spoju, naslovna iz kamera
+
+def test_titlovi_na_spoju_bez_videa(tmp_path):
+    import render
+    cuts = [{"a": 10.0, "b": 14.0, "o": 0.0}, {"a": 20.0, "b": 30.0, "o": 4.0}]
+    izvor = {"kadrovi": [{"od": 9.0, "do": 12.0, "raspored": "dvoje"}, {"od": 12.0, "do": 22.0, "raspored": "jedan"},
+                         {"od": 22.0, "do": 25.0, "raspored": "dvoje"}]}
+    spans = render.split_spans(izvor, cuts)
+    assert [(round(a, 3), round(b, 3)) for a, b in spans] == [(0.0, 2.0), (6.0, 9.0)]
+    assert render.split_spans(None, cuts) == [] and render.split_spans({"kadrovi": []}, cuts) == []
+    # događaj preko granice dijeli se točno na rezu kadra
+    assert render.split_at(1.0, 3.0, spans) == [(1.0, 2.0, True), (2.0, 3.0, False)]
+    assert render.split_at(3.0, 5.0, spans) == [(3.0, 5.0, False)]
+    st = render.resolve_style({"stil": "podcast"})
+    ws = [{"t": f"riječ{i}", "s": i * 0.5, "e": i * 0.5 + 0.4, "hl": False} for i in range(20)]
+    ass = tmp_path / "c.ass"
+    render.write_ass(ass, ws, st, {"hook": "Hook"}, 1080, 1920, 10.0, spoj=spans)
+    ev = [line for line in ass.read_text(encoding="utf-8").splitlines() if line.startswith("Dialogue")]
+    cap = [line for line in ev if ",Cap," in line]
+    seam = [line for line in cap if "\\an5\\pos(540,960)" in line]
+
+    def t(x):
+        h, m, sec = x.split(":")
+        return int(h) * 3600 + int(m) * 60 + float(sec)
+    assert seam and len(seam) < len(cap)
+    for line in cap:
+        s0, s1 = (t(x) for x in line.split(",")[1:3])
+        mid = (s0 + s1) / 2
+        assert ("\\pos(540,960)" in line) == any(a <= mid < b for a, b in spans), line
+    assert not any("\\pos(" in line for line in ev if ",Hook," in line)        # hook ostaje gore
+
+
+def _sl(path, t=None):
+    cmd = ["ffmpeg", "-v", "error"] + (["-ss", f"{t:.3f}"] if t is not None else []) + [
+        "-i", str(path), "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]
+    return np.frombuffer(subprocess.run(cmd, capture_output=True).stdout, np.uint8).reshape(1920, 1080, 3)
+
+
+def _titl(proj, edit, video, t, y0, y1):
+    """Udio piksela u traci y0–y1 (sredina širine) koje mijenjaju titlovi: gotovi video naspram iste
+    sličice bez titlova (render --kadar, ista boja i zum)."""
+    import render
+    bez = render.render(proj, dict(edit, titlovi=False, hook=""), kadar=f"{t:.3f}", verzija=False,
+                        prevedi=False, ispis=False, izvor=_izvor(proj, "K1"))["slike"][0]
+    a, b = _sl(video, t)[y0:y1, 190:890].astype(int), _sl(bez)[y0:y1, 190:890].astype(int)
+    return float(np.mean(np.abs(a - b).max(axis=2) > 90))
+
+
+def _izvor(proj, kid):
+    d = load(proj / "isjecci" / "izvor_9x16" / f"{kid}.json")
+    return {"datoteka": proj / "isjecci" / "izvor_9x16" / f"{kid}.mp4", "pomak": d["pomak"], "W": 1080, "H": 1920,
+            "kadrovi": d["kadrovi"]}
+
+
+def test_titlovi_podijeljenog_kadra_su_na_spoju(isjecci):
+    proj, _ = isjecci
+    import render
+    run("isjecci.py", proj, "render", "K1")
+    edit = load(proj / "isjecci" / "K1.edit.json")
+    st = render.resolve_style(edit)
+    words = load(proj / "transcript.json")["words"]
+    pj = load(proj / "project.json")
+    cuts, _, _ = render.build_cuts(words, edit, st, int(pj["fps"]), pj["duration"])
+    izvor = load(proj / "isjecci" / "izvor_9x16" / "K1.json")
+    spans = render.split_spans(izvor, cuts)
+    assert spans
+    # trenutak usred titla na spoju (captions.ass je od zadnjeg rendera, K1)
+    ev = [line.split(",", 9) for line in (proj / "captions.ass").read_text(encoding="utf-8").splitlines()
+          if line.startswith("Dialogue") and "\\pos(540,960)" in line]
+    assert ev
+
+    def t(x):
+        h, m, sec = x.split(":")
+        return int(h) * 3600 + int(m) * 60 + float(sec)
+    s0, s1 = max(((t(e[1]), t(e[2])) for e in ev), key=lambda x: x[1] - x[0])
+    k1 = proj / "isjecci" / "K1.mp4"
+    tm = (s0 + s1) / 2
+    assert _titl(proj, edit, k1, tm, 890, 1030) > 0.01           # titl na spoju gornjeg i donjeg dijela
+    assert _titl(proj, edit, k1, tm, 1250, 1560) < 0.002         # ne preko usta donje osobe
+    # izvan podijeljenog kadra titl je dolje kao i inače
+    gaps = list(zip([0.0] + [b for _, b in spans], [a for a, _ in spans] + [spans[-1][1] + 5.0]))
+    lo, hi = next(g for g in gaps if g[1] - g[0] > 3.0)
+    tt = (lo + hi) / 2
+    assert _titl(proj, edit, k1, tt, 890, 1030) < 0.002, tt
+    assert _titl(proj, edit, k1, tt, 1350, 1560) > 0.01, tt
+
+
+def test_naslovna_uspravnog_isjecka_iz_kamere_govornika(isjecci):
+    proj, _ = isjecci
+    import naslovna as N
+    run("isjecci.py", proj, "render", "K2")             # drugi test je K2 renderirao vodoravno (brzi pregled)
+    run("naslovna.py", proj, "K1,K2")
+    d = load(proj / "naslovna.json")["videi"]
+    for kid in ("K1", "K2"):
+        e = d[kid]
+        usp = N.uspravni_izvor(proj, {"id": kid, "vrsta": "isjecak", "video": f"isjecci/{kid}.mp4"})
+        assert usp and usp["kadrovi"]
+        assert N.kadar_u(usp, e["izbor"]["izvor"])["raspored"] == "jedan"     # jedno lice, ne podijeljen kadar
+        assert all("podijeljen kadar" in k["razlog"]
+                   for k in e["kandidati"] if N.kadar_u(usp, k["izvor"])["raspored"] == "dvoje")
+        lice = e["raspored"]["9x16"]["lice"]
+        assert lice and 300 < (lice[0] + lice[2]) / 2 < 780                  # lice govornika na sredini
+    # K2: Ivan nakon 45 s (kamB ne snima) → 16:9 iz široke kamere, ali Ivan, ne Marko pokraj njega
+    from PIL import Image
+    e = d["K2"]
+    k = N.kadar_u(N.uspravni_izvor(proj, {"id": "K2", "vrsta": "isjecak", "video": "isjecci/K2.mp4"}),
+                  e["izbor"]["izvor"])
+    assert k["dijelovi"][0]["kamera"] == "siroka.mp4" and k["dijelovi"][0]["govornik"] == "G2"
+    x0, y0, x1, y1 = e["raspored"]["16x9"]["lice"]
+    with Image.open(proj / e["datoteke"]["16x9"]) as im:
+        r, g, b = im.convert("RGB").getpixel((int((x0 + x1) / 2), min(int(y1 + 80), 715)))
+    assert g > b + 30, (r, g, b)                                             # Ivanova zelena majica
+
+
+def test_naslovna_16x9_krupno_lice_u_sredini():
+    from PIL import Image
+    import naslovna as N
+    img = Image.new("RGB", (1920, 1080), (80, 120, 80))
+    face = (760, 170, 1160, 760)                                              # krupni kadar, lice u sredini
+    out, rez = N.napravi_16x9(img, face, "Kako je sve počelo", {"font": "Montserrat ExtraBold"})
+    assert out.size == (1280, 720)
+    assert rez["lice"][0] > 1280 * 0.5 and rez["tekst"][2] <= rez["lice"][0] + 5   # osoba desno, tekst lijevo
+
+
 def test_sinkro_okret_mobitela(tmp_path):
     import sinkro
     src = tmp_path / "a.mp4"

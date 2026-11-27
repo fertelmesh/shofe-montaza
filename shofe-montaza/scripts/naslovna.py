@@ -14,7 +14,9 @@ Za svaki video napravi uz njega:
   <video>.naslovna_kandidati.jpg   6 najboljih kadrova s ocjenom (za --kadar)
   <video>.naslovna_pregled.jpg  obje sličice + crte Instagramove mreže (za provjeru očima)
 Izbor (tekst, kadar) pamti se u naslovna.json, pa nova naredba s drugim tekstom zadrži kadar.
-Kadar se uzima iz source.mp4 (bez titlova i hooka), s bojom slike iz stila videa.
+Kadar se uzima iz source.mp4 (bez titlova i hooka), s bojom slike iz stila videa. Uspravni isječak podcasta
+(uspravno.py) uzima kadar iz svog uspravnog izvora (lice iz kamere govornika, ne izrez 16:9 programa), radije
+kadar s jednim licem nego podijeljen kadar; 16:9 tada ide iz originalne kamere te osobe.
 """
 import argparse
 import re
@@ -104,16 +106,17 @@ def dijelovi_za_ocjenu(cuts, rub=0.25, spoji=2.0):
     return out
 
 
-def ucitaj_kadrove(src, cuts, w, h, maks=MAX_KANDIDATA):
+def ucitaj_kadrove(src, cuts, w, h, maks=MAX_KANDIDATA, pomak=0.0):
     """BGR sličice (w×h) iz source.mp4 svakih 1/fps unutar rezova → {sekunda source.mp4: sličica}.
-    fps = FPS_KANDIDATA, manje za dugi video (najviše `maks` sličica)."""
+    fps = FPS_KANDIDATA, manje za dugi video (najviše `maks` sličica). `pomak` = gdje na source.mp4 počinje
+    `src` (uspravni izvor isječka podcasta)."""
     total = sum(c["b"] - c["a"] for c in cuts)
     fps = min(FPS_KANDIDATA, maks / max(total, 1e-3))
     n = w * h * 3
     out = {}
     for a, b, unutra in dijelovi_za_ocjenu(cuts):
         dur = b - a + 1.0 / fps
-        cmd = [ffmpeg(), "-v", "error", "-ss", f"{a:.3f}", "-i", str(src), "-t", f"{dur:.3f}", "-an",
+        cmd = [ffmpeg(), "-v", "error", "-ss", f"{max(0.0, a - pomak):.3f}", "-i", str(src), "-t", f"{dur:.3f}", "-an",
                "-vf", f"fps={fps:.4f}:round=near,scale={w}:{h}:flags=area", "-f", "rawvideo", "-pix_fmt", "bgr24", "-"]
         buf = subprocess.run(cmd, capture_output=True).stdout
         for i in range(len(buf) // n):
@@ -511,7 +514,8 @@ def napravi_16x9(img, face, tekst, st):
     rez = {"lice": None, "tekst": None, "upozorenja": []}
     fcx = ((face[0] + face[2]) / 2 / w) if face else 0.5
     fcy = ((face[1] + face[3]) / 2 / h) if face else 0.45
-    if w / h >= 1.5:                       # vodoravna snimka: zum na lice, lice na trećinu
+    vodoravno = w / h >= 1.5
+    if vodoravno:                          # vodoravna snimka: zum na lice, lice na trećinu
         fh = (face[3] - face[1]) / h if face else 0.3
         zum = float(np.clip(0.5 / max(fh, 1e-3), 1.0, 1.8))
         cw, ch = w / zum, h / zum
@@ -519,13 +523,17 @@ def napravi_16x9(img, face, tekst, st):
         tx = fcx * w - (cw * (0.68 if strana == "desno" else 0.32))
         x0 = float(np.clip(tx, 0, w - cw))
         y0 = float(np.clip(fcy * h - ch * 0.42, 0, h - ch))
+        poz = (fcx * w - x0) / cw
+        if face and 0.4 < poz < 0.6:       # krupno lice u sredini kadra: nema mjesta za tekst sa strane
+            vodoravno = False
+    if vodoravno:
         out = img.crop((int(x0), int(y0), int(x0 + cw), int(y0 + ch))).resize((W, H), Image.LANCZOS)
         if face:
             s = W / cw
             rez["lice"] = tuple(int(v) for v in ((face[0] - x0) * s, (face[1] - y0) * s,
                                                   (face[2] - x0) * s, (face[3] - y0) * s))
         tekst_lijevo = strana == "desno"
-    else:                                 # uspravna snimka: osoba desno (3:4 izrez), mutna pozadina
+    else:     # uspravna snimka ili krupno lice u sredini: osoba desno (3:4 izrez), mutna pozadina
         bg = cover(img, W, H, fcx, fcy).filter(ImageFilter.GaussianBlur(28))
         bg = ImageEnhance.Brightness(bg).enhance(0.55)
         fw = int(H * 0.8)
@@ -634,6 +642,104 @@ def kandidati_slika(frames, kand, path):
 
 
 # ---------------------------------------------------------------- jedan video
+# ---------------------------------------------------------------- uspravni isječak podcasta
+PODIJELJEN = 0.8        # ocjena kadra s podijeljenim kadrom (dvoje gore/dolje) × ovo: naslovna radije jedno lice
+
+
+def uspravni_izvor(proj, v):
+    """Isječak podcasta renderiran iz uspravnog izvora (uspravno.py) → {"datoteka", "pomak", "kadrovi"}
+    (kadrovi u vremenu source.mp4) ili None (običan video)."""
+    if v.get("vrsta") != "isjecak":
+        return None
+    f = Path(proj) / "isjecci" / "izvor_9x16" / f"{v['id']}.mp4"
+    j = f.with_suffix(".json")
+    if not (f.exists() and j.exists()):
+        return None
+    try:
+        vi = video_info(Path(proj) / v["video"])
+    except SystemExit:
+        return None
+    if vi["w"] >= vi["h"]:              # isječak renderiran vodoravno (--format 16:9)
+        return None
+    d = load_json(j)
+    return {"datoteka": f, "pomak": float(d.get("pomak", 0.0)), "kadrovi": d.get("kadrovi") or []}
+
+
+def kadar_u(usp, t):
+    """Kadar uspravnog izvora u sekundi t (source.mp4) ili None."""
+    for k in usp["kadrovi"]:
+        if k["od"] - 1e-6 <= t < k["do"] + 1e-6:
+            return k
+    return None
+
+
+def kamera_govornika(proj, usp, t):
+    """Originalna kamera osobe koju uspravni kadar pokazuje u sekundi t → (datoteka, sekunda u njoj,
+    {x, y, w} lica u 0–1 kamere) ili None. Samo vodoravna kamera (uspravni mobitel: 16:9 iz uspravnog kadra)."""
+    k = kadar_u(usp, t)
+    if not k or not k.get("dijelovi") or not k["dijelovi"][0].get("govornik"):
+        return None
+    part = k["dijelovi"][0]
+    proj = Path(proj)
+    try:
+        import sinkro
+        sync = load_json(proj / "sinkro.json")
+        rez = load_json(proj / "rezija.json")
+        pj = load_json(proj / "project.json")
+    except (OSError, ValueError, SystemExit):
+        return None
+    e = next((x for x in sync.get("izvori", []) if x.get("ime") == part["kamera"]), None)
+    if not e or not Path(e["datoteka"]).exists():
+        return None
+    try:
+        info = video_info(e["datoteka"])
+    except SystemExit:
+        return None
+    if info["w"] / info["h"] < 1.5:
+        return None
+    pocetak = float(rez.get("pocetak", (pj.get("podcast") or {}).get("pocetak", 0.0)))
+    return (Path(e["datoteka"]), max(0.0, float(sinkro.to_source(e, pocetak + t))),
+            {"x": float(part["x"]), "y": float(part.get("y") or 0.45), "w": float(part.get("lice") or 0.3)})
+
+
+def lice_iz_rezije(proj, usp, t):
+    """Gdje je lice na uspravnom izvoru u sekundi t, po režiji (uspravno.geometrija) → (x0, y0, x1, y1) na
+    1080×1920 ili None. Za kadar na kojem detektor lica ne nađe nikoga (okrenut, jako blizu)."""
+    k = kadar_u(usp, t)
+    if not k or k.get("raspored") != "jedan" or not k.get("dijelovi"):
+        return None
+    part = k["dijelovi"][0]
+    try:
+        import uspravno
+        sync = load_json(Path(proj) / "sinkro.json")
+        e = next(x for x in sync.get("izvori", []) if x.get("ime") == part["kamera"])
+        info = video_info(e["datoteka"])
+    except (OSError, ValueError, StopIteration, SystemExit, KeyError):
+        return None
+    cam = {"w": info["w"], "h": info["h"]}
+    W, H = VELICINA["9x16"]
+    fw = part.get("lice")
+    sw, sh, x, y = uspravno.geometrija(cam, (0, part["govornik"], part["x"], part["y"], fw), W, H, "jedan")
+    cx, cy = part["x"] * sw - x, part["y"] * sh - y
+    w = (fw or 0.3) * sw
+    h = w * 1.25
+    return (cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2)
+
+
+def lice_osobe(img, osoba):
+    """Lice osobe (x, y, w: 0–1 kamere, iz rezija.py) na kadru kamere: najbliže detektirano lice, a ako ga
+    detektor na ovom kadru ne nađe (okrenut, u pokretu), okvir iz režije."""
+    W, H = img.size
+    sx = osoba["x"] * W
+    lica = [f for f in lica_na(img) if abs((f[0] + f[2]) / 2 - sx) < 0.12 * W]
+    if lica:
+        return min(lica, key=lambda f: abs((f[0] + f[2]) / 2 - sx))
+    fw = osoba["w"] * W
+    fh = fw * 1.25
+    cy = osoba["y"] * H
+    return (sx - fw / 2, cy - fh / 2, sx + fw / 2, cy + fh / 2)
+
+
 def trenuci(proj):
     p = Path(proj) / "analiza.json"
     try:
@@ -650,12 +756,23 @@ def analiziraj(proj, v, ispis=print):
     if not cuts:
         raise Greska(f"{v['video']}: nema ničega u montaži")
     pj = load_json(proj / "project.json")
-    aw = SIRINA_ANALIZE if pj["width"] <= pj["height"] else 640
-    ah = int(round(aw * pj["height"] / pj["width"] / 2)) * 2
-    frames = ucitaj_kadrove(proj / "source.mp4", cuts, aw, ah)
+    usp = uspravni_izvor(proj, v)
+    if usp:
+        aw, ah = SIRINA_ANALIZE, SIRINA_ANALIZE * 16 // 9
+        frames = ucitaj_kadrove(usp["datoteka"], cuts, aw, ah, pomak=usp["pomak"])
+    else:
+        aw = SIRINA_ANALIZE if pj["width"] <= pj["height"] else 640
+        ah = int(round(aw * pj["height"] / pj["width"] / 2)) * 2
+        frames = ucitaj_kadrove(proj / "source.mp4", cuts, aw, ah)
     det = _detektor(aw, ah)
     mj = {t: mjere(fr, det) for t, fr in frames.items()}
     oc = ocijeni(mj, trenuci(proj))
+    if usp:     # podijeljen kadar (dvoje gore/dolje): oba lica mala, tekst nema kamo — radije jedno lice
+        for t, o in oc.items():
+            k = kadar_u(usp, t)
+            if k and k.get("raspored") == "dvoje":
+                o["ocjena"] = round(o["ocjena"] * PODIJELJEN, 2)
+                o["razlog"] = "podijeljen kadar, " + o["razlog"]
     kand = najbolji(oc)
     for k in kand:
         k["vrijeme"] = round(u_video(k["izvor"], cuts, speed) or 0.0, 2)
@@ -703,13 +820,27 @@ def napravi(proj, v, d, tekst=None, kadar=None, vrijeme=None, bez_teksta=False, 
         upoz.append("nema teksta (ni hooka) — dodaj: --tekst \"2–5 riječi\"")
     grade = GRADES.get(st.get("boja_slike", "neutralno"), GRADES["neutralno"])
     t_src = e["izbor"]["izvor"]
-    img = kadar_slika(proj, proj / "source.mp4", t_src, grade)
+    usp = uspravni_izvor(proj, v)
+    if usp:
+        img = kadar_slika(proj, usp["datoteka"], t_src - usp["pomak"], grade)
+    else:
+        img = kadar_slika(proj, proj / "source.mp4", t_src, grade)
     face = lice_na(img)
+    if face is None and usp and img.size == VELICINA["9x16"]:
+        face = lice_iz_rezije(proj, usp, t_src)
     n9, r9 = napravi_9x16(img, face, txt, st)
     # 16:9: iz originalne vodoravne snimke kad postoji (širi kadar), inače iz source.mp4
     img16, face16 = img, face
-    orig, t_orig, clip = izvorni_klip(proj, t_src)
-    if orig is not None and clip["w"] / clip["h"] >= 1.5 and img.width / img.height < 1.5:
+    orig, t_orig, clip = (None, None, None) if usp else izvorni_klip(proj, t_src)
+    kam = kamera_govornika(proj, usp, t_src) if usp else None
+    if kam:     # podcast: originalna kamera osobe s uspravnog kadra (krupni ili široki kadar)
+        try:
+            info = video_info(kam[0])
+            img16 = kadar_slika(proj, kam[0], kam[1], grade, vf_pre=HDR_CHAIN if info["hdr"] else None)
+            face16 = lice_osobe(img16, kam[2])
+        except SystemExit:
+            img16, face16 = img, face
+    elif orig is not None and clip["w"] / clip["h"] >= 1.5 and img.width / img.height < 1.5:
         try:
             info = video_info(orig)
             img16 = kadar_slika(proj, orig, t_orig, grade, vf_pre=HDR_CHAIN if info["hdr"] else None)
