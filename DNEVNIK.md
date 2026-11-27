@@ -295,3 +295,11 @@ Jedan unos po krugu, najnoviji na dnu.
 - Testovi: novi `tests/test_rezija_pjesme.py` (9: tempo i udarci benda 84/112, govor bez ritma, rezovi na taktu, pravila režije u pjesmi, kamera koja ne snima, cijeli put podcasta s bendom — BPM, rez na udarac, boja kadra, `--pjesma-kadar 0`; DaVinci podcast po DTD-u — A1+A2 bez rupa, pjesma 25 s iz pravog mjesta, oznake; običan projekt — pjesma na A2, slika bez zvuka). Lokalno 315 prošlo, 4 preskočena.
 - Za Marka: kad snimite nastup u autu, pogledaj kako kamera ide za vrijeme pjesme (široki kadar na početku i kraju, izmjena svakih ~8 s u ritmu). Ako ti je prebrzo ili presporo, reci „sporiji rezovi u pjesmi" ili „cijela pjesma u širokom kadru". Za CI vidi issue #30 — sad šest PR-ova čeka testove na Windowsu.
 - Sljedeće: M4.3b3 pjesme u pregled.html + isječak iz pjesme (najbolji refren 30–60 s).
+
+## 2026-11-27 08:00 — spojen niz od šest PR-ova (#29, #31–#35) nakon što je CI opet proradio
+- Živa specifikacija pročitana (rev 13): bez promjena. Marko je u #30 javio da je repozitorij sad javan pa GitHub Actions opet radi, i zatražio da se niz spoji redom od #29.
+- Ponovno pokrenut CI za #31–#35 (#29 je Marko već pokrenuo): svih šest zelenih na Linuxu i Windowsu (pipeline + transkripcija).
+- #29 spojen kao squash. Ostali su bili složeni jedan na drugi pa bi nakon squasha svaki imao sukob u DNEVNIK/ROADMAP/ODLUKE/README/SKILL/VERSION. Zato: u granu #31 spojen `main` (bez promjene sadržaja grane, bez prepisivanja povijesti), CI ponovno zelen, pa su #31–#35 spojeni kao obični merge (svaki s već zelenim CI-jem na svom zadnjem commitu). Sadržaj `main` sad je bajt po bajt isti kao vrh niza (#35), na kojem lokalno prolazi 315 testova, 4 preskočena. Verzija 0.27.0.
+- Issue #30 zatvoren. PR #36 (CI troši manje minuta) nije otvorio agent nego druga sesija; ostavljen otvoren za Marka — kako je repozitorij javan, minute se više ne naplaćuju, pa nije hitan.
+- Za Marka: na laptopu `git pull` (ili ponovna instalacija) donosi sve od 0.21.0 do 0.27.0: uspravni isječci podcasta iz originalnih kamera, nastupi bendova (pjesma se ne reže, glasnoća pjesme, režija u ritmu), DaVinci za uspravne isječke i pjesme.
+- Sljedeće: M4.3b3 pjesme u pregled.html + isječak iz pjesme (najbolji refren 30–60 s).
