@@ -185,16 +185,152 @@ def test_isti_zvuk_i_titlovi_kao_vodoravni(isjecci, tmp_path):
     assert corr > 0.95, corr                                          # isti trenutak zvuka (pomak izvora točan)
 
 
-def test_davinci_timeline_9x16(isjecci, dtd):
+def _kadar_iz_sloja(cam, local, zx, zy, px, py, trim, W=1080, H=1920):
+    """Kako bi DaVinci složio jedan sloj iz FCPXML-a (fill + scale + position % visine, +y gore; trim-rect u %
+    visine originalne snimke) → (slika W×H×3, maska vidljivog dijela)."""
+    w0, h0 = cam["w"], cam["h"]
+    c = max(W / w0, H / h0)
+    SW, SH = int(round(w0 * c * zx)), int(round(h0 * c * zy))
+    x0 = W / 2 + px / 100 * H - SW / 2
+    y0 = H / 2 - py / 100 * H - SH / 2
+    l, t, r, b = trim or (0, 0, 0, 0)
+    vx0, vy0 = x0 + l / 100 * h0 * SW / w0, y0 + t / 100 * h0 * SH / h0
+    vx1, vy1 = x0 + SW - r / 100 * h0 * SW / w0, y0 + SH - b / 100 * h0 * SH / h0
+    ox, oy = int(round(-x0)), int(round(-y0))   # izrez skalirane snimke koji pada u kadar (s crnim rubom)
+    vf = (f"scale={SW}:{SH}:flags=lanczos,pad=w={SW + 2 * W}:h={SH + 2 * H}:x={W}:y={H},"
+          f"crop={W}:{H}:{ox + W}:{oy + H}")
+    r_ = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{local:.4f}", "-i", str(cam["datoteka"]), "-frames:v", "1",
+                         "-vf", vf, "-pix_fmt", "rgb24", "-f", "rawvideo", "-"], capture_output=True)
+    img = np.frombuffer(r_.stdout, np.uint8).reshape(H, W, 3).astype(float)
+    m = np.zeros((H, W), bool)
+    m[max(0, int(round(vy0))):max(0, int(round(vy1))), max(0, int(round(vx0))):max(0, int(round(vx1)))] = True
+    return img, m
+
+
+def test_davinci_timeline_9x16_iz_originalnih_kamera(isjecci, dtd):
+    """M4.2b3b: DaVinci 9:16 timeline uspravnog isječka iz ORIGINALNIH kamera — kadar po kadar s izrezom
+    (transform), podijeljen kadar kao dvije trake (gore V1, dolje V2, trim), gotova slika na isključenoj V3,
+    zvuk glavnog ispod. Slika složena iz FCPXML-a = uspravni izvor isječka (Shofeova slika) u istom trenutku."""
+    import davinci
+    import render
+    import sinkro as S
+    T = davinci.parse_time
     proj, out = isjecci
-    assert "uspravnog izvora isječka" in out
+    assert "originalnih kamera, uspravno 9:16" in out
     x = proj / "isjecci" / "K1.fcpxml"
     validate(dtd, x)
     root = ET.parse(x).getroot()
     fmt = root.find("resources/format")
     assert (fmt.get("width"), fmt.get("height")) == ("1080", "1920")
+    assets = {a.get("id"): a for a in root.iter("asset")}
+    assert {a.get("name") for a in assets.values()} == {"kamA.mp4", "kamB.mp4", "zvuk.wav", "K1.mp4"}
+    spine = list(root.find("library/event/project/sequence/spine"))
+    seq = root.find("library/event/project/sequence")
+    info = load(proj / "isjecci" / "izvor_9x16" / "K1.json")
+    sync = {e["ime"]: e for e in load(proj / "sinkro.json")["izvori"]}
+    pocetak = load(proj / "rezija.json")["pocetak"]
+    cams = {e["ime"]: dict(e, **U.video_info(e["datoteka"])) for e in sync.values() if e.get("vrsta") == "video"}
+    edit = load(proj / "isjecci" / "K1.edit.json")
+    pj = load(proj / "project.json")
+    fps = int(pj["fps"])
+    cuts, _, _ = render.build_cuts(load(proj / "transcript.json")["words"], edit, render.resolve_style(edit), fps,
+                                   pj["duration"])
+
+    def prog_of(out_t):  # vrijeme gotovog videa → vrijeme programa
+        c = next(c for c in cuts if c["o"] <= out_t < c["o"] + c["b"] - c["a"] + 1e-6)
+        return c["a"] + out_t - c["o"]
+
+    def layer(el):
+        a = assets[el.get("ref")]
+        tr = el.find("adjust-transform")
+        zx, zy = map(float, tr.get("scale").split())
+        px, py = map(float, tr.get("position").split())
+        tc = el.find("adjust-crop/trim-rect")
+        trim = tuple(float(tc.get(k)) for k in ("left", "top", "right", "bottom")) if tc is not None else None
+        return a.get("name"), zx, zy, px, py, trim
+
+    split, checked = 0, 0
+    for c in spine:
+        name = assets[c.get("ref")].get("name")
+        lanes = {a.get("lane"): a for a in c.findall("asset-clip")}
+        assert c.get("srcEnable") == "video" and lanes["2"].get("enabled") == "0"
+        assert assets[lanes["2"].get("ref")].get("name") == "K1.mp4"            # rezerva: gotova slika
+        assert lanes["-1"].get("audioRole") == "dialogue" or "-1" not in lanes
+        if "1" in lanes:
+            split += 1
+            assert "(gore)" in c.get("name") and "(dolje)" in lanes["1"].get("name")
+            assert c.find("adjust-crop/trim-rect") is not None and lanes["1"].find("adjust-crop") is not None
+        d = float(T(c.get("duration")))
+        if d < 0.6 or name == "K1.mp4":
+            continue
+        out_t = float(T(c.get("offset"))) + d / 2
+        prog = prog_of(out_t)
+        canvas = np.zeros((1920, 1080, 3))
+        for el in [c] + ([lanes["1"]] if "1" in lanes else []):
+            nm, zx, zy, px, py, trim = layer(el)
+            local = float(T(el.get("start")) - T(assets[el.get("ref")].get("start"))) + d / 2
+            assert abs(S.to_master(sync[nm], local) - (pocetak + prog)) < 1.5 / fps   # isti trenutak
+            img, m = _kadar_iz_sloja(cams[nm], local, zx, zy, px, py, trim)
+            canvas[m] = img[m]
+        zt = lanes["2"].find("adjust-transform")
+        z = float(zt.get("scale").split()[0]) if zt is not None else 1.0
+        vf = render.zoom_chain(z, 1080, 1920) if z != 1 else "null"
+        r = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{prog - info['pomak']:.4f}",
+                            "-i", str(proj / "isjecci" / "izvor_9x16" / "K1.mp4"), "-frames:v", "1", "-vf", vf,
+                            "-pix_fmt", "rgb24", "-f", "rawvideo", "-"], capture_output=True)
+        want = np.frombuffer(r.stdout, np.uint8).reshape(1920, 1080, 3).astype(float)
+        diff = float(np.mean(np.abs(canvas - want)))
+        assert diff < 6, (name, prog, diff)
+        checked += 1
+    assert split >= 1 and checked >= 4
+    # zvuk glavnog: bez rupa, točno trajanje timelinea
+    dialog = [a for c in spine for a in c.findall("asset-clip") if a.get("lane") == "-1"]
+    assert dialog and {assets[a.get("ref")].get("name") for a in dialog} == {"zvuk.wav"}
+    assert sum(T(a.get("duration")) for a in dialog) == T(seq.get("duration"))
+
+
+def test_davinci_9x16_bez_originala_iz_izvora(isjecci, tmp_path):
+    """Kad originalne kamere nema (premještena mapa), 9:16 timeline je iz uspravnog izvora kao prije."""
+    import davinci
+    proj, _ = isjecci
+    import shutil
+    copy = tmp_path / "kopija"
+    shutil.copytree(proj, copy, ignore=shutil.ignore_patterns("_tmp", "verzije"))
+    sync = load(copy / "sinkro.json")
+    for e in sync["izvori"]:
+        if e["ime"] == "kamB.mp4":
+            e["datoteka"] = str(tmp_path / "nema" / "kamB.mp4")
+    (copy / "sinkro.json").write_text(json.dumps(sync), encoding="utf-8")
+    iz = _izvor(copy, "K1")
+    root, summ = davinci.build(copy, load(copy / "isjecci" / "K1.edit.json"), izvor=iz)
+    assert summ["izvor"] == "uspravno" and any("kamB.mp4" in n for n in summ["napomene"])
     assert {a.get("name") for a in root.iter("asset")} == {"K1.mp4"}
-    assert "izvor_9x16" in next(root.iter("media-rep")).get("src")
+    # iz izvor_9x16/K1.json (dijelovi kao rječnici) isto kao iz memorije
+    root, summ = davinci.build(proj, load(proj / "isjecci" / "K1.edit.json"), izvor=_izvor(proj, "K1"))
+    assert summ["izvor"] == "uspravno_kamere"
+
+
+def test_vertical_layer_geometrija():
+    """Bez videa: jedan kadar popuni cijeli 9:16; podijeljen kadar — gornji dio u gornjoj polovici, donji u
+    donjoj, s crtom između; zum stila oko 38 % visine."""
+    import davinci
+    cam = {"w": 1920, "h": 1080}
+    zx0, zy, px, py, trim = davinci.vertical_layer(cam, (0, "G1", 0.5, 0.42, None), 1080, 1920, 0, 1)
+    zx = zx0
+    assert trim is None and abs(zx - 1) < 0.01 and abs(px) < 0.1 and abs(py) < 0.1
+    zx, zy, px, py, trim = davinci.vertical_layer(cam, (0, "G1", 0.3, 0.42, 0.1), 1080, 1920, 0, 2)
+    # gornja polovica: središte slike iznad središta kadra; vidljivo (bez trima) 960 − 3 px visine
+    assert py > 0 and trim[1] >= 0 and trim[3] > 0
+    sh = 1080 * max(1080 / 1920, 1920 / 1080) * zy
+    vis_h = (100 - trim[1] - trim[3]) / 100 * 1080 * sh / 1080
+    assert abs(vis_h - (960 - U.RAZMAK / 2)) < 2
+    vis_w = (1920 - (trim[0] + trim[2]) / 100 * 1080) * sh / 1080
+    assert abs(vis_w - 1080) < 2
+    _, _, _, py2, trim2 = davinci.vertical_layer(cam, (0, "G2", 0.7, 0.42, 0.1), 1080, 1920, 1, 2)
+    assert py2 < py
+    # zum: slika veća, točka na 38 % visine ostaje na mjestu
+    zx1, _, px1, py1, _ = davinci.vertical_layer(cam, (0, "G1", 0.5, 0.42, None), 1080, 1920, 0, 1, zoom=1.2)
+    assert abs(zx1 / zx0 - 1.2) < 1e-3 and abs(px1) < 0.1 and py1 < 0   # središte slike pomaknuto dolje (zum oko točke iznad sredine)
 
 
 def test_kadrovi_vodoravno_i_ispis(isjecci):
