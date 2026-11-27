@@ -792,6 +792,9 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
         translated = prijevod.for_render(proj, cues, out)
     import davinci  # timeline za DaVinci Resolve s istim rezovima (originalne snimke)
     resolve_lines = davinci.for_render(proj, edit_raw, out, izvor=izvor)
+    if not izlaz and not brzo:  # epizoda / dulji YouTube video s temama: poglavlja uz video
+        import epizoda
+        resolve_lines += epizoda.for_render(proj, edit_raw, out, W, H, total / speed)
     if verzija and v is not None:  # nova verzija: točno ovaj edit.json, datum, trajanje; korisnik sada gleda nju
         verzije.record_render(proj, v, edit_raw, out.name, final, brzo, kvaliteta)
         learn_vocabulary(proj, edit_raw, words)

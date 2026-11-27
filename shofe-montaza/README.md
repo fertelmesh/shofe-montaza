@@ -226,6 +226,15 @@ U `pregled.html` pjesme su na vremenskoj crti (zeleno; tamnije = refren, naranč
 
 Kod podcasta je isječak pjesme **uspravan (9:16) i u ritmu**: počne i završi na **bendu** iz širokog kadra, a između se izmjenjuju vaše krupne kamere, rez je točno na udarac na početku takta (prosječno svakih 6 s, malo brže nego u epizodi jer je isječak za mreže). Kad u širokom kadru svi ne stanu u uski uspravni kadar, Shofe pokaže **cijeli bend u širini**, malo iznad sredine, a iznad i ispod je ista slika zamućena i potamnjena — nitko nije odrezan. Za vrijeme pjesme kadar se ne dijeli i ne prati onoga tko pjeva. Ako želiš cijelu pjesmu na bendu, reci `cijela pjesma u širokom kadru`. U DaVinciju je bend na dvije trake: V2 cijeli bend, V1 ista kamera kao pozadina (ondje nije zamućena — ako želiš kao u Shofeu, na V1 dodaj efekt Gaussian Blur).
 
+### Poglavlja za YouTube i MP3 za podcast
+
+Kad Claude napravi kartu epizode, upiše i **teme** (npr. „Kako smo kupili Renault 4"). Iz njih Shofe sam složi **poglavlja za YouTube**: pri svakom renderu vodoravnog videa duljeg od 3 minute uz video dobiješ `reel_vN.poglavlja.txt` s redovima poput `00:00 Uvod`, `12:40 Pjesma: Bend – Ljeto`, `14:05 Kako smo kupili Renault 4` — samo ih zalijepi u opis videa na YouTubeu. Vremena su iz **gotovog** videa (nakon svih rezova), svaka pjesma je svoje poglavlje, prvo je uvijek 00:00 i nijedno nije kraće od 10 sekundi (to traži YouTube; kraći dio ide u susjedno poglavlje). Reci npr.:
+
+- `poglavlja za YouTube` — dobiješ popis za kopiranje
+- `preimenuj treće poglavlje u „Gost iz Zagreba"` / `spoji prva dva poglavlja` / `novo poglavlje na 23:10`
+
+**MP3 za podcast platforme** (Spotify, Apple Podcasts…): reci `napravi MP3` (ili `napravi MP3, naslov „Sunčani4M #12: Gost"`). Shofe iz gotove epizode napravi `reel_vN.mp3`: glasnoća **−16 LUFS** (što traže podcast platforme; video ostaje na −14 za mreže), vrhovi ispod −1 dB, 128 kbps stereo, a **poglavlja su upisana u MP3**, pa ih aplikacije za podcaste pokažu. Pjesme su jednako glasne kao u videu. Ako želiš, Shofe u MP3 stavi i naslovnu sliku (kvadratnu). Za sat epizode treba oko minutu. MP3 zatim sam učitaš na svoju podcast platformu — Shofe ništa ne objavljuje.
+
 ## Stilovi
 
 | Stil | Za što |
