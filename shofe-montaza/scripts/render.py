@@ -9,6 +9,7 @@ import bisect
 import shutil
 from pathlib import Path
 
+import efekti
 import spica
 import titlovi
 import verzije
@@ -474,7 +475,7 @@ def split_at(s, e, spans):
     return out
 
 
-def write_ass(path, ws, st, edit, W, H, total, spoj=()):
+def write_ass(path, ws, st, edit, W, H, total, spoj=(), fx=()):
     """spoj = [(od, do)] u vremenu gotovog videa gdje je podijeljen kadar: titlovi idu na spoj (sredina
     visine, između gornjeg i donjeg lica), inače bi stajali preko usta donje osobe."""
     portrait = H > W
@@ -499,6 +500,9 @@ def write_ass(path, ws, st, edit, W, H, total, spoj=()):
         f"Style: Hook,{st.get('hook_font', st['font'])},{hook_fs},{ass_color(st.get('hook_boja', '#111111'))},&H000000FF,{ass_color(st.get('hook_pozadina', '#FFFFFF'))},&H00000000,0,0,0,0,100,100,0,0,3,{round(18 * scale)},0,8,{ml},{ml},{hook_mv},1",
         f"Style: Bar,Arial,10,{ass_color(st['boja_trake'])},&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1",
     ]
+    fx_ev = efekti.ass_events(fx, W, H) if fx else []
+    if fx_ev:  # oznake zamrznutih kadrova (efekti.py)
+        styles += efekti.ass_styles(st, W, H)
     hl_c = ass_color(st["boja_isticanja"])
     acc_c = ass_color(st["boja_naglaska"])
     pop = st.get("pop", 1.0)
@@ -551,6 +555,7 @@ def write_ass(path, ws, st, edit, W, H, total, spoj=()):
         hd = min(float(edit.get("hook_trajanje") or 3.0), total)
         ht = esc(hook.upper() if st.get("hook_velika_slova", True) else hook)
         ev.append((2, 0, hd, "Hook", f"{{\\fad(100,220)\\fscx85\\fscy85\\t(0,160,\\fscx100\\fscy100)}}{ht}"))
+    ev += fx_ev
     if st.get("traka_napretka"):
         bh = max(6, round(H * 0.006))
         ev.append((5, 0, total, "Bar",
@@ -672,10 +677,16 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     for f in FONTS_DIR.glob("*.ttf"):
         if not (fdir / f.name).exists():
             shutil.copy2(f, fdir / f.name)
-    write_ass(proj / "captions.ass", ws, st, edit, W, H, total, spoj=split_spans(izvor, cuts))
+    fx, fx_notes = efekti.plan(edit, cuts, fps, total)
+    if izvor:  # drugi izvor (uspravni isječak podcasta): lice iz source.mp4 tu ne vrijedi → zum prema sredini
+        for x in fx:
+            x["p"].pop("lice", None)
+    write_ass(proj / "captions.ass", ws, st, edit, W, H, total, spoj=split_spans(izvor, cuts), fx=fx)
     subs = "subtitles=filename=captions.ass:fontsdir=fonts"
     grade = GRADES.get(st.get("boja_slike", "neutralno"), GRADES["neutralno"])
     factor, zr = zoom_ranges(cuts, st)
+    if fx:  # gdje je efekt kamere, stil ne zumira sam na rezu (zum na zum)
+        zr = [[a, b] for a, b in subtract_spans(zr, efekti.kamera_spans(fx)) if b - a >= 2.0 / fps]
 
     sp_r, sp_files = None, {}
     if spica.aktivna(edit) and not izlaz and izvor is None:  # špica samo u glavnom videu, ne u isječcima
@@ -694,7 +705,8 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
                 pairs.append((t, ("file", sp_files[dio], max(0.0, off))))
             else:
                 pairs.append((t, ("main", m)))
-        return {"slike": stills_mode(pairs, proj, cuts, zr, factor, grade, subs, speed, W, H, total, izvor)}
+        return {"slike": stills_mode(pairs, proj, cuts, zr, factor, grade, subs, speed, W, H, total, izvor,
+                                     fx=fx, fps=fps)}
 
     eps = 0.5 / fps
     sel = "+".join(f"between(t,{c['a'] - eps:.4f},{c['b'] - eps:.4f})" for c in cuts)
@@ -703,7 +715,8 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
         en = "+".join(f"between(t,{s:.4f},{e - eps:.4f})" for s, e in zr)
         g.append(f"[zs]{zoom_chain(factor, W, H)}[zz]")
         g.append(f"[base][zz]overlay=0:0:enable='{en}'[v1]")
-    vtail = f"[v1]{subs}"
+    vtail = "[v1]" + ",".join(efekti.freeze_chain(fx, fps) + efekti.video_chain(fx, W, H, fps, cmd_dir=proj)
+                              + [subs])
     if speed != 1.0:
         vtail += f",setpts=PTS/{speed}"
     if brzo:
@@ -824,8 +837,13 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     if verzija and v is not None:  # nova verzija: točno ovaj edit.json, datum, trajanje; korisnik sada gleda nju
         verzije.record_render(proj, v, edit_raw, out.name, final, brzo, kvaliteta)
         learn_vocabulary(proj, edit_raw, words)
+    fx_lines = [f"  ! {x}" for x in fx_notes]
+    if fx:
+        fx_lines.append(f"Efekti: {len(fx)} ({', '.join(x['id'] + ' ' + x['tip'] for x in fx)}); "
+                        "u DaVinci timelineu ih nema (samo rezovi), popis: python efekti.py "
+                        f"{proj.name} popis")
     res = {"video": out, "srt": srt, "trajanje": final, "kadrova": n, "zumova": len(zr), "glasnoca": glasnoca,
-           "ispis": translated + resolve_lines}
+           "efekti": [x["id"] for x in fx], "ispis": translated + resolve_lines + fx_lines}
     if not ispis:
         return res
     removed = [s["id"] for s in edit["odsjecci"] if not s.get("zadrzi", True)]
@@ -835,7 +853,7 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
         print(spica.opis(sp_r, edit))
     for line in translated:
         print(line)
-    for line in resolve_lines:
+    for line in resolve_lines + fx_lines:
         print(line)
     sp_dod = (sp_r["uvod"] + sp_r["odjava"]) if sp_r else 0.0      # špica nije „neizrezano"
     sp_txt = f", špica +{sp_dod:.1f}s" if sp_dod else ""
@@ -904,7 +922,7 @@ def audio_graph(cuts, st, edit, total, parts, gains, music):
     return g, "[mix]"
 
 
-def stills_mode(kadar, proj, cuts, zr, factor, grade, subs, speed, W, H, total, izvor=None):
+def stills_mode(kadar, proj, cuts, zr, factor, grade, subs, speed, W, H, total, izvor=None, fx=(), fps=30):
     """kadar = "1,4.5" (sekunde gotovog videa) ili [(oznaka, ("main", t) | ("file", datoteka, t))] (špica)."""
     if isinstance(kadar, list):
         pairs = kadar
@@ -919,12 +937,15 @@ def stills_mode(kadar, proj, cuts, zr, factor, grade, subs, speed, W, H, total, 
             pngs.append(png)
             continue
         pre = min(max(src_spec[1] * speed, 0), total - 0.01)
-        c = next((c for c in cuts if c["o"] <= pre < c["o"] + (c["b"] - c["a"])), cuts[-1])
-        src_t = c["a"] + (pre - c["o"])
+        pre_src = efekti.still_time(fx, pre) if fx else pre   # zamrznuti kadar: prva sličica efekta
+        c = next((c for c in cuts if c["o"] <= pre_src < c["o"] + (c["b"] - c["a"])), cuts[-1])
+        src_t = c["a"] + (pre_src - c["o"])
         chain = [grade]
         if any(s <= pre < e for s, e in zr):
             chain.append(zoom_chain(factor, W, H))
-        chain += [f"setpts=PTS-STARTPTS+{pre:.3f}/TB", subs]
+        chain += [f"setpts=PTS-STARTPTS+{pre:.3f}/TB"]
+        chain += efekti.video_chain(fx, W, H, fps, T=f"{pre:.4f}", cmd_dir=proj) if fx else []
+        chain += [subs]
         src, off = (Path(izvor["datoteka"]).resolve(), float(izvor["pomak"])) if izvor else ("source.mp4", 0.0)
         run([ffmpeg(), "-y", "-v", "error", "-ss", f"{max(0.0, src_t - off):.3f}", "-i", src, "-frames:v", "1",
              "-vf", ",".join(chain), png.name], cwd=proj)

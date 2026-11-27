@@ -386,3 +386,16 @@ Jedan unos po krugu, najnoviji na dnu.
 - PR #47.
 - Za Marka: issue #46 „Pregled M4" — demo, instalacija 0.33.1, prava epizoda (sinkro, režija, pjesma, špica, poglavlja, MP3, opis, isječci) i **provjera u DaVinciju** (fcpxml, uvoz EDL-a, Deliver „Chapters from Markers").
 - Sljedeće: M5.1 sustav efekata u edit.json + ffmpeg efekti (zumovi, zamrzni, film/retro).
+
+## 2026-11-27 22:00 — M5.1 sustav efekata + zumovi, zamrzni s oznakom, film/retro
+- Živa specifikacija (rev 13) i plan efekata (rev 9) pročitani: bez promjena. Nema otvorenog PR-a agenta (#36 je Markov). Issues #7, #18, #25, #38, #44, #46 bez Markova odgovora.
+- Novo: `efekti.py` (`tipovi`, `dodaj`, `popis`, `makni`, `pokazi`) i `edit.json` → `efekti` (vrijeme izvornog videa, kao `izrezi`: efekt ostaje na istim riječima kad se nešto izreže). Dodaje se vremenom iz videa koji Marko gleda (špica uključena) ili citatom `--na "…"`.
+  - Kamera (jedan u isto vrijeme, `--zamijeni`): **trzaj** (0,1 s do 1,3× i drži), **guranje** (polagano do 1,15×), **pad** (od 1,4× natrag u 0,45 s), **vertigo** (lice stoji, rubovi se rastežu), **zamrzni** (slika stane, zvuk ide dalje, bljesak, oznaka iznad lica sa strelicom).
+  - Boja: **film** (sepija, zrno, treperenje, titranje), **retro** (VHS).
+  - Zum ide prema licu (YuNet na prvoj sličici, spremljeno u edit.json) i lice ostaje na istom mjestu u kadru. Automatski zum stila pauzira gdje je efekt kamere.
+- `render.py`: efekti u istom prolazu kodiranja (filteri s `enable`, bez grananja → nema gomilanja sličica na dugim videima), oznake u `captions.ass`, `--kadar` i `efekti.py pokazi` pokazuju isto što video. Ispis: „Efekti: N … u DaVinci timelineu ih nema". Verzija 0.34.0. SKILL.md, README (odjeljak Efekti), ODLUKE.md.
+- Provjera očima: novi probni klip `tests/make_efekti_klip.py` (nacrtana osoba ispred pločica, lice se pomiče, brojač sličica). Pogledane sličice svakog efekta i sličice iz pravog videa: trzaj (lice 1,3× na istom mjestu), vertigo (rubovi rastegnuti, lice iste veličine), zamrzni (brojač stoji 1,4 s, oznaka „MARKO, SF KLIMA" čitljiva iznad glave), retro dobar; film u prvom pokušaju pretaman/zelen → sepija i svjetlije, oznaka povećana 64 → 76. Brzina: reel 15 s sa 7 efekata 44 s naspram 19 s bez efekata.
+- Testovi: novi `tests/test_efekti.py` (10: komad preko reza, plan (alias, izrezan, skraćen, poravnato na sličice, nepoznat tip), krivulje zuma, nepomično lice i okvir u slici, položaj oznake i č/ć/š; pravi render: trajanje isto, trzaj/vertigo mjereni YuNetom, zamrzni (brojač stoji, bljesak), film manje / retro više zasićen, preklapanje odbijeno, `popis`, `pokazi`, rez prije efekta pomakne efekt s riječima, `makni` + `uredi.py vrati`; `--kadar` = sličica videa). Lokalno cijeli paket 382 prošlo, 4 preskočena; na Windowsu CI-ju test je pao jer `cv2.imread` ne čita putanju s č/ž — test sad čita sliku kroz `np.fromfile` + `imdecode` (proizvod nije bio pogođen).
+- Za Marka: probaj „trzaj na …", „zamrzni na 0:05 i napiši tko je to", „stari film od … do …" na pravom reelu i javi koji efekti su ti preslabi/prejaki. U DaVinci timeline efekti ne idu (samo rezovi).
+- PR #48.
+- Sljedeće: M5.2 prijelazi (iris, rolete, vrata) i CC0 zvučni efekti s pravilima glasnoće.

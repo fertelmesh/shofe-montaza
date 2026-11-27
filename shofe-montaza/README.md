@@ -55,6 +55,20 @@ Možeš tražiti i **trajanje**:
 
 Shofe izbacuje cijele misli, nikad pola rečenice: pitanje ostaje sa svojim odgovorom, „Drugo, ugradnja." s onim što najavljuje, a rečenica koja počinje s „A…", „Zato…", „To…" ne ostaje bez one prije. Claude ocijeni koliko je svaka misao važna za taj video (i pazi na ono što si rekao da je glavno), a Shofe izračuna koja kombinacija stane u zadano vrijeme. Gotovi video je uvijek najviše toliko dug, obično tik ispod. Dijelove koji su već izrezani ne vraća.
 
+## Efekti
+
+Efekti se traže riječima, kao i sve ostalo — Claude ih stavi na pravo mjesto i prije rendera ti pokaže sliku efekta:
+
+- `trzaj na „nikad više"` ili `zumiraj na 0:12` — nagli zum (0,1 s) prema licu, drži do kraja rečenice
+- `polako zumiraj dok govorim o cijeni` — polagani zum kroz cijelu rečenicu
+- `pad na 0:20` — kadar krene jako zumiran i „padne" natrag (iznenađenje)
+- `vertigo na 0:31` — lice stoji, a pozadina se rasteže prema rubovima (šok)
+- `zamrzni kadar na 0:05 i napiši „Ivan, gitara"` — slika stane (zvuk ide dalje), bljesak, oznaka iznad lica sa strelicom
+- `stari film od 1:00 do 1:10`, `retro / VHS na uvodu` — boja i tekstura starog filma ili VHS kasete
+- `koji efekti postoje`, `pokaži efekte`, `makni efekt E2`, `makni sve efekte`, `vrati kako je bilo`
+
+Zumovi idu prema licu i lice ostaje na istom mjestu u kadru, pa titlovi i oznake ne skaču. Efekt je vezan za riječi, a ne za sekundu: kad kasnije nešto izrežeš, efekt ostaje na istoj rečenici. Dva zuma ne idu jedan preko drugog; stari film i retro mogu ići preko zuma. Render s efektima traje malo dulje (reel od 15 s sa sedam efekata otprilike dvostruko). U DaVinci timeline efekti ne idu (samo rezovi) — ako montiraš u DaVinciju, efekte tamo dodaj sam.
+
 ## Isječci za mreže
 
 Iz dulje snimke (epizoda podcasta, dulji YouTube video) Shofe predloži kratke isječke od 20 do 60 sekundi:
