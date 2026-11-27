@@ -358,3 +358,14 @@ Jedan unos po krugu, najnoviji na dnu.
 - Za Marka: imaš li svoj intro/outro video i glazbu za špicu (Sunčani4M tema)? Dok ne javiš, generirana kartica je tiha. Reci „dodaj špicu" ili „moj intro je C:\…\intro.mp4, zapamti ga".
 - PR #43.
 - Sljedeće: M4.4d poglavlja i špice u DaVinci timelineu, zatim M4.5 pregled M4.
+
+## 2026-11-27 18:00 — M4.4d špice i poglavlja u DaVinci timelineu
+- Živa specifikacija pročitana (rev 13): bez promjena. Nema otvorenog PR-a agenta (#36 je Markov). Issues #7, #18, #25, #38, #44 bez Markova odgovora.
+- Novo u `davinci.py`: timeline glavnog videa ima **špicu na istom mjestu** kao Shofeov video — uvodna (i iza najave: kadar na toj točki se podijeli, sve iza pomakne), odjavna na kraju. Markov intro/outro kao original (Fit, zvuk neobrađen), generirana kartica kao `spica/spica_*.mov`. Govor, pjesma i pozadinska glazba ispod ne prelaze preko špice; ubrzani video: špica nije ubrzana. Isječci nikad nemaju špicu.
+- **Poglavlja** (ista kao YouTube opis) kao `chapter-marker` u timelineu + `reel_vN.poglavlja.edl` (zelene oznake za „Timelines > Import > Timeline Markers from EDL", pa Deliver > „Chapters from Markers": Green). `davinci.py` iz naredbenog retka radi isto i pomakne SRT za špicu. Render ispiše „špica u timelineu: …" i „poglavlja: N oznaka …" umjesto stare napomene. Verzija 0.33.0. SKILL.md, README, ODLUKE.md.
+- Usput nađen i popravljen bug iz M4.4c: kod uvodne iza najave slika špice kasnila je 1 sličicu, a zvuk iza špice do kraja epizode 33 ms za slikom (zaokruživanje u `trim` + `concat`). Sad se reže četvrt sličice prije točke; sličice 244–249 i 334–339 pogledane: špica točno od sličice 246 (8,2 s) do 335, iza nje odmah nastavak epizode.
+- Provjera: probna epizoda s Markovim 4:3 introm na 0:08,2 i generiranom odjavom → `reel_v1.fcpxml` (DTD 1.10 ispravan), EDL s 4 poglavlja (00:00:00:00, 00:00:20:16 Pjesma …, 00:01:09:16, 00:01:30:09) pročitan.
+- Testovi: novi `tests/test_davinci_spica.py` (5: podjela kadra (i ubrzano); EDL format; render → glavna traka bez rupa = trajanje videa, intro Fit na mjestu crvene slike, nastavak iza špice iz pravog trenutka snimke, zvuk svakog kadra na istom mjestu kao u videu s **jednakim pomakom prije i iza špice**, ništa ispod špice, poglavlja = epizoda.poglavlja_za i EDL; duga uvodna/odjavna kao poglavlja, glazba pauzira za špicu i nastavlja istu pjesmu, brzina 1,25, CLI + pomaknut SRT; podcast: zvuk glavnog izvora podijeljen na špici i nastavlja iz pravog trenutka, ostale kamere iza špice u istom trenutku). `test_spica.py` prilagođen novoj poruci.
+- Za Marka: kad otvoriš epizodu u DaVinciju, uvezi `reel_vN.poglavlja.edl` (desni klik na timeline u Media Poolu > Timelines > Import > Timeline Markers from EDL) i javi jesu li zelene oznake na pravim mjestima i jesu li „č/ć/š/ž" u imenima ispravni — to ne mogu provjeriti bez DaVincija.
+- PR #45.
+- Sljedeće: M4.5 Pregled M4 (demo + issue), zatim M5.
