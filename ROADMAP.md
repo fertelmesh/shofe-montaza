@@ -63,7 +63,7 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
   - [x] M4.4b Opis epizode: YouTube opis s poglavljima i tekst za podcast platforme (`objava.py` za epizodu) (#42)
   - [x] M4.4c Intro/outro/špice (Markove datoteke ili generirana špica), poglavlja i MP3 se pomaknu za intro (#43)
   - [x] M4.4d Poglavlja kao oznake u DaVinci timelineu (FCPXML chapter-marker + EDL sa zelenim oznakama za „Chapters from Markers") + špice u DaVinci timelineu (uvodna iza najave, odjavna) (#45)
-- [ ] M4.5 Pregled M4: demo + issue (uključiti provjeru u DaVinciju: špica na mjestu, uvoz `reel_vN.poglavlja.edl`, Deliver „Chapters from Markers")
+- [x] M4.5 Pregled M4: demo + issue (uključiti provjeru u DaVinciju: špica na mjestu, uvoz `reel_vN.poglavlja.edl`, Deliver „Chapters from Markers") (#47)
 
 ## M5 Efekti i grafika (vidi EFEKTI.md)
 

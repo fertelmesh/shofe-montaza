@@ -837,7 +837,10 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
         print(line)
     for line in resolve_lines:
         print(line)
-    print(f"Trajanje: {fmt_time(pj['duration'])} → {fmt_time(final)}  (izrezano {pj['duration'] - final:.1f}s, {n} kadrova, {len(zr)} zumova)")
+    sp_dod = (sp_r["uvod"] + sp_r["odjava"]) if sp_r else 0.0      # špica nije „neizrezano"
+    sp_txt = f", špica +{sp_dod:.1f}s" if sp_dod else ""
+    print(f"Trajanje: {fmt_time(pj['duration'])} → {fmt_time(final)}  (izrezano {pj['duration'] - (final - sp_dod):.1f}s"
+          f"{sp_txt}, {n} kadrova, {len(zr)} zumova)")
     if removed:
         print(f"Izbačeni odsječci: {', '.join('#' + str(i) for i in removed)}")
     if edit.get("izrezi"):

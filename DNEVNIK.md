@@ -369,3 +369,20 @@ Jedan unos po krugu, najnoviji na dnu.
 - Za Marka: kad otvoriš epizodu u DaVinciju, uvezi `reel_vN.poglavlja.edl` (desni klik na timeline u Media Poolu > Timelines > Import > Timeline Markers from EDL) i javi jesu li zelene oznake na pravim mjestima i jesu li „č/ć/š/ž" u imenima ispravni — to ne mogu provjeriti bez DaVincija.
 - PR #45.
 - Sljedeće: M4.5 Pregled M4 (demo + issue), zatim M5.
+
+## 2026-11-27 20:10 — M4.5 Pregled M4 (demo + issue)
+- Živa specifikacija pročitana (rev 13): bez promjena. Nema otvorenog PR-a agenta (#36 je Markov). Issues #7, #18, #25, #38, #44 bez Markova odgovora.
+- Novo: `tests/make_demo_m4.py` → `demo/`. Probna epizoda 12 (3:15, sintetski glasovi + sintetski bend): tri kamere i diktafon uključeni u različito vrijeme (široka −4,2 s, Marko +2,5 s, Ivanov uspravni mobitel +6,1 s i ugasi se 9 s prije kraja), na svakoj kameri oznaka i vrijeme u datoteci. Cijeli put M4 kao na laptopu: `sinkro.py` → `rezija.py` → govornici (iz scenarija) → `nastupi.py dodaj` → `rezija.py` → teme → `plan.py` → `spica.py` (uvodna iza najave) → `render.py` → `epizoda.py mp3` → `objava.py epizoda` → `isjecci.py`.
+  - `M4_epizoda.mp4` (159 s, 4,5 MB): kartice, mozaik tri kamere + program (razgovor s brzom izmjenom, početak pjesme), dijelovi gotove epizode s oznakom poglavlja.
+  - `M4_isjecci.mp4` (79 s, 2,9 MB): K4 razgovor (podijeljen kadar) i K5 pjesma (bend u ritmu).
+  - `M4_paket.png`: špice, MP3 s ID3 poglavljima, YouTube opis, tekst za Spotify/Apple, DaVinci trake iz `reel_v1.fcpxml` s poglavljima. M3 demo maknut iz `demo/` (link u `demo/README.md`).
+- Provjera očima: sinkro našao sve pomake točno (visoka sigurnost); režija: svaka kamera prepoznata (široka/Marko/Ivan), 33 kadra, govornici u kadru 100 %, brza izmjena → široki kadar, mobitel se ne bira prije 0:06; pjesma 112 BPM, 7 kadrova na početku takta; u mozaiku vrijeme široke kamere i programa se poklapa (59,52 vs 59,48 s); uvodna špica na 0:06,9 iza najave; MP3 −16,0 LUFS, 6 CHAP.
+- Pregledom nađena i popravljena dva sitna problema:
+  - **Poglavlja za podcast (≥ 30 s)**: kratka tema iza pjesme („Priča o bendu", 18 s) spajala se u pjesmu, pa je poglavlje „Pjesma" trajalo do kraja epizode i odjava je nestala. Sad kratki razgovor iza pjesme ide u sljedeću temu (ako je ima). Isto pravilo za YouTube (10 s). Test `test_kratka_tema_iza_pjesme_ide_u_sljedecu_temu`. SKILL.md, README.
+  - `render.py` je u „izrezano N s" brojao i špicu (pisalo 2,2 s umjesto 22,2 s); sad „izrezano 22.2s, špica +20.0s".
+  - Verzija 0.33.1.
+- Primijećeno, nije popravljeno: u `transcript.txt` kratko „Da." (Ivan, 0,35 s) između dvije Markove rečenice piše kao Marko, iako `govornici.json` kaže Ivan — provjeriti pravilo za kratke odsječke.
+- Testovi: novi `tests/test_demo_m4.py` (5: scenarij i ocjene, opis po pravilima platformi, kamere, aktivna kamera u mozaiku, pomoćne), `test_epizoda.py` +1.
+- PR #47.
+- Za Marka: issue #46 „Pregled M4" — demo, instalacija 0.33.1, prava epizoda (sinkro, režija, pjesma, špica, poglavlja, MP3, opis, isječci) i **provjera u DaVinciju** (fcpxml, uvoz EDL-a, Deliver „Chapters from Markers").
+- Sljedeće: M5.1 sustav efekata u edit.json + ffmpeg efekti (zumovi, zamrzni, film/retro).
