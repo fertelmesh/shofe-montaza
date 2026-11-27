@@ -53,7 +53,10 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
     - [x] M4.2b3b DaVinci 9:16 timeline uspravnog isječka iz originalnih kamera (sad iz uspravnog izvora): izrez po kadru, podijeljen kadar kao dvije trake (transform) (#33)
 - M4.3 Nastupi bendova (podijeljeno):
   - [x] M4.3a Prepoznavanje pjesama (`nastupi.py`), pjesma kao nedjeljiv komad u plan/render/uredi/skrati/isječcima, bez titlova, glazbeni lanac zvuka umjesto govornog, pozadinska glazba šuti (#31)
-  - [ ] M4.3b Pjesma dalje: glasnoća pjesme naspram govora (two-pass loudnorm / LUFS po dijelu), režija za vrijeme pjesme (široki kadar, sporiji rezovi), oznake pjesama u DaVinciju (marker + zvuk na vlastitoj traci), pjesme u pregled.html, isječak iz pjesme (najbolji refren 30–60 s)
+  - M4.3b Pjesma dalje (podijeljeno):
+    - [x] M4.3b1 Glasnoća pjesme naspram govora: mjerenje po dijelu (EBU R128), stalno pojačanje pjesme, video −14 LUFS bez dinamičkog loudnorma, `nastupi.py glasnoca` (#PR)
+    - [ ] M4.3b2 Režija za vrijeme pjesme (široki kadar, sporiji rezovi) + oznake pjesama u DaVinciju (marker + zvuk pjesme na vlastitoj traci)
+    - [ ] M4.3b3 Pjesme u pregled.html + isječak iz pjesme (najbolji refren 30–60 s)
 - [ ] M4.4 Intro/outro/špice, poglavlja za YouTube, MP3 za podcast platforme (−16 LUFS), opis epizode
 - [ ] M4.5 Pregled M4: demo + issue
 

@@ -155,27 +155,159 @@ MUSIC_CHAIN = "highpass=f=30,acompressor=threshold=-14dB:ratio=1.6:attack=25:rel
 SONG_RAMP = 0.25
 
 
-def song_out_spans(edit, cuts):
-    """Zadržane pjesme u vremenu gotovog videa (prije brzine): [(od, do)]."""
+def song_out_parts(edit, cuts):
+    """Zadržane pjesme u vremenu gotovog videa (prije brzine): [(od, do, k)], k = redni broj pjesme
+    među zadržanima (isti k za dijelove iste pjesme koje rez razdvoji)."""
     keep, _ = song_spans(edit)
     out = []
-    for a, b, _ in keep:
+    for k, (a, b, _) in enumerate(keep):
         for c in cuts:
             lo, hi = max(a, c["a"]), min(b, c["b"])
             if hi - lo > 1e-3:
                 s, e = c["o"] + lo - c["a"], c["o"] + hi - c["a"]
-                if out and s - out[-1][1] < 0.05:
+                if out and out[-1][2] == k and s - out[-1][1] < 0.05:
                     out[-1][1] = e
                 else:
-                    out.append([s, e])
-    return [(s, e) for s, e in out if e - s > 2 * SONG_RAMP]
+                    out.append([s, e, k])
+    return [(s, e, k) for s, e, k in out if e - s > 2 * SONG_RAMP]
 
 
-def song_gain_expr(spans, r=SONG_RAMP):
-    """ffmpeg izraz po t: 1 u pjesmi, 0 izvan, linearno pretapanje r s na rubovima."""
+def song_out_spans(edit, cuts):
+    """Zadržane pjesme u vremenu gotovog videa (prije brzine): [(od, do)]."""
+    return [(s, e) for s, e, _ in song_out_parts(edit, cuts)]
+
+
+def song_gain_expr(spans, r=SONG_RAMP, gains=None):
+    """ffmpeg izraz po t: 1 u pjesmi, 0 izvan, linearno pretapanje r s na rubovima.
+    gains = faktor po dijelu (pojačanje pjesme naspram govora); None = 1."""
     if not spans:
         return ""
-    return "+".join(f"clip(min((t-{s:.3f})/{r},({e:.3f}-t)/{r}),0,1)" for s, e in spans)
+    terms = []
+    for i, (s, e) in enumerate(spans):
+        t = f"clip(min((t-{s:.3f})/{r},({e:.3f}-t)/{r}),0,1)"
+        g = 1.0 if gains is None else float(gains[i])
+        terms.append(t if abs(g - 1.0) < 1e-4 else f"{g:.5f}*{t}")
+    return "+".join(terms)
+
+
+# ---------------------------------------------------------------- glasnoća pjesme naspram govora (M4.3b1)
+# Kad u videu ima pjesma: prvi prolaz izmjeri glasnoću (EBU R128, blokovi od 400 ms svakih 100 ms) govora i
+# svake pjesme posebno, pjesma dobije stalno pojačanje da bude jednako glasna kao govor (± nastup_glasnoca),
+# a cijeli video jedno stalno pojačanje do −14 LUFS + limiter vrhova. Bez dinamičkog loudnorma: pjesma zadrži
+# svoje tihe i glasne dijelove, a ne „pumpa".
+TARGET_I = -14.0          # LUFS gotovog videa (mreže)
+LIMIT_DB = -2.0           # vrh uzorka iza limitera (true peak ostaje ispod ~−1 dBTP)
+SONG_GAIN_MAX = (-20.0, 15.0)
+SONG_LU_MAX = 6.0         # Markova razlika pjesma − govor (LU), najviše ±6
+EDGE = 0.5                # s uz rub pjesme koji se ne mjeri (pretapanje, pljesak)
+
+
+def final_gain(db):
+    """Stalno pojačanje + limiter na 192 kHz (vrhovi između uzoraka; limiter na 16/48 kHz pa preuzorkovanje
+    daje i +3 dB preko granice)."""
+    return (f"aresample=192000,volume={db:.2f}dB,"
+            f"alimiter=limit={10 ** (LIMIT_DB / 20):.4f}:attack=1:release=80:level=0")
+
+
+def loudness_lines(plan, edit):
+    """Ispis za Marka: koliko je pjesma bila glasna naspram govora i koliko je pojačana/stišana."""
+    keep = [n for n in sorted(edit.get("nastupi") or [], key=lambda n: float(n["od"]))
+            if n.get("zadrzi", True) and float(n["do"]) > float(n["od"])]
+    out = []
+    for x in plan["pjesme"]:
+        n = keep[x["k"]] if x["k"] < len(keep) else {}
+        name = n.get("id", f"P{x['k'] + 1}")
+        if x["izmjereno"] is None or plan["govor"] is None:
+            out.append(f"Glasnoća {name}: nema govora za usporedbu, pjesma ostaje kakva jest")
+            continue
+        diff = x["izmjereno"] - plan["govor"]
+        what = "glasnija" if diff > 0 else "tiša"
+        g = x["pojacanje"]
+        act = "ostaje" if abs(g) < 0.5 else (f"pojačana {g:+.1f} dB" if g > 0 else f"stišana {g:+.1f} dB")
+        out.append(f"Glasnoća {name}: u snimci {abs(diff):.1f} LU {what} od govora → {act}"
+                   + (f" (cilj: {float(n.get('glasnoca', edit.get('nastup_glasnoca') or 0)):+.0f} LU)"
+                      if (n.get("glasnoca") or edit.get("nastup_glasnoca")) else " (cilj: jednako glasno)"))
+    return out
+
+
+def gated_loudness(m):
+    """Integrirana glasnoća (LUFS) iz momentarnih glasnoća 400 ms blokova (BS.1770: −70 LUFS i −10 LU)."""
+    import numpy as np
+    m = np.asarray(m, float)
+    m = m[m > -70.0]
+    if not len(m):
+        return None
+    p = 10 ** ((m + 0.691) / 10)
+    rel = -0.691 + 10 * np.log10(p.mean()) - 10.0
+    p = p[m > rel]
+    return float(-0.691 + 10 * np.log10(p.mean()))
+
+
+def parse_momentary(txt):
+    """Izlaz ametadata=print (ebur128 metadata=1): [(kraj bloka u s, M u LUFS)]."""
+    out, t = [], None
+    for line in txt.splitlines():
+        line = line.strip()
+        if line.startswith("frame:") and "pts_time:" in line:
+            try:
+                t = float(line.split("pts_time:")[1].split()[0])
+            except ValueError:
+                t = None
+        elif line.startswith("lavfi.r128.M=") and t is not None:
+            try:
+                m = float(line.split("=", 1)[1])
+            except ValueError:
+                continue
+            if m == m and abs(m) != float("inf"):   # bez nan/inf
+                out.append((round(t + 0.1, 3), m))
+    return out
+
+
+def song_levels(edit, n_songs):
+    """Željena razlika pjesma − govor u LU za svaku zadržanu pjesmu (edit.json nastup_glasnoca / nastupi[].glasnoca)."""
+    base = float(edit.get("nastup_glasnoca") or 0.0)
+    kept = [n for n in sorted(edit.get("nastupi") or [], key=lambda n: float(n["od"]))
+            if n.get("zadrzi", True) and float(n["do"]) > float(n["od"])]
+    out = []
+    for k in range(n_songs):
+        v = kept[k].get("glasnoca") if k < len(kept) else None
+        v = base if v is None else float(v)
+        out.append(max(-SONG_LU_MAX, min(SONG_LU_MAX, v)))
+    return out
+
+
+def loudness_plan(mom, parts, levels, target=TARGET_I):
+    """Iz momentarnih glasnoća prvog prolaza: pojačanje svake pjesme (dB) i cijelog videa (dB).
+
+    mom = [(kraj bloka, M)], parts = [(od, do, k)] u istom vremenu, levels[k] = pjesma − govor (LU).
+    Vraća {"govor", "pjesme": [{k, izmjereno, pojacanje}], "ukupno", "pojacanje"}."""
+    import numpy as np
+    if not mom:
+        return None
+    t = np.array([x[0] for x in mom]) - 0.2          # sredina bloka od 400 ms
+    m = np.array([x[1] for x in mom])
+    which = np.full(len(t), -1)
+    near = np.zeros(len(t), bool)
+    for s, e, k in parts:
+        which[(t >= s + EDGE) & (t <= e - EDGE)] = k
+        near |= (t >= s - EDGE) & (t <= e + EDGE)
+    speech = gated_loudness(m[~near])
+    songs, gain_db = [], {}
+    for k in sorted({k for _, _, k in parts}):
+        lk = gated_loudness(m[which == k])
+        if lk is None or speech is None:
+            g = 0.0
+        else:
+            g = max(SONG_GAIN_MAX[0], min(SONG_GAIN_MAX[1], speech + levels[k] - lk))
+        gain_db[k] = g
+        songs.append({"k": k, "izmjereno": None if lk is None else round(lk, 1), "pojacanje": round(g, 2)})
+    adj = m.copy()
+    for s, e, k in parts:   # blokovi u pjesmi (i na rubovima, približno) dobiju pojačanje pjesme
+        adj[(t >= s) & (t <= e)] += gain_db.get(k, 0.0)
+    total = gated_loudness(adj)
+    G = 0.0 if total is None else max(-30.0, min(30.0, target - total))
+    return {"govor": None if speech is None else round(speech, 1), "pjesme": songs,
+            "ukupno": None if total is None else round(total, 1), "pojacanje": round(G, 2)}
 
 
 def build_cuts(words, edit, st, fps, total):
@@ -561,30 +693,9 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
         vtail += f",scale={W // 2}:-2"
     g.append(vtail + ",format=yuv420p[vout]")
 
-    # zvuk: svaki rez s mikro-pretapanjem da nema pucketanja
     n = len(cuts)
-    if n <= 250:
-        g.append(f"[0:a]asplit={n}" + "".join(f"[s{i}]" for i in range(n)))
-        for i, c in enumerate(cuts):
-            d = c["b"] - c["a"]
-            g.append(f"[s{i}]atrim={c['a']:.4f}:{c['b']:.4f},asetpts=PTS-STARTPTS,"
-                     f"afade=t=in:d=0.008,afade=t=out:st={max(d - 0.012, 0):.4f}:d=0.012[c{i}]")
-        g.append("".join(f"[c{i}]" for i in range(n)) + f"concat=n={n}:v=0:a=1[vraw]")
-    else:
-        asel = "+".join(f"between(t,{c['a']:.4f},{c['b']:.4f})" for c in cuts)
-        g.append(f"[0:a]aselect='{asel}',asetpts=N/SR/TB[vraw]")
-    clean = ",afftdn=nf=-25" if st.get("zvuk_ciscenje", True) else ""
-    speech_chain = f"highpass=f=70{clean},acompressor=threshold=-21dB:ratio=3:attack=5:release=120:makeup=2"
-    gm = song_gain_expr(song_out_spans(edit, cuts))
-    if gm:  # pjesme: zvuk za glazbu (bez čišćenja šuma i govornog kompresora), pretapanje 0,25 s
-        g.append("[vraw]asplit=2[vsp][vmu]")
-        g.append(f"[vsp]{speech_chain},volume='1-({gm})':eval=frame[vs]")
-        g.append(f"[vmu]{MUSIC_CHAIN},volume='{gm}':eval=frame[vm]")
-        g.append("[vs][vm]amix=inputs=2:duration=first:normalize=0[voice]")
-    else:
-        g.append(f"[vraw]{speech_chain}[voice]")
-
     inputs = list(src_in)
+    parts = song_out_parts(edit, cuts)
     music = edit.get("glazba")
     if music:
         mp = Path(music)
@@ -593,20 +704,59 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
         if not mp.exists():
             die(f"glazba ne postoji: {music}")
         inputs += ["-stream_loop", "-1", "-i", mp]
-        vol = float(edit.get("glazba_glasnoca") or -20)
-        g.append(f"[1:a]aresample=48000,aformat=channel_layouts=stereo,atrim=0:{total:.3f},asetpts=PTS-STARTPTS,"
-                 f"loudnorm=I=-16:TP=-2,aresample=48000,volume={vol}dB,afade=t=in:d=0.6,"
-                 f"afade=t=out:st={max(total - 1.5, 0):.3f}:d=1.5"
-                 + (f",volume='1-({gm})':eval=frame" if gm else "") + "[mus]")  # pozadinska glazba šuti dok bend svira
-        g.append("[voice]asplit=2[vo][sc]")
-        g.append("[mus][sc]sidechaincompress=threshold=0.02:ratio=10:attack=15:release=350[duck]")
-        g.append("[vo][duck]amix=inputs=2:duration=first:normalize=0[mix]")
-        last = "[mix]"
+
+    def measure(lines, label, name):
+        """Zvučni graf bez slike → momentarne glasnoće (EBU R128) u vremenu gotovog videa (prije brzine)."""
+        fm = proj / "_tmp" / f"graf_{name}.txt"
+        fm.parent.mkdir(exist_ok=True)
+        fm.write_text(";\n".join(lines + [f"{label}ebur128=metadata=1,"
+                                          "ametadata=mode=print:key=lavfi.r128.M:file=-[am]"]), encoding="utf-8")
+        r = run([ffmpeg(), "-v", "error", "-nostdin", *inputs, *filter_script_args(fm), "-map", "[am]",
+                 "-f", "null", "-"], cwd=proj)
+        return parse_momentary(r.stdout)
+
+    glasnoca, gains = None, None
+    if parts:  # pjesma u videu: prvi prolaz izmjeri govor i pjesme, drugi ih izjednači (bez dinamičkog loudnorma)
+        if ispis:
+            print("Mjerim glasnoću govora i pjesama ...")
+        ga, last = audio_graph(cuts, st, edit, total, parts, None, bool(music))
+        glasnoca = loudness_plan(measure(ga, last, "glasnoca"), parts, song_levels(edit, len(song_spans(edit)[0])))
+    if glasnoca:
+        levels = song_levels(edit, len(song_spans(edit)[0]))
+        for _ in range(2):
+            # limiter vrhova stisne glasne dijelove (bubanj!) pa su pjesma i video tiši od cilja: izmjeri što je
+            # izašlo iz limitera i ispravi pojačanja (najviše dvaput)
+            gk = {x["k"]: 10 ** (x["pojacanje"] / 20) for x in glasnoca["pjesme"]}
+            gains = [gk.get(k, 1.0) for _, _, k in parts]
+            ga, last = audio_graph(cuts, st, edit, total, parts, gains, bool(music))
+            chk = loudness_plan(measure(ga + [f"{last}{final_gain(glasnoca['pojacanje'])}[lim]"], "[lim]",
+                                        "provjera"), parts, levels)
+            if not chk:
+                break
+            glasnoca["provjera"] = {"govor": chk["govor"], "ukupno": chk["ukupno"],
+                                    "pjesme": [x["izmjereno"] for x in chk["pjesme"]]}
+            fix = {x["k"]: x["pojacanje"] for x in chk["pjesme"] if x["izmjereno"] is not None}
+            if max([abs(v) for v in fix.values()] + [abs(chk["pojacanje"])]) < 0.4:
+                break
+            for x in glasnoca["pjesme"]:
+                x["pojacanje"] = round(max(SONG_GAIN_MAX[0], min(SONG_GAIN_MAX[1],
+                                                                 x["pojacanje"] + 1.2 * fix.get(x["k"], 0.0))), 2)
+            glasnoca["pojacanje"] = round(glasnoca["pojacanje"] + max(-6.0, min(6.0, 1.15 * chk["pojacanje"])), 2)
+        gk = {x["k"]: 10 ** (x["pojacanje"] / 20) for x in glasnoca["pjesme"]}
+        gains = [gk.get(k, 1.0) for _, _, k in parts]
+        ga, last = audio_graph(cuts, st, edit, total, parts, gains, bool(music))
+        if ispis:
+            for line in loudness_lines(glasnoca, edit):
+                print(line)
     else:
-        last = "[voice]"
+        ga, last = audio_graph(cuts, st, edit, total, parts, None, bool(music))
+    g += ga
     atail = f"{last}"
     atail += f"atempo={speed}," if speed != 1.0 else ""
-    g.append(f"{atail}loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000[aout]")
+    if glasnoca:  # jedno stalno pojačanje do −14 LUFS + limiter vrhova (4× nadotipkavanje = true peak)
+        g.append(f"{atail}{final_gain(glasnoca['pojacanje'])},aresample=48000[aout]")
+    else:
+        g.append(f"{atail}loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000[aout]")
 
     fg = proj / "_tmp" / "graf.txt"
     fg.parent.mkdir(exist_ok=True)
@@ -644,7 +794,7 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     if verzija and v is not None:  # nova verzija: točno ovaj edit.json, datum, trajanje; korisnik sada gleda nju
         verzije.record_render(proj, v, edit_raw, out.name, final, brzo, kvaliteta)
         learn_vocabulary(proj, edit_raw, words)
-    res = {"video": out, "srt": srt, "trajanje": final, "kadrova": n, "zumova": len(zr),
+    res = {"video": out, "srt": srt, "trajanje": final, "kadrova": n, "zumova": len(zr), "glasnoca": glasnoca,
            "ispis": translated + resolve_lines}
     if not ispis:
         return res
@@ -661,6 +811,46 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     if edit.get("izrezi"):
         print(f"Izrezano naredbama (dijelova: {len(edit['izrezi'])}), popis: python uredi.py {proj.name} popis")
     return res
+
+
+def audio_graph(cuts, st, edit, total, parts, gains, music):
+    """Zvučni dio filtergrafa do miksa (bez završne glasnoće) → (filteri, oznaka izlaza).
+    parts = pjesme u videu [(od, do, k)], gains = faktor po dijelu pjesme (None = 1), music = ulaz 1:a."""
+    g = []
+    n = len(cuts)
+    if n <= 250:  # svaki rez s mikro-pretapanjem da nema pucketanja
+        g.append(f"[0:a]asplit={n}" + "".join(f"[s{i}]" for i in range(n)))
+        for i, c in enumerate(cuts):
+            d = c["b"] - c["a"]
+            g.append(f"[s{i}]atrim={c['a']:.4f}:{c['b']:.4f},asetpts=PTS-STARTPTS,"
+                     f"afade=t=in:d=0.008,afade=t=out:st={max(d - 0.012, 0):.4f}:d=0.012[c{i}]")
+        g.append("".join(f"[c{i}]" for i in range(n)) + f"concat=n={n}:v=0:a=1[vraw]")
+    else:
+        asel = "+".join(f"between(t,{c['a']:.4f},{c['b']:.4f})" for c in cuts)
+        g.append(f"[0:a]aselect='{asel}',asetpts=N/SR/TB[vraw]")
+    clean = ",afftdn=nf=-25" if st.get("zvuk_ciscenje", True) else ""
+    speech_chain = f"highpass=f=70{clean},acompressor=threshold=-21dB:ratio=3:attack=5:release=120:makeup=2"
+    spans = [(s, e) for s, e, _ in parts]
+    gm = song_gain_expr(spans)
+    if gm:  # pjesme: zvuk za glazbu (bez čišćenja šuma i govornog kompresora), pretapanje 0,25 s
+        gw = song_gain_expr(spans, gains=gains)
+        g.append("[vraw]asplit=2[vsp][vmu]")
+        g.append(f"[vsp]{speech_chain},volume='1-({gm})':eval=frame[vs]")
+        g.append(f"[vmu]{MUSIC_CHAIN},volume='{gw}':eval=frame[vm]")
+        g.append("[vs][vm]amix=inputs=2:duration=first:normalize=0[voice]")
+    else:
+        g.append(f"[vraw]{speech_chain}[voice]")
+    if not music:
+        return g, "[voice]"
+    vol = float(edit.get("glazba_glasnoca") or -20)
+    g.append(f"[1:a]aresample=48000,aformat=channel_layouts=stereo,atrim=0:{total:.3f},asetpts=PTS-STARTPTS,"
+             f"loudnorm=I=-16:TP=-2,aresample=48000,volume={vol}dB,afade=t=in:d=0.6,"
+             f"afade=t=out:st={max(total - 1.5, 0):.3f}:d=1.5"
+             + (f",volume='1-({gm})':eval=frame" if gm else "") + "[mus]")  # pozadinska glazba šuti dok bend svira
+    g.append("[voice]asplit=2[vo][sc]")
+    g.append("[mus][sc]sidechaincompress=threshold=0.02:ratio=10:attack=15:release=350[duck]")
+    g.append("[vo][duck]amix=inputs=2:duration=first:normalize=0[mix]")
+    return g, "[mix]"
 
 
 def stills_mode(kadar, proj, cuts, zr, factor, grade, subs, speed, W, H, total, izvor=None):

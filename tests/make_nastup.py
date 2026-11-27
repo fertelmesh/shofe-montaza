@@ -134,7 +134,7 @@ def pljesak(dur, seed=5):
     return 0.35 * y * env / (np.abs(y).max() + 1e-9)
 
 
-def audio():
+def audio(pjesma_db=0.0):
     sp = decode(FIX / "razgovor.m4a")
     sp = 0.5 * sp / (np.abs(sp).max() + 1e-9)
     y = np.zeros(int(TRAJANJE * SR))
@@ -145,7 +145,7 @@ def audio():
 
     for a, b, c in GOVOR:
         put(sp[int(a * SR):int(b * SR)], c)
-    put(band(PJESMA[1] - PJESMA[0], tiho=(36.0, 40.0)), PJESMA[0])
+    put(band(PJESMA[1] - PJESMA[0], tiho=(36.0, 40.0)) * 10 ** (pjesma_db / 20), PJESMA[0])
     put(pljesak(PLJESAK[1] - PLJESAK[0]), PLJESAK[0])
     r0, r1 = RADIO_GOVOR
     put(sp[int(r0 * SR):int(r1 * SR)], RADIO[0])
@@ -170,11 +170,12 @@ def words():
     return sorted(out, key=lambda w: w["s"])
 
 
-def make(out):
+def make(out, pjesma_db=0.0):
+    """pjesma_db = koliko je pjesma glasnija (+) ili tiša (−) nego inače (glasnoća pjesme naspram govora)."""
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     wav = out / "_zvuk.wav"
-    write_wav(wav, audio())
+    write_wav(wav, audio(pjesma_db))
     parts = [(0, PJESMA[0], "0x3a5a8c"), (PJESMA[0], PJESMA[1], "0x2e8b57"), (PJESMA[1], RADIO[0], "0x3a5a8c"),
              (RADIO[0], DZINGL[0], "0x8c6a3a"), (DZINGL[0], DZINGL[1], "0x8c3a6a"), (DZINGL[1], TRAJANJE, "0x3a5a8c")]
     boje = ",".join(f"drawbox=x=0:y=0:w=iw:h=ih:color={c}:t=fill:enable='between(t,{a},{b - 0.001})'"
