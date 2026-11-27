@@ -49,7 +49,7 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
   - [x] M4.2b1 DaVinci timeline podcasta: program iz originalnih kamera, ostale kamere na trakama iznad (isključene), glavni zvuk ispod (#28)
   - [x] M4.2b2 Isječci 9:16 iz podcasta: iz krupnih kadrova originalnih kamera (ne iz 16:9 programa), široki kadar → izrez po govorniku, podijeljen kadar za dvoje (#29)
   - M4.2b3 Uspravni isječci podcasta, dorada (podijeljeno):
-    - [x] M4.2b3a Titlovi na spoju podijeljenog kadra; naslovna sličica uspravnog isječka iz kamere govornika (9:16 iz uspravnog izvora, radije jedno lice; 16:9 iz originalne kamere te osobe) (#PR)
+    - [x] M4.2b3a Titlovi na spoju podijeljenog kadra; naslovna sličica uspravnog isječka iz kamere govornika (9:16 iz uspravnog izvora, radije jedno lice; 16:9 iz originalne kamere te osobe) (#32)
     - [ ] M4.2b3b DaVinci 9:16 timeline uspravnog isječka iz originalnih kamera (sad iz uspravnog izvora): izrez po kadru, podijeljen kadar kao dvije trake (transform)
 - M4.3 Nastupi bendova (podijeljeno):
   - [x] M4.3a Prepoznavanje pjesama (`nastupi.py`), pjesma kao nedjeljiv komad u plan/render/uredi/skrati/isječcima, bez titlova, glazbeni lanac zvuka umjesto govornog, pozadinska glazba šuti (#31)
