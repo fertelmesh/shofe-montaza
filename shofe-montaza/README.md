@@ -242,6 +242,18 @@ Kad Claude napravi kartu epizode, upiše i **teme** (npr. „Kako smo kupili Ren
 
 Ako je MP3 već napravljen s drugim naslovom, Shofe kaže kako ga ponovno napraviti s istim naslovom kao na platformama. Potpis serije (npr. `za Sunčani4M na kraju napiši „Slušaj nas svaki petak"`) dodaje se i na podcast tekst; za samo podcast reci `potpis samo za Spotify`.
 
+### Uvodna i odjavna špica
+
+Reci `dodaj špicu` i Shofe epizodi doda **uvodnu špicu** (kratka kartica: SUNČANI4M, naslov epizode i broj, preko mutnog kadra iz epizode) i **odjavnu špicu** (15 s: „Hvala što ste gledali!" i „Pretplati se" u gornjem dijelu — donji dio je prazan za YouTube završni zaslon, gdje dodaješ sljedeći video i gumb za pretplatu; YouTube ga dopušta u zadnjih 5–20 s). Prije rendera dobiješ sliku obje kartice.
+
+Imaš li svoj intro ili outro video, reci `moj intro je C:\…\intro.mp4, zapamti ga` — Shofe ga zapamti za sve epizode, prilagodi veličini videa i izjednači mu glasnoću s epizodom. Ostalo što možeš reći:
+
+- `špica iza najave na 0:25` — epizoda krene najjačim trenutkom, pa dođe špica (Shofe je stavi u stanku, na kraj rečenice)
+- `špica s glazbom spica.mp3`, `naslov na špici „Bend iz Kutine"`, `epizoda 12`
+- `bez odjavne špice`, `makni špicu`
+
+Špica je samo u cijeloj epizodi, ne u isječcima. Titlovi, poglavlja, MP3 i naredbe poput „makni 5:00–5:10" sami se pomaknu za špicu — uvijek govoriš vremena iz videa koji gledaš. DaVinci timeline zasad nema špicu (dodaj je ručno na početak/kraj; dolazi uskoro).
+
 ## Stilovi
 
 | Stil | Za što |

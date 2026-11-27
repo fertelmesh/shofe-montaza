@@ -41,6 +41,7 @@ from common import die, fmt_time, load_json, save_json
 from render import align_tokens, build_cuts, resolve_style, song_out_spans, to_out, word_starts, words_in
 import sadrzaj
 import skrati as sk
+import spica
 import verzije
 
 TIME = r"\d+(?::\d{1,2}){0,2}(?:[.,]\d+)?s?"
@@ -119,21 +120,42 @@ def timeline(words, edit, pj):
                 continue
             out.append({"i": i, "s": s / speed, "e": e / speed, "t": tok, "seg": owner.get(i)})
     out.sort(key=lambda w: w["s"])
+    r = spica.raspored(edit, cuts, speed, pj["fps"], total / speed, spica_rijeci(words, edit, kept, cuts))
+    if r:  # vremena kao u videu koji korisnik gleda (sa špicom)
+        for w in out:
+            w["s"], w["e"] = spica.u_konacno(w["s"], r), spica.u_konacno(w["e"], r)
+        return out, r["ukupno"]
     return out, total / speed
+
+
+def spica_rijeci(words, edit, kept, cuts):
+    if not spica.aktivna(edit):
+        return None
+    from render import out_words
+    return out_words(words, kept, cuts, set())
+
+
+def spica_of(words, edit, pj):
+    st = resolve_style(edit)
+    speed = float(edit.get("brzina") or 1.0)
+    cuts, kept, total = build_cuts(words, edit, st, pj["fps"], pj["duration"])
+    return spica.raspored(edit, cuts, speed, pj["fps"], total / speed, spica_rijeci(words, edit, kept, cuts))
 
 
 def song_timeline(words, edit, pj):
     """Zadržane pjesme u gotovom videu: [{id, s, e, od, do}] (s/e vrijeme gotovog videa nakon brzine)."""
     st = resolve_style(edit)
     speed = float(edit.get("brzina") or 1.0)
-    cuts, _, _ = build_cuts(words, edit, st, pj["fps"], pj["duration"])
+    cuts, kept, total = build_cuts(words, edit, st, pj["fps"], pj["duration"])
+    r = spica.raspored(edit, cuts, speed, pj["fps"], total / speed, spica_rijeci(words, edit, kept, cuts))
     res = []
     for n in edit.get("nastupi") or []:
         if not n.get("zadrzi", True):
             continue
         spans = song_out_spans({"nastupi": [dict(n, zadrzi=True)]}, cuts)
         if spans:
-            res.append({"id": n["id"], "s": spans[0][0] / speed, "e": spans[-1][1] / speed,
+            res.append({"id": n["id"], "s": spica.u_konacno(spans[0][0] / speed, r),
+                        "e": spica.u_konacno(spans[-1][1] / speed, r),
                         "od": float(n["od"]), "do": float(n["do"])})
     return res
 
@@ -634,8 +656,17 @@ def cmd_popis(words, edit, pj, label):
         cur["ws"].append(w)
     for sg in song_timeline(words, edit, pj):
         rows.append({"s": sg["s"], "e": sg["e"], "pjesma": sg["id"]})
+    sr = spica_of(words, edit, pj)
+    if sr:
+        if sr["uvod"]:
+            rows.append({"s": sr["at"], "e": sr["at"] + sr["uvod"], "spica": "UVODNA ŠPICA"})
+        if sr["odjava"]:
+            rows.append({"s": sr["ukupno"] - sr["odjava"], "e": sr["ukupno"], "spica": "ODJAVNA ŠPICA"})
     rows.sort(key=lambda r: r["s"])
     for r in rows:
+        if r.get("spica"):
+            print(f"  {fmt_time(r['s'])}-{fmt_time(r['e'])}  ▶ {r['spica']} (spica.py)")
+            continue
         if r.get("pjesma"):
             print(f"  {fmt_time(r['s'])}-{fmt_time(r['e'])}  ♪ PJESMA {r['pjesma']} (ide cijela)")
             continue
@@ -733,6 +764,13 @@ def main():
         return lo <= (w["s"] + w["e"]) / 2 < hi
 
     print(f"Vremena prema: {label}, trajanje {fmt_time(ref_dur)}")
+    sr = spica_of(words, ref, pj)
+    for lo, hi in ranges:
+        d1, d2 = spica.iz_konacnog(lo, sr)[1], spica.iz_konacnog(max(lo, hi - 0.01), sr)[1]
+        if d1 and d1 == d2:
+            ime = "uvodna" if d1 == "uvod" else "odjavna"
+            die(f"{fmt_time(lo)}-{fmt_time(hi)} je {ime} špica. Bez nje: python spica.py {proj.name} dodaj "
+                f"--{d1} nema (ili spica.py {proj.name} makni za obje)")
     for lo, hi in ranges:
         if lo >= ref_dur:
             die(f"{fmt_time(lo)} je iza kraja videa ({fmt_time(ref_dur)})")
@@ -767,6 +805,10 @@ def main():
                 for lo, hi in ranges:
                     a_, b_ = max(lo, sg["s"]), min(hi, sg["e"])
                     if b_ - a_ <= 0.05:
+                        continue
+                    sr = spica_of(words, ref, pj)
+                    a_, b_ = spica.iz_konacnog(a_, sr)[0], spica.iz_konacnog(b_ - 1e-3, sr)[0]
+                    if a_ is None or b_ is None:
                         continue
                     so, sd = out_to_source(a_, rcuts, sp), out_to_source(b_, rcuts, sp)
                     if so is not None and sd is not None and sd > so:

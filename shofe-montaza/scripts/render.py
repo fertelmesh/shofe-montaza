@@ -9,6 +9,7 @@ import bisect
 import shutil
 from pathlib import Path
 
+import spica
 import titlovi
 import verzije
 from common import (FONTS_DIR, GRADES, die, ffmpeg, filter_script_args, fmt_time, load_json,
@@ -676,8 +677,24 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     grade = GRADES.get(st.get("boja_slike", "neutralno"), GRADES["neutralno"])
     factor, zr = zoom_ranges(cuts, st)
 
+    sp_r, sp_files = None, {}
+    if spica.aktivna(edit) and not izlaz and izvor is None:  # špica samo u glavnom videu, ne u isječcima
+        sp_r = spica.raspored(edit, cuts, speed, fps, total / speed, ws)
+        sp_files = spica.pripremi(proj, edit, W, H, fps, st.get("boja_isticanja", "#FF7A00"), ispis=ispis)
+        for note in sp_files["napomene"]:
+            print(f"  ! špica: {note}")
+
     if kadar:
-        return {"slike": stills_mode(kadar, proj, cuts, zr, factor, grade, subs, speed, W, H, total, izvor)}
+        times = [float(x) for x in str(kadar).split(",") if x.strip()]
+        pairs = []
+        for t in times:
+            m, dio = spica.iz_konacnog(t, sp_r)
+            if dio:  # kadar iz špice
+                off = t - sp_r["at"] if dio == "uvod" else t - sp_r["at"] - sp_r["uvod"] - (sp_r["glavni"] - sp_r["at"])
+                pairs.append((t, ("file", sp_files[dio], max(0.0, off))))
+            else:
+                pairs.append((t, ("main", m)))
+        return {"slike": stills_mode(pairs, proj, cuts, zr, factor, grade, subs, speed, W, H, total, izvor)}
 
     eps = 0.5 / fps
     sel = "+".join(f"between(t,{c['a'] - eps:.4f},{c['b'] - eps:.4f})" for c in cuts)
@@ -691,7 +708,8 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
         vtail += f",setpts=PTS/{speed}"
     if brzo:
         vtail += f",scale={W // 2}:-2"
-    g.append(vtail + ",format=yuv420p[vout]")
+    vlab, alab = ("[vout0]", "[aout0]") if sp_r else ("[vout]", "[aout]")
+    g.append(vtail + f",format=yuv420p{vlab}")
 
     n = len(cuts)
     inputs = list(src_in)
@@ -755,9 +773,13 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     atail += f"atempo={speed}," if speed != 1.0 else ""
     fades = audio_fades(edit, total / speed)
     if glasnoca:  # jedno stalno pojačanje do −14 LUFS + limiter vrhova (4× nadotipkavanje = true peak)
-        g.append(f"{atail}{final_gain(glasnoca['pojacanje'])},aresample=48000{fades}[aout]")
+        g.append(f"{atail}{final_gain(glasnoca['pojacanje'])},aresample=48000{fades}{alab}")
     else:
-        g.append(f"{atail}loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000{fades}[aout]")
+        g.append(f"{atail}loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000{fades}{alab}")
+    if sp_r:  # uvodna (iza najave ili na početku) i odjavna špica u istom prolazu kodiranja
+        sg, sin = spica.graf(sp_r, sp_files, sum(1 for x in inputs if str(x) == "-i"), brzo, W)
+        g += sg
+        inputs += sin
 
     fg = proj / "_tmp" / "graf.txt"
     fg.parent.mkdir(exist_ok=True)
@@ -782,9 +804,12 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     run(cmd, cwd=proj)
 
     final = total / speed
+    if sp_r:
+        final = sp_r["ukupno"]
     # titlovi kao datoteka uz video (isto ime → YouTube, VLC i DaVinci ih nađu)
     srt = out.with_suffix(".srt")
-    cues = titlovi.make_cues([dict(w, s=w["s"] / speed, e=w["e"] / speed) for w in ws], final, fps)
+    cues = titlovi.make_cues([dict(w, s=w["s"] / speed, e=w["e"] / speed) for w in ws], total / speed, fps)
+    cues = spica.pomakni_cues(cues, sp_r)
     titlovi.write_srt(srt, cues)
     translated = []
     if prevedi:
@@ -792,9 +817,11 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
         translated = prijevod.for_render(proj, cues, out)
     import davinci  # timeline za DaVinci Resolve s istim rezovima (originalne snimke)
     resolve_lines = davinci.for_render(proj, edit_raw, out, izvor=izvor)
+    if sp_r and resolve_lines:
+        resolve_lines.append("  (DaVinci timeline je još bez špice — dodaj je ručno na početak/kraj)")
     if not izlaz and not brzo:  # epizoda / dulji YouTube video s temama: poglavlja uz video
         import epizoda
-        resolve_lines += epizoda.for_render(proj, edit_raw, out, W, H, total / speed)
+        resolve_lines += epizoda.for_render(proj, edit_raw, out, W, H, final)
     if verzija and v is not None:  # nova verzija: točno ovaj edit.json, datum, trajanje; korisnik sada gleda nju
         verzije.record_render(proj, v, edit_raw, out.name, final, brzo, kvaliteta)
         learn_vocabulary(proj, edit_raw, words)
@@ -805,6 +832,8 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     removed = [s["id"] for s in edit["odsjecci"] if not s.get("zadrzi", True)]
     print(f"\nGotovo: {out}" + (f"  (verzija {v}; popis i usporedba: python verzije.py {proj.name})" if v else ""))
     print(f"Titlovi za YouTube: {srt.name}")
+    if sp_r:
+        print(spica.opis(sp_r, edit))
     for line in translated:
         print(line)
     for line in resolve_lines:
@@ -874,17 +903,26 @@ def audio_graph(cuts, st, edit, total, parts, gains, music):
 
 
 def stills_mode(kadar, proj, cuts, zr, factor, grade, subs, speed, W, H, total, izvor=None):
-    times = [float(x) for x in str(kadar).split(",") if x.strip()]
+    """kadar = "1,4.5" (sekunde gotovog videa) ili [(oznaka, ("main", t) | ("file", datoteka, t))] (špica)."""
+    if isinstance(kadar, list):
+        pairs = kadar
+    else:
+        pairs = [(float(x), ("main", float(x))) for x in str(kadar).split(",") if x.strip()]
     pngs = []
-    for k, t in enumerate(times):
-        pre = min(max(t * speed, 0), total - 0.01)
+    for k, (t, src_spec) in enumerate(pairs):
+        png = proj / f"kadar_{k + 1}_{t:g}s.png"
+        if src_spec[0] == "file":
+            run([ffmpeg(), "-y", "-v", "error", "-ss", f"{src_spec[2]:.3f}", "-i", src_spec[1], "-frames:v", "1",
+                 png.name], cwd=proj)
+            pngs.append(png)
+            continue
+        pre = min(max(src_spec[1] * speed, 0), total - 0.01)
         c = next((c for c in cuts if c["o"] <= pre < c["o"] + (c["b"] - c["a"])), cuts[-1])
         src_t = c["a"] + (pre - c["o"])
         chain = [grade]
         if any(s <= pre < e for s, e in zr):
             chain.append(zoom_chain(factor, W, H))
         chain += [f"setpts=PTS-STARTPTS+{pre:.3f}/TB", subs]
-        png = proj / f"kadar_{k + 1}_{t:g}s.png"
         src, off = (Path(izvor["datoteka"]).resolve(), float(izvor["pomak"])) if izvor else ("source.mp4", 0.0)
         run([ffmpeg(), "-y", "-v", "error", "-ss", f"{max(0.0, src_t - off):.3f}", "-i", src, "-frames:v", "1",
              "-vf", ",".join(chain), png.name], cwd=proj)

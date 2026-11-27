@@ -74,8 +74,9 @@ def u_gotovom(a, b, cuts):
     return start, kept
 
 
-def slozi(teme, pjesme, cuts, trajanje, brzina=1.0, min_len=MIN_POGLAVLJE):
-    """Poglavlja u vremenu gotovog videa: [{"od", "naslov", "vrsta"}], prvo u 0, svako ≥ min_len."""
+def slozi(teme, pjesme, cuts, trajanje, brzina=1.0, min_len=MIN_POGLAVLJE, spica_r=None):
+    """Poglavlja u vremenu gotovog videa: [{"od", "naslov", "vrsta"}], prvo u 0, svako ≥ min_len.
+    spica_r = spica.raspored(...): poglavlja iza uvodne špice pomaknu se, špice su svoji dijelovi."""
     ch = []
     for a, b, title, kind in komadi(teme, pjesme):
         s, kept = u_gotovom(a, b, cuts)
@@ -93,6 +94,9 @@ def slozi(teme, pjesme, cuts, trajanje, brzina=1.0, min_len=MIN_POGLAVLJE):
             continue
         merged.append(c)
     ch = merged
+    if spica_r:
+        import spica
+        ch = spica.poglavlja(ch, spica_r, spica_r["glavni"])
     if not ch:
         return []
     ch[0]["od"] = 0.0                 # YouTube: prvo poglavlje u 00:00 (početak prije prve teme ide u nju)
@@ -114,6 +118,13 @@ def slozi(teme, pjesme, cuts, trajanje, brzina=1.0, min_len=MIN_POGLAVLJE):
             keep = ch[lo] if dur(lo) >= dur(hi) else ch[hi]
         new = dict(keep, od=ch[lo]["od"])
         ch[lo:hi + 1] = [new]
+        # tema prije kratke špice i njezin „nastavak" iza nje = jedno poglavlje
+        k = 1
+        while k < len(ch):
+            if ch[k]["naslov"].replace(" (nastavak)", "") == ch[k - 1]["naslov"].replace(" (nastavak)", ""):
+                del ch[k]
+            else:
+                k += 1
     for c in ch:
         c.pop("trajanje", None)
     return ch
@@ -179,15 +190,20 @@ def poglavlja_za(proj, edit, min_len=MIN_POGLAVLJE):
     pj = load_json(proj / "project.json")
     words = load_json(proj / "transcript.json")["words"]
     st = render.resolve_style(edit)
-    cuts, _, total = render.build_cuts(words, edit, st, pj["fps"], pj["duration"])
+    cuts, kept, total = render.build_cuts(words, edit, st, pj["fps"], pj["duration"])
     speed = float(edit.get("brzina") or 1.0)
     pjesme = [n for n in sorted(edit.get("nastupi") or [], key=lambda n: float(n["od"]))
               if n.get("zadrzi", True) and float(n["do"]) > float(n["od"])]
     final = total / speed
+    import spica
+    sp_r = spica.raspored(edit, cuts, speed, pj["fps"], final,
+                          render.out_words(words, kept, cuts, set()) if spica.aktivna(edit) else None)
+    if sp_r:
+        final = sp_r["ukupno"]
     warn = []
     if not teme:
         warn.append("u analiza.json nema tema (\"teme\") — poglavlja su samo pjesme; Claude ih treba upisati")
-    ch = slozi(teme, pjesme, cuts, final, speed, min_len)
+    ch = slozi(teme, pjesme, cuts, final, speed, min_len, sp_r)
     if len(ch) < MIN_BROJ:
         warn.append(f"samo {len(ch)} poglavlja: YouTube ih prikazuje tek od {MIN_BROJ} (i svako ≥ 10 s)")
     return ch, final, warn

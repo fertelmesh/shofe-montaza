@@ -64,6 +64,7 @@ def edit_za_isjecak(base, words, c, duration, stil=None):
     Isječak iz pjesme (vrsta „pjesma") je po vremenu: pjesma u editu je samo dio od–do isječka."""
     pjesma = c.get("vrsta") == "pjesma"
     e = copy.deepcopy(base)
+    e.pop("spica", None)          # špica je samo za glavni video
     notes = []
     glavni = e.pop("izrezi", None) or []
     if pjesma:
