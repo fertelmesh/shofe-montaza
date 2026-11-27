@@ -382,6 +382,7 @@ Jedan unos po krugu, najnoviji na dnu.
   - `render.py` je u „izrezano N s" brojao i špicu (pisalo 2,2 s umjesto 22,2 s); sad „izrezano 22.2s, špica +20.0s".
   - Verzija 0.33.1.
 - Primijećeno, nije popravljeno: u `transcript.txt` kratko „Da." (Ivan, 0,35 s) između dvije Markove rečenice piše kao Marko, iako `govornici.json` kaže Ivan — provjeriti pravilo za kratke odsječke.
-- Testovi: novi `tests/test_demo_m4.py` (5: scenarij i ocjene, opis po pravilima platformi, kamere, aktivna kamera u mozaiku, pomoćne). Cijeli paket lokalno, vidi PR.
+- Testovi: novi `tests/test_demo_m4.py` (5: scenarij i ocjene, opis po pravilima platformi, kamere, aktivna kamera u mozaiku, pomoćne), `test_epizoda.py` +1.
+- PR #47.
 - Za Marka: issue #46 „Pregled M4" — demo, instalacija 0.33.1, prava epizoda (sinkro, režija, pjesma, špica, poglavlja, MP3, opis, isječci) i **provjera u DaVinciju** (fcpxml, uvoz EDL-a, Deliver „Chapters from Markers").
 - Sljedeće: M5.1 sustav efekata u edit.json + ffmpeg efekti (zumovi, zamrzni, film/retro).
