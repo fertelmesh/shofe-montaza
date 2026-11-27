@@ -21,6 +21,11 @@ Pravila režije (kao montažer podcasta):
 - svaki kadar traje barem MIN_KADAR s (kratko „aha" ne prebacuje kameru);
 - dugi monolog: povremeno UMETAK_TRAJANJE s širokog kadra (ili reakcije drugoga ako nema širokog);
 - kamera koja u tom trenutku ne snima (počela kasnije, prekinula) se ne bira.
+
+Za vrijeme pjesme (nastupi.json iz nastupi.py, M4.3b2) režija je drukčija: govornici se ne prate (pjevanje nije
+govor), pjesma počne i završi u širokom kadru, a kamere se izmjenjuju sporo (prosječno PJESMA_KADAR s, široki dulje,
+ostale kamere kraće) i to na udarac, svakih nekoliko taktova (ritam.py). Bez jasnog ritma rez ide po sekundama.
+  python rezija.py podcast_projekt --pjesma-kadar 12     sporije (0 = cijela pjesma u širokom kadru)
 """
 import argparse
 import math
@@ -46,12 +51,15 @@ PROZORA = 8             # prozora po kameri za traženje lica
 PROZOR = 15.0           # s
 MIN_VIDLJIV = 0.15      # osoba se broji ako je vidljiva u barem toliko sličica
 CRF = 18
+PJESMA_KADAR = 8.0      # s; prosječni kadar za vrijeme pjesme
+PJESMA_MIN = 4.0        # s; najkraći kadar u pjesmi
+PJESMA_UVOD = 1.5       # × PJESMA_KADAR: prvi (široki) kadar pjesme
 
 # razlozi (po sličici mreže)
-R_GOVORI, R_PREKLOP, R_IZMJENA, R_TISINA, R_BEZ_KAMERE, R_UMETAK, R_POCETAK = range(7)
+R_GOVORI, R_PREKLOP, R_IZMJENA, R_TISINA, R_BEZ_KAMERE, R_UMETAK, R_POCETAK, R_PJESMA = range(8)
 RAZLOZI = {R_GOVORI: "govori", R_PREKLOP: "pričaju u isti glas", R_IZMJENA: "brza izmjena",
            R_TISINA: "tišina", R_BEZ_KAMERE: "govornik nema svoju kameru", R_UMETAK: "umetak u monologu",
-           R_POCETAK: "početak"}
+           R_POCETAK: "početak", R_PJESMA: "pjesma"}
 
 
 # ---------------------------------------------------------------- ulaz
@@ -380,7 +388,118 @@ def add_cutaways(cam, why, act, roles, wide, cu, cov, speaker_ids, every):
     return cam, why
 
 
-def shots_from(cam, why, lab, cams, roles, speaker_ids, names):
+def outside_songs(segs, songs):
+    """Odsječci govora bez dijelova koji su u pjesmi (pjevanje nije govor, ne prati se)."""
+    out = []
+    for a, b, g in segs:
+        parts = [(a, b)]
+        for s in songs:
+            nxt = []
+            for x, y in parts:
+                if y <= s["od"] or x >= s["do"]:
+                    nxt.append((x, y))
+                    continue
+                if x < s["od"]:
+                    nxt.append((x, s["od"]))
+                if y > s["do"]:
+                    nxt.append((s["do"], y))
+            parts = nxt
+        out += [(x, y, g) for x, y in parts if y - x > 0.05]
+    return out
+
+
+def song_cuts(od, do, kadar, udarci):
+    """Vremena rezova unutar pjesme [od, do]: prvi (široki) kadar dulji, zatim naizmjence široki ~1,25× i
+    ostali ~0,75× prosječnog kadra. S jasnim ritmom rez je na udarcu i uvijek isti broj udaraca (cijeli taktovi)
+    od prvog udarca pjesme. Vrati (rezovi, broj udaraca u koraku ili None)."""
+    if kadar <= 0 or do - od < 2 * PJESMA_MIN:
+        return [], None
+    lens = lambda i: kadar * (PJESMA_UVOD if i == 0 else 1.25 if i % 2 == 0 else 0.75)  # noqa: E731
+    b = [t for t in (udarci or []) if od - 0.05 <= t <= do]
+    grid, per = None, None
+    if len(b) >= 8:
+        period = float(np.median(np.diff(b)))
+        per = 4 if 60.0 / period >= 90 else 2           # pola tempa: 2 udarca = takt
+        grid = b[::per]
+    cuts, t, i = [], od, 0
+    while True:
+        want = t + lens(i)
+        if grid:
+            cand = [g for g in grid if g >= t + PJESMA_MIN and g <= do - PJESMA_MIN]
+            if not cand:
+                break
+            c = min(cand, key=lambda g: abs(g - want))
+            if c < want - 0.6 * kadar and c == cand[-1]:   # do kraja pjesme ostaje premalo
+                break
+        else:
+            c = want
+            if c > do - PJESMA_MIN:
+                break
+        cuts.append(round(c, 3))
+        t, i = c, i + 1
+    return cuts, per
+
+
+def song_plan(song, cams, roles, cov, kadar):
+    """Kadrovi pjesme [(od_k, do_k, kamera)] na mreži KORAK: počne i završi u širokom kadru, između široki i
+    ostale kamere naizmjence (ostale redom). Kamera koja u tom dijelu ne snima preskoči se."""
+    n = cov.shape[1]
+    a, b = max(0, int(round(song["od"] / KORAK))), min(n, int(round(song["do"] / KORAK)))
+    if b <= a:
+        return [], None
+    wide = sorted([i for i, r in enumerate(roles) if r["uloga"] == "siroki"],
+                  key=lambda i: (-len(roles[i]["osobe"]), -cov[i, a:b].sum()))
+    rest = sorted([i for i, r in enumerate(roles) if r["uloga"] != "siroki"],
+                  key=lambda i: ({"krupni": 0}.get(roles[i]["uloga"], 1), roles[i]["ime"]))
+    cuts, per = song_cuts(song["od"], song["do"], kadar, song.get("udarci"))
+    song["_rezovi"] = cuts
+    edges = [a] + [int(round(c / KORAK)) for c in cuts] + [b]
+    if wide and rest and len(edges) >= 4 and (len(edges) - 2) % 2 == 1:
+        edges.pop(-2)                                     # zadnji kadar pjesme neka bude široki
+    out, j = [], 0
+    for k, (x, y) in enumerate(zip(edges, edges[1:])):
+        if y <= x:
+            continue
+        if wide and (k % 2 == 0 or not rest):
+            pref = wide + rest
+        elif rest:
+            pref = rest[j % len(rest):] + rest[:j % len(rest)] + wide
+            j += 1
+        else:
+            pref = list(range(len(cams)))
+        c = next((i for i in pref if cov[i, x:y].all()), None)
+        if c is None:   # nitko ne snima cijeli dio: najviše pokriven
+            c = max(pref, key=lambda i: cov[i, x:y].sum()) if pref else None
+            if c is None or not cov[c, x:y].any():
+                continue
+        if out and out[-1][2] == c and out[-1][1] == x:
+            out[-1] = (out[-1][0], y, c)
+        else:
+            out.append((x, y, c))
+    return out, per
+
+
+def fix_song_edges(cam, cov, in_song, min_len):
+    """Komadić govora kraći od najkraćeg kadra uz rub pjesme preuzme susjedni kadar koji tu snima."""
+    BLACK = cov.shape[0]
+    out = cam.copy()
+    k, n = 0, len(out)
+    while k < n:
+        e = k
+        while e < n and out[e] == out[k] and in_song[e] == in_song[k]:
+            e += 1
+        if not in_song[k] and e - k < min_len and ((k > 0 and in_song[k - 1]) or (e < n and in_song[e])):
+            nb = ([out[k - 1]] if k > 0 and not in_song[k - 1] else []) + ([out[e]] if e < n else []) \
+                + ([out[k - 1]] if k > 0 else [])
+            for c in nb:
+                if c == BLACK or cov[c, k:e].all():
+                    out[k:e] = c
+                    break
+        k = e
+    return out
+
+
+def shots_from(cam, why, lab, cams, roles, speaker_ids, names, song_of=None, songs=()):
     BLACK = len(cams)
     out = []
     k, n = 0, len(cam)
@@ -389,7 +508,7 @@ def shots_from(cam, why, lab, cams, roles, speaker_ids, names):
         while e < n and cam[e] == cam[k]:
             e += 1
         c = int(cam[k])
-        rs = np.bincount(why[k:e], minlength=7)
+        rs = np.bincount(why[k:e], minlength=len(RAZLOZI))
         r = int(np.argmax(rs))
         txt = RAZLOZI[r]
         if r == R_GOVORI:
@@ -399,23 +518,51 @@ def shots_from(cam, why, lab, cams, roles, speaker_ids, names):
                 txt = f"govori {label(g, names)}"
         if c != BLACK and r == R_GOVORI and roles[c]["uloga"] != "krupni":
             txt += " (njegova kamera ne snima)"
-        out.append({"od": round(k * KORAK, 3), "do": round(e * KORAK, 3),
-                    "kamera": cams[c]["ime"] if c != BLACK else None,
-                    "uloga": roles[c]["uloga"] if c != BLACK else "crno", "zasto": txt})
+        sh = {"od": round(k * KORAK, 3), "do": round(e * KORAK, 3),
+              "kamera": cams[c]["ime"] if c != BLACK else None,
+              "uloga": roles[c]["uloga"] if c != BLACK else "crno", "zasto": txt}
+        if r == R_PJESMA and song_of is not None:
+            ids = [int(x) for x in song_of[k:e] if x >= 0]
+            if ids:
+                sg = songs[max(set(ids), key=ids.count)]
+                sh["pjesma"] = sg["id"]
+                sh["zasto"] = f"pjesma {sg['id']}" + (": široki kadar" if sh["uloga"] == "siroki" else "")
+        out.append(sh)
         k = e
     return out
 
 
-def direct(segs, cams, roles, pocetak, dur, names, umetci="povremeno", min_kadar=MIN_KADAR):
-    """Cijela režija: kadrovi [{od, do, kamera, uloga, zasto}] u vremenu programa."""
+def direct(segs, cams, roles, pocetak, dur, names, umetci="povremeno", min_kadar=MIN_KADAR, songs=None,
+           pjesma_kadar=PJESMA_KADAR):
+    """Cijela režija: kadrovi [{od, do, kamera, uloga, zasto}] u vremenu programa.
+    songs = [{id, od, do, udarci}] (vrijeme programa): za vrijeme pjesme široki kadar i spori rezovi na udarac."""
     n = int(math.ceil(dur / KORAK - 1e-9))
+    songs = sorted((s for s in songs or [] if s["do"] > 0 and s["od"] < dur), key=lambda s: s["od"])
+    if songs:
+        segs = outside_songs(segs, songs)
     speaker_ids = sorted({g for *_, g in segs}, key=lambda g: (len(g), g))
     has_cu = {g: any(r["uloga"] == "krupni" and r["govornik"] == g for r in roles) for g in speaker_ids}
     lab, why, act = desired(segs, n, speaker_ids, has_cu)
     cam, cov, wide, cu = choose_cameras(lab, why, cams, roles, pocetak, speaker_ids)
     cam = merge_short(cam, cov, int(round(min_kadar / KORAK)))
     cam, why = add_cutaways(cam, why, act, roles, wide, cu, cov, speaker_ids, UMETCI.get(umetci))
-    shots = shots_from(cam, why, lab, cams, roles, speaker_ids, names)
+    song_of = np.full(n, -1)
+    for i, s in enumerate(songs):
+        plan, per = song_plan(s, cams, roles, cov, pjesma_kadar)
+        s["_takt"] = per
+        for x, y, c in plan:
+            cam[x:y] = c
+            why[x:y] = R_PJESMA
+            song_of[x:y] = i
+    if songs:
+        cam = fix_song_edges(cam, cov, song_of >= 0, int(round(min_kadar / KORAK)))
+    shots = shots_from(cam, why, lab, cams, roles, speaker_ids, names, song_of, songs)
+    # rez u pjesmi točno na udarcu (mreža odlučivanja je KORAK s, a sličica je ~33 ms)
+    exact = [t for s in songs for t in [s["od"], s["do"]] + s.get("_rezovi", [])]
+    for x, y in zip(shots, shots[1:]):
+        t = min(exact, key=lambda v: abs(v - y["od"]), default=None)
+        if t is not None and abs(t - y["od"]) <= KORAK / 2 + 1e-6 and x["od"] < t < y["do"]:
+            x["do"] = y["od"] = round(t, 3)
     if shots:
         shots[-1]["do"] = round(dur, 3)
     return shots
@@ -482,6 +629,42 @@ def crop_for_role(r, e, W, H):
 
 # ---------------------------------------------------------------- ispis i slika
 
+def load_songs(proj, master, pocetak, dur, log=print):
+    """Pjesme iz nastupi.json (vrijeme programa) + udarci iz zvuka glavnog izvora (ritam.py)."""
+    import nastupi
+    import ritam
+    out = []
+    for n in nastupi.active(nastupi.load(proj)):
+        od, do = max(0.0, float(n["od"])), min(dur, float(n["do"]))
+        if do - od < 1:
+            continue
+        s = {"id": n["id"], "od": od, "do": do, "naziv": n.get("naziv") or "", "udarci": [], "bpm": None}
+        try:
+            f0 = S.to_source(master, pocetak + od)
+            r = ritam.of_file(Path(master["datoteka"]), max(0.0, f0), S.to_source(master, pocetak + do))
+            if r["jasno"]:
+                s["udarci"] = [round(S.to_master(master, t) - pocetak, 3) for t in r["udarci"]]
+                s["bpm"] = r["bpm"]
+        except SystemExit:
+            pass
+        if log:
+            log(f"Pjesma {s['id']} {fmt_time(od)}–{fmt_time(do)}: "
+                + (f"{s['bpm']:.0f} BPM, rez na udarac" if s["bpm"] else "ritam nije jasan, rez po sekundama"))
+        out.append(s)
+    return out
+
+
+def song_summary(songs, shots):
+    res = []
+    for s in songs:
+        sh = [x for x in shots if x.get("pjesma") == s["id"]]
+        lens = [min(x["do"], s["do"]) - max(x["od"], s["od"]) for x in sh]
+        res.append({"id": s["id"], "od": round(s["od"], 3), "do": round(s["do"], 3), "naziv": s.get("naziv", ""),
+                    "bpm": s.get("bpm"), "takt": s.get("_takt"), "kadrova": len(sh),
+                    "prosjek_s": round(float(np.mean(lens)), 1) if lens else 0.0})
+    return res
+
+
 def stats(shots, segs, roles, names):
     lens = [s["do"] - s["od"] for s in shots]
     st = {"kadrova": len(shots), "prosjek_s": round(float(np.mean(lens)), 1) if lens else 0,
@@ -505,6 +688,13 @@ def stats(shots, segs, roles, names):
     return st
 
 
+def kadrova(n):
+    """1 kadar, 2–4 kadra, 5+ kadrova (11–14 kadrova)."""
+    if n % 10 == 1 and n % 100 != 11:
+        return "kadar"
+    return "kadra" if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14 else "kadrova"
+
+
 def summary(rez, names):
     L = [f"Režija (Shofe {rez['shofe']}) — epizoda {fmt_time(rez['trajanje'])}, "
          f"od {fmt_time(rez['pocetak'])} na crti glavnog izvora", "", "Kamere:"]
@@ -524,6 +714,12 @@ def summary(rez, names):
     for g, v in st["govornik_u_kadru"].items():
         if v is not None:
             L.append(f"  {label(g, names)}: u kadru dok govori {round(v * 100)} %")
+    for p in rez.get("pjesme") or []:
+        naziv = f" „{p['naziv']}“" if p.get("naziv") else ""
+        rit = (f"{p['bpm']:.0f} BPM, rez na početku takta" if p.get("bpm") and p.get("takt")
+               else "rez po sekundama (ritam nije jasan)" if p["kadrova"] > 1 else "cijela u širokom kadru")
+        L.append(f"  Pjesma {p['id']}{naziv} {fmt_time(p['od'])}–{fmt_time(p['do'])}: {p['kadrova']} {kadrova(p['kadrova'])}, "
+                 f"prosječno {str(p['prosjek_s']).replace('.', ',')} s, {rit}")
     warn = rez.get("upozorenja") or []
     if warn:
         L += ["", "PROVJERI:"] + [f"  - {w}" for w in warn]
@@ -560,7 +756,7 @@ def draw_png(proj, rez, cams, segs, names, path, width=1600):
     tw, th = 300, 169
     pad = 24
     rows_h = 34
-    H = pad + th + 70 + rows_h * (len(speaker_ids) + 1) + 60
+    H = pad + th + 70 + rows_h * (len(speaker_ids) + 1 + bool(rez.get("pjesme"))) + 60
     img = Image.new("RGB", (width, H), (24, 24, 28))
     d = ImageDraw.Draw(img)
     f = ImageFont.truetype(str(FONTS_DIR / "Montserrat-SemiBold.ttf"), 18)
@@ -591,6 +787,12 @@ def draw_png(proj, rez, cams, segs, names, path, width=1600):
             if gg == g:
                 d.rectangle([lx + a * sc, y + 6, lx + max(b * sc, a * sc + 1), y + rows_h - 6], fill=gcol[i % len(gcol)])
     y = y0 + len(speaker_ids) * rows_h
+    if rez.get("pjesme"):                # red s pjesmama (nastupi.json) iznad programa
+        d.text((pad, y + 4), "pjesme", font=f, fill=(245, 183, 0))
+        for p in rez["pjesme"]:
+            d.rectangle([lx + p["od"] * sc, y + 6, lx + p["do"] * sc - 1, y + rows_h - 6], fill=(245, 183, 0))
+            d.text((lx + p["od"] * sc + 6, y + 7), p["id"], font=fb, fill=(24, 24, 28))
+        y += rows_h
     d.text((pad, y + 4), "program", font=fb, fill=(255, 255, 255))
     for s in rez["kadrovi"]:
         c = col.get(s["kamera"], (0, 0, 0))
@@ -615,6 +817,8 @@ def main():
     ap.add_argument("--umetci", choices=list(UMETCI), default=None,
                     help="široki kadar usred dugog monologa (zadano: povremeno = svakih 30 s)")
     ap.add_argument("--min-kadar", type=float, default=None, help=f"najkraći kadar u s (zadano {MIN_KADAR})")
+    ap.add_argument("--pjesma-kadar", type=float, default=None,
+                    help=f"prosječni kadar za vrijeme pjesme u s (zadano {PJESMA_KADAR:g}; 0 = cijela pjesma u širokom)")
     ap.add_argument("--format", choices=list(FORMATS), default=None, help="zadano 16:9")
     ap.add_argument("--fps", type=int, default=None, help="zadano 30")
     ap.add_argument("--analiza", action="store_true", help="samo rezija.json/.txt/.png, bez videa")
@@ -633,6 +837,9 @@ def main():
     old = load_json(rp) if rp.exists() else {}
     umetci = a.umetci or old.get("umetci") or "povremeno"
     min_kadar = a.min_kadar or old.get("min_kadar") or MIN_KADAR
+    pjesma_kadar = a.pjesma_kadar if a.pjesma_kadar is not None else old.get("pjesma_kadar", PJESMA_KADAR)
+    if pjesma_kadar and pjesma_kadar < PJESMA_MIN:
+        die(f"--pjesma-kadar: najmanje {PJESMA_MIN:g} s (ili 0 = cijela pjesma u širokom kadru)")
     fmt = a.format or pj.get("format") or "16:9"
     W, H = FORMATS[fmt]
     fps = a.fps or int(pj.get("fps") or 30)
@@ -675,11 +882,16 @@ def main():
         warn.append("još nema govornici.json: cijela epizoda je u širokom kadru. Sljedeće: transcribe.py i "
                     "govornici.py na ovom projektu, pa ponovno rezija.py")
 
-    shots = direct(segs, cams, roles, pocetak, dur, names, umetci, min_kadar)
+    songs = load_songs(proj, master, pocetak, dur)
+    shots = direct(segs, cams, roles, pocetak, dur, names, umetci, min_kadar, songs, pjesma_kadar)
     rez = {"shofe": version(), "pocetak": pocetak, "trajanje": dur, "format": fmt, "fps": fps,
-           "umetci": umetci, "min_kadar": min_kadar, "rucno": manual, "kamere": roles, "kadrovi": shots,
-           "upozorenja": warn}
-    rez["statistika"] = stats(shots, segs, roles, names)
+           "umetci": umetci, "min_kadar": min_kadar, "pjesma_kadar": pjesma_kadar, "rucno": manual,
+           "kamere": roles, "kadrovi": shots, "upozorenja": warn}
+    if songs:
+        rez["pjesme"] = song_summary(songs, shots)
+        if not any(r["uloga"] == "siroki" for r in roles):
+            warn.append("nema širokog kadra: za vrijeme pjesme kamere se izmjenjuju redom")
+    rez["statistika"] = stats(shots, outside_songs(segs, songs) if songs else segs, roles, names)
     save_json(rp, rez)
     (proj / "rezija.txt").write_text(summary(rez, names), encoding="utf-8")
     draw_png(proj, rez, cams, segs, names, proj / "rezija.png")

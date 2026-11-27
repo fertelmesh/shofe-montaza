@@ -24,6 +24,10 @@ Uspravni isječak podcasta (uspravno.py, M4.2b3b): timeline 9:16 iz ORIGINALNIH 
 izvor_9x16/K1.json — kamera govornika s istim izrezom (adjust-transform scale/position), podijeljen kadar kao dva
 klipa (gornji na V1, donji na V2, svaki s adjust-crop trim na svoju polovicu), Shofeova gotova slika (izvor) na V3
 isključena kao rezerva, zvuk glavnog izvora ispod. Bez originala → cijeli timeline iz izvor_9x16/K1.mp4.
+
+Pjesme (nastupi bendova, nastupi.py, M4.3b2): svaka pjesma koja ostaje u videu ima oznaku (marker) cijelom duljinom
+„Pjesma P1: naziv", a njezin zvuk ide na vlastitu traku ispod govora (A2, uloga music), pa se u DaVinciju pjesma
+obrađuje za glazbu, a govor za govor. Pozadinska glazba tada ide traku niže (A3).
 """
 import argparse
 import re
@@ -181,6 +185,37 @@ def split_by_framing(pieces, clips, fps):
                         "crop_x": k["crop_x"]})
             pos = stop
     return out
+
+
+# ---------------------------------------------------------------- pjesme (M4.3b2)
+def song_parts(a, b, songs):
+    """Dio [a, b) (sličice) podijeljen po pjesmama → [(od, do, pjesma ili None)]; songs = [(od, do, nastup)]."""
+    out, pos = [], a
+    for x, y, n in sorted(songs, key=lambda q: q[0]):
+        if y <= pos or x >= b:
+            continue
+        if x > pos:
+            out.append((pos, x, None))
+        out.append((max(pos, x), min(b, y), n))
+        pos = min(b, y)
+    if pos < b:
+        out.append((pos, b, None))
+    return [q for q in out if q[1] > q[0]]
+
+
+def source_to_out(t, cuts):
+    """Vrijeme source.mp4 → vrijeme gotovog videa (prije brzine); None ako je taj trenutak izrezan."""
+    for c in cuts:
+        if c["a"] - 1e-6 <= t <= c["b"] + 1e-6:
+            return c["o"] + (min(max(t, c["a"]), c["b"]) - c["a"])
+    return None
+
+
+def out_to_source(o, cuts):
+    for c in cuts:
+        if c["o"] - 1e-6 <= o < c["o"] + (c["b"] - c["a"]) - 1e-6:   # kraj reza = početak sljedećeg
+            return c["a"] + (o - c["o"])
+    return None
 
 
 # ---------------------------------------------------------------- podcast (M4.2b): originalne kamere
@@ -402,6 +437,9 @@ def build(proj, edit, use_originals=True, name=None, izvor=None):
         die("nema ničega za zadržati (svi odsječci su isključeni?)")
     speed = Fraction(str(float(edit.get("brzina") or 1.0)))
     factor, zr = render.zoom_ranges(cuts, st)
+    import nastupi
+    songs = [(a, b, n) for a, b, n in nastupi.edit_songs(edit) if not izvor]   # vrijeme source.mp4 (s)
+    song_frames = [(round(a * fps), round(b * fps), n) for a, b, n in songs]
 
     clips = pj.get("clips") or []
     notes = []
@@ -530,6 +568,7 @@ def build(proj, edit, use_originals=True, name=None, izvor=None):
             ET.SubElement(el, "adjust-transform", **attrs)
 
     mute = {"srcEnable": "video"} if (pc or vc) else {}   # podcast: zvuk je glavni izvor na traci ispod
+    song_audio = [0]   # komada zvuka pjesme na vlastitoj traci
     clip_els = []
     zoomed_pieces = 0
     import sinkro as S
@@ -603,6 +642,29 @@ def build(proj, edit, use_originals=True, name=None, izvor=None):
             ET.SubElement(el, "adjust-volume", amount="-96dB")
         clip_els.append((el, o, n, parse_time(el.get("start"))))
 
+    if song_frames and not pc and not vc:
+        # obični projekt: kadar koji zahvaća pjesmu daje samo sliku, zvuk ide ispod iz iste snimke —
+        # govor na A1 (dialogue), pjesma na A2 (music)
+        for p, (el, o, n, start) in zip(pieces, clip_els):
+            t0 = out_to_source(p["out"] / fps, cuts)
+            if t0 is None:
+                continue
+            A = round(t0 * fps)
+            parts = song_parts(A, A + p["frames"], song_frames)
+            if not any(sg for *_, sg in parts):
+                continue
+            el.set("srcEnable", "video")
+            a = next(v for v in assets.values() if v["id"] == el.get("ref"))
+            bounds = [round((x - A) / speed) if x > A else 0 for x, _, _ in parts] + [n]
+            for (x, y, sg), f0, f1 in zip(parts, bounds, bounds[1:]):
+                if f1 <= f0:
+                    continue
+                src = a["tc"] + on_grid(p["src"] + Fraction(x - A, fps), a["afd"])
+                make_clip(el, a, start + f0 * fd, src, (f1 - f0) * fd,
+                          a["name"] + (f" (pjesma {sg['id']})" if sg else ""), lane="-2" if sg else "-1",
+                          srcEnable="audio", audioRole="music" if sg else "dialogue")
+                song_audio[0] += bool(sg)
+
     if pc:
         # gornje trake: svaka kamera na svojoj traci (V2 = prva kamera…), isključeno — u DaVinciju uključi
         # kadar na traci iznad (ili ga povuci dolje) i program pokazuje tu kameru umjesto Shofeova izbora
@@ -632,9 +694,19 @@ def build(proj, edit, use_originals=True, name=None, izvor=None):
                 e += 1
             el, o, n, start = clip_els[k]
             nfr = sum(clip_els[i][2] for i in range(k, e))
-            src = Fraction(max(0.0, S.to_source(m, pc["pocetak"] + pieces[k]["prog"] / fps)))
-            make_clip(el, ma, start, ma["tc"] + on_grid(src, ma["afd"]), nfr * fd, ma["name"],
-                      lane="-1", srcEnable="audio", audioRole="dialogue")
+            A = pieces[k]["prog"]
+            B = A + sum(pieces[i]["frames"] for i in range(k, e))
+            # pjesma na svojoj traci (A2, music), govor na A1 (dialogue); granice u sličicama gotovog videa
+            parts = song_parts(A, B, song_frames)
+            bounds = [round((x - A) / speed) if x > A else 0 for x, _, _ in parts] + [nfr]
+            for (x, y, sg), f0, f1 in zip(parts, bounds, bounds[1:]):
+                if f1 <= f0:
+                    continue
+                src = Fraction(max(0.0, S.to_source(m, pc["pocetak"] + x / fps)))
+                make_clip(el, ma, start + f0 * fd, ma["tc"] + on_grid(src, ma["afd"]), (f1 - f0) * fd,
+                          ma["name"] + (f" (pjesma {sg['id']})" if sg else ""), lane="-2" if sg else "-1",
+                          srcEnable="audio", audioRole="music" if sg else "dialogue")
+                song_audio[0] += bool(sg)
             k = e
         notes.append(f"podcast: program iz {len(clips)} originalnih kamera (V1), ostale kamere na trakama iznad "
                      f"(isključeno, {alt_clips} kadrova), zvuk: {ma['name']}")
@@ -687,7 +759,8 @@ def build(proj, edit, use_originals=True, name=None, izvor=None):
                 anchors.append((pos, d))
                 pos += d
             for pos, d in anchors:
-                m = ET.Element("asset-clip", ref=aid, name=mp.name, lane="-2" if (pc or vc) else "-1",
+                m = ET.Element("asset-clip", ref=aid, name=mp.name,
+                               lane="-3" if song_audio[0] else "-2" if (pc or vc) else "-1",
                                offset=ftime(fstart + pos),
                                start="0s", duration=ftime(d), audioRole="music")
                 ET.SubElement(m, "adjust-volume", amount=f"{gain:g}dB")
@@ -721,11 +794,30 @@ def build(proj, edit, use_originals=True, name=None, izvor=None):
             marker_at(f0, f"Zum {round(factor * 100)} %", "Shofe: punch-in zum (već postavljen kao Zoom/Scale)",
                       round((e - s) / float(speed) * fps))
 
+    for a, b, n in songs:
+        oa, ob = source_to_out(a, cuts), source_to_out(b, cuts)
+        if oa is None or ob is None or ob <= oa:
+            continue
+        f0 = round(oa / float(speed) * fps)
+        naziv = f": {n['naziv']}" if n.get("naziv") else ""
+        lvl = n.get("glasnoca", edit.get("nastup_glasnoca"))
+        note = ("nastup benda — Shofe ga ne reže (cijela izvedba); "
+                + ("zvuk pjesme je na traci ispod govora (A2, uloga music)" if song_audio[0] else "zvuk u klipu")
+                + "; u Shofeovu videu pjesma je izjednačena s govorom"
+                + (f" ({float(lvl):+g} LU)" if lvl not in (None, 0) else "") + ", bez titlova")
+        marker_at(f0, f"Pjesma {n['id']}{naziv}", note, round((ob - oa) / float(speed) * fps))
+        f1 = round(ob / float(speed) * fps)
+        marker_at(min(f1, total_frames - 1), f"Kraj pjesme {n['id']}", "nakon ovoga opet razgovor")
+    if songs:
+        notes.append(f"pjesme: {len(songs)} (oznaka cijelom duljinom"
+                     + (", zvuk pjesme na traci A2" if song_audio[0] else "") + ")")
+
     seq.set("duration", ftime(total_frames * fd))
     ET.indent(root, space="  ")
     summary = {"kadrova": len(pieces), "sekundi": float(total_frames * fd), "izvor": "uspravno_kamere" if vc else "uspravno" if izvor else "podcast" if pc else
                "originali" if use_originals else "source.mp4", "datoteke": sorted({a["name"] for a in assets.values()}), "zumova": zoomed_pieces,
-               "napomene": notes, "brzina": float(speed), "pieces": pieces, "fps": fps}
+               "napomene": notes, "brzina": float(speed), "pieces": pieces, "fps": fps,
+               "pjesama": len(songs), "zvuk_pjesme": song_audio[0]}
     return root, summary
 
 
