@@ -209,7 +209,9 @@ def test_kadar_isti_kao_video(projekt):
     times = [2.0, 3.8, 6.4]
     run("render.py", projekt, "--kadar", ",".join(map(str, times)))
     for k, t in enumerate(times):
-        img = cv2.resize(cv2.imread(str(projekt / f"kadar_{k + 1}_{t:g}s.png")), (270, 480),
+        # imdecode: cv2.imread na Windowsu ne čita putanje s č/ž
+        png = np.fromfile(projekt / f"kadar_{k + 1}_{t:g}s.png", np.uint8)
+        img = cv2.resize(cv2.imdecode(png, cv2.IMREAD_COLOR), (270, 480),
                          interpolation=cv2.INTER_AREA).astype(int)
         diff = np.abs(img - fx[int(round(t * 30))].astype(int)).mean()
         assert diff < 6, (t, diff)
