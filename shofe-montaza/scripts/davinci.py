@@ -24,6 +24,8 @@ Uspravni isječak podcasta (uspravno.py, M4.2b3b): timeline 9:16 iz ORIGINALNIH 
 izvor_9x16/K1.json — kamera govornika s istim izrezom (adjust-transform scale/position), podijeljen kadar kao dva
 klipa (gornji na V1, donji na V2, svaki s adjust-crop trim na svoju polovicu), Shofeova gotova slika (izvor) na V3
 isključena kao rezerva, zvuk glavnog izvora ispod. Bez originala → cijeli timeline iz izvor_9x16/K1.mp4.
+Bend za vrijeme pjesme (raspored „bend", M4.3b4): široka kamera dvaput — na V1 izrez 9:16 kao pozadina, na V2
+cijela skupina u širini (FCPXML nema prenosivo zamućenje, pa je pozadina oštra; Blur se doda u DaVinciju).
 
 Pjesme (nastupi bendova, nastupi.py, M4.3b2): svaka pjesma koja ostaje u videu ima oznaku (marker) cijelom duljinom
 „Pjesma P1: naziv", a njezin zvuk ide na vlastitu traku ispod govora (A2, uloga music), pa se u DaVinciju pjesma
@@ -335,18 +337,22 @@ def vertical_sources(proj, izvor):
         for p in s.get("dijelovi") or []:
             if isinstance(p, dict):     # iz izvor_9x16/K1.json
                 k = by.get(p.get("kamera"))
-                p = None if k is None else (k, p.get("govornik"), p.get("x", 0.5), p.get("y", 0.42), p.get("lice"))
+                w = p.get("lice") if p.get("lice") is not None else p.get("skupina")   # bend: širina skupine
+                p = None if k is None else (k, p.get("govornik"), p.get("x", 0.5), p.get("y", 0.42), w)
             parts.append(p)
         if any(p is None for p in parts):
             return None, "kamera iz uspravnog izvora više nije u režiji → slika iz uspravnog izvora isječka"
-        norm.append({"od": float(s["od"]), "do": float(s["do"]), "dijelovi": tuple(parts)})
+        rasp = s.get("raspored")
+        if rasp == "bend" and (len(parts) != 1 or U.geometrija_bend(ctx["cams"][parts[0][0]], parts[0]) is None):
+            rasp = "jedan"
+        norm.append({"od": float(s["od"]), "do": float(s["do"]), "dijelovi": tuple(parts), "raspored": rasp})
     return {"cams": ctx["cams"], "master": master, "pocetak": ctx["pocetak"], "kadrovi": norm}, None
 
 
 def vertical_pieces(pieces, vc, fps):
     """Kadrovi gotovog videa (vrijeme programa, jedan po rezu) → dijelovi po kadrovima 9:16: svaki dobije
     prog (sličica programa), cut (indeks reza) i parts (dijelovi kadra; prazno = crno → slika iz izvora)."""
-    shots = [(round(s["od"] * fps), round(s["do"] * fps), s["dijelovi"]) for s in vc["kadrovi"]]
+    shots = [(round(s["od"] * fps), round(s["do"] * fps), s["dijelovi"], s.get("raspored")) for s in vc["kadrovi"]]
     res = []
     for ci, p in enumerate(pieces):
         a0 = round(p["src"] * fps)
@@ -357,7 +363,7 @@ def vertical_pieces(pieces, vc, fps):
             if sh is None:     # izvan kadrova (rub): najbliži kadar
                 sh = min(shots, key=lambda s: min(abs(s[0] - pos), abs(s[1] - pos)))
             res.append({**p, "src": Fraction(pos, fps), "frames": stop - pos, "out": p["out"] + (pos - a0),
-                        "prog": pos, "cut": ci, "parts": sh[2]})
+                        "prog": pos, "cut": ci, "parts": sh[2], "bend": sh[3] == "bend"})
             pos = stop
     merged = []
     for p in res:   # komadić od 1 sličice (zaokruživanje) pripoji prethodnom u istom rezu
@@ -399,6 +405,25 @@ def vertical_layer(cam, part, W, H, idx, n, zoom=1.0):
         dy = cy + zoom * (ly - cy) - H / 2
         zx, zy = zx * zoom, zy * zoom
     return (round(zx, 5), round(zy, 5), round(dx / H * 100, 3) + 0.0, round(-dy / H * 100, 3) + 0.0, trim)
+
+
+def vertical_layer_bend(cam, part, W, H, zoom=1.0):
+    """Bend (uspravno.geometrija_bend) kao FCPXML sloj: snimka skalirana tako da cijela skupina stane u širinu,
+    iznad i ispod prazno (tamo je na V1 ista kamera kao pozadina). → (scale x, scale y, position x, position y)."""
+    import uspravno as U
+    sw, sh, x, oy = U.geometrija_bend(cam, part, W, H)
+    w0, h0 = cam["w"], cam["h"]
+    c = max(W / w0, H / h0)                         # adjust-conform fill
+    zx, zy = sw / (w0 * c), sh / (h0 * c)
+    dx = sw / 2 - x - W / 2
+    dy = (oy + sh / 2) - H / 2
+    if zoom != 1.0:
+        cx, cy = W / 2, ZOOM_Y * H
+        lx, ly = W / 2 + dx, H / 2 + dy
+        dx = cx + zoom * (lx - cx) - W / 2
+        dy = cy + zoom * (ly - cy) - H / 2
+        zx, zy = zx * zoom, zy * zoom
+    return (round(zx, 5), round(zy, 5), round(dx / H * 100, 3) + 0.0, round(-dy / H * 100, 3) + 0.0)
 
 
 def music_path(proj, music):
@@ -573,17 +598,23 @@ def build(proj, edit, use_originals=True, name=None, izvor=None):
     zoomed_pieces = 0
     import sinkro as S
     split_shots = 0
+    bend_shots = 0
 
-    def vertical_clip(parent, part, idx, nparts, p, o, n, z, **extra):
+    def vertical_clip(parent, part, idx, nparts, p, o, n, z, bend=None, **extra):
         cam = vc["cams"][part[0]]
         a = asset_for(("v", part[0]), cam["datoteka"], Path(cam["datoteka"]).name)
         t = Fraction(max(0.0, S.to_source(cam, vc["pocetak"] + p["prog"] / fps)))
         who = f" {part[1]}" if part[1] else ""
         name = f"{cam['ime']}{who}" + ("" if nparts == 1 else " (gore)" if idx == 0 else " (dolje)")
+        if bend:
+            name = f"{cam['ime']} bend" + (" (pozadina)" if bend == "pozadina" else "")
         start = a["tc"] + on_grid(t, a["afd"])
         off = o * fd if parent is spine else parse_time(parent.get("start"))   # usidreni: lokalno vrijeme
         el = make_clip(parent, a, off, start, n * fd, name, srcEnable="video", **extra)
-        zx, zy, px, py, trim = vertical_layer(cam, part, W, H, idx, nparts, z)
+        if bend == "prednja":
+            zx, zy, px, py, trim = *vertical_layer_bend(cam, part, W, H, z), None
+        else:
+            zx, zy, px, py, trim = vertical_layer(cam, part, W, H, idx, nparts, z)
         if trim:
             cr = ET.SubElement(el, "adjust-crop", mode="trim")
             ET.SubElement(cr, "trim-rect", left=f"{trim[0]:g}", top=f"{trim[1]:g}", right=f"{trim[2]:g}",
@@ -598,7 +629,14 @@ def build(proj, edit, use_originals=True, name=None, izvor=None):
             mid = (p["out"] + p["frames"] / 2) / fps
             z = factor if factor and any(s <= mid < e for s, e in zr) else 1.0
             parts = p["parts"]
-            el = vertical_clip(spine, parts[0], 0, len(parts), p, o, n, z)
+            if p.get("bend"):     # bend: V1 ista kamera kao pozadina (izrez 9:16), V2 cijela skupina u širini
+                import uspravno as U
+                cam0 = vc["cams"][parts[0][0]]
+                el = vertical_clip(spine, U.pozadina_bend(cam0, parts[0]), 0, 1, p, o, n, z, bend="pozadina")
+                vertical_clip(el, parts[0], 0, 1, p, o, n, z, bend="prednja", lane="1")
+                bend_shots += 1
+            else:
+                el = vertical_clip(spine, parts[0], 0, len(parts), p, o, n, z)
             if len(parts) == 2:
                 vertical_clip(el, parts[1], 1, 2, p, o, n, z, lane="1")
                 split_shots += 1
@@ -732,6 +770,9 @@ def build(proj, edit, use_originals=True, name=None, izvor=None):
         notes.append(f"uspravni isječak podcasta iz {len({p[0] for q in pieces for p in q.get('parts') or ()})} "
                      f"originalnih kamera ({split_shots} podijeljenih kadrova: gornja osoba na V1, donja na V2), "
                      f"gotova Shofeova slika na V3 (isključeno), zvuk: {ma['name']}")
+        if bend_shots:
+            notes.append(f"pjesma: {bend_shots} kadrova benda — cijela skupina na V2, ista kamera kao pozadina na V1 "
+                         "(nije zamućena: za izgled kao u Shofeu dodaj Gaussian Blur na V1)")
 
     # glazba: zasebna traka ispod (lane −1), usidrena na prvi kadar, ponavlja se do kraja videa
     music = edit.get("glazba")
@@ -817,7 +858,7 @@ def build(proj, edit, use_originals=True, name=None, izvor=None):
     summary = {"kadrova": len(pieces), "sekundi": float(total_frames * fd), "izvor": "uspravno_kamere" if vc else "uspravno" if izvor else "podcast" if pc else
                "originali" if use_originals else "source.mp4", "datoteke": sorted({a["name"] for a in assets.values()}), "zumova": zoomed_pieces,
                "napomene": notes, "brzina": float(speed), "pieces": pieces, "fps": fps,
-               "pjesama": len(songs), "zvuk_pjesme": song_audio[0]}
+               "pjesama": len(songs), "zvuk_pjesme": song_audio[0], "bend": bend_shots}
     return root, summary
 
 

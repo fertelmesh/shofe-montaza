@@ -661,7 +661,8 @@ def song_summary(songs, shots):
         lens = [min(x["do"], s["do"]) - max(x["od"], s["od"]) for x in sh]
         res.append({"id": s["id"], "od": round(s["od"], 3), "do": round(s["do"], 3), "naziv": s.get("naziv", ""),
                     "bpm": s.get("bpm"), "takt": s.get("_takt"), "kadrova": len(sh),
-                    "prosjek_s": round(float(np.mean(lens)), 1) if lens else 0.0})
+                    "prosjek_s": round(float(np.mean(lens)), 1) if lens else 0.0,
+                    "udarci": list(s.get("udarci") or [])})   # za uspravni isječak pjesme (uspravno.py)
     return res
 
 
