@@ -325,3 +325,13 @@ Jedan unos po krugu, najnoviji na dnu.
 - Za Marka: kad snimite nastup, reci „napravi isječke" pa pogledaj isječak pjesme na mobitelu — je li bend dovoljno velik i odgovara li ti mutna pozadina. Ako želiš cijelu pjesmu na bendu: „cijela pjesma u širokom kadru".
 - Sljedeće: M4.4 intro/outro/špice, poglavlja za YouTube, MP3 za podcast platforme, opis epizode.
 
+
+## 2026-11-27 12:15 — M4.4a poglavlja za YouTube + MP3 za podcast platforme
+- Živa specifikacija pročitana (rev 13): bez promjena. PR #40 (M4.3b4) bio je zelen na Linuxu i Windowsu → spojen (squash). Issues #7, #18, #25, #38 bez Markova odgovora; #36 je Markov, ne diram ga.
+- M4.4 podijeljen: M4.4a poglavlja + MP3 (ovaj krug), M4.4b opis epizode, M4.4c intro/outro/špice, M4.4d poglavlja kao oznake u DaVinciju.
+- Novo: `epizoda.py` — `poglavlja`: teme iz `analiza.json` + svaka zadržana pjesma („Pjesma: naziv") u vremenu **gotovog** videa (izrezi, izbačeni odsječci, brzina); tema koju pjesma prekine nastavlja se „(nastavak)"; pravila YouTubea: prvo 00:00, uzlazno, svako ≥ 10 s (kraće ide u susjedno, ime nosi dulji dio), upozorenje ispod 3. Izlaz `reel_vN.poglavlja.txt` (za opis) + `reel_vN.chapters.json` (Podcasting 2.0). Render ih piše sam za vodoravni video ≥ 3 min s temama.
+- `mp3`: iz zvuka gotovog videa, stalno pojačanje do −16 LUFS, limiter (192 kHz) samo kad vrhovi prijeđu, ponovno mjerenje i ispravak; 128 kbps CBR stereo 44,1 kHz, ID3v2.3 s naslovom/autorom (pamti se u `epizoda.json`, zadano Sunčani4M), poglavlja kao ID3 CHAP, `--slika` naslovna. Verzija 0.30.0. SKILL.md, README, ODLUKE.md.
+- Provjera: probna epizoda s bendom (131 s → 1:49,7 nakon rezova) → poglavlja 00:00 Dobrodošli u auto / 00:17 Pjesma: Bend Kutina – Ljeto / 01:06 Priča o bendu / 01:27 Što dalje; MP3 −16,0 LUFS, vrh −5,6 dBTP, 4 CHAP-a koje ffprobe čita. Graf ovojnice video vs MP3 pogledan: isti oblik 2 dB niže, crte poglavlja točno na početku pjesme i nakon pljeska. Tihi izvor s oštrim vrhovima (−24,1 LUFS, +2,3 dBTP) → MP3 −16,0 LUFS, −1,9 dBTP.
+- Testovi: novi `tests/test_epizoda.py` (9: pjesma kao poglavlje i nastavak teme, izrezi i brzina, spajanje kratkih poglavlja i YouTube format, format vremena ≥ 1 h, escape ffmetadata, JSON chapters; probna epizoda — vremena = `render.to_out`, poglavlja uz render samo za vodoravni ≥ 3 min s temama, upozorenje ispod 3; MP3 — LUFS, TP, 44,1 kHz stereo 128 kbps, naslovna, oznake, CHAP = JSON, trajanje i poravnanje zvuka s videom < 20 ms; limiter; poruka bez rendera).
+- Za Marka: kad imaš epizodu, reci „poglavlja za YouTube" i „napravi MP3, naslov …". Javi koji naslov i autora želiš za MP3 (zadano „Sunčani4M") i imaš li kvadratnu sliku podcasta (za MP3).
+- Sljedeće: M4.4b opis epizode (YouTube opis s poglavljima, tekst za podcast platforme).
