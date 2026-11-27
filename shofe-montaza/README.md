@@ -144,6 +144,14 @@ Uz svaki video Shofe napravi i **timeline za DaVinci**: `reel_v3.mp4` → `reel_
 - **A1** — zvuk glavnog snimača (ili glavne kamere) ispod cijele epizode; glazba, ako je ima, ispod njega.
 - Postavke projekta: 1920×1080, 30 fps. Ako se ipak pojavi i zvuk kamera, utišan je (−96 dB) — možeš ga pojačati ako želiš zvuk prostora.
 
+**Uspravni isječak epizode u DaVinciju.** I `isjecci/K1.fcpxml` je iz **originalnih kamera** (postavke projekta 1080×1920, 30 fps):
+
+- **V1** — kadar po kadar kamera onoga tko govori, isto uokvirena kao u Shofeovu isječku (i zumovi).
+- **Podijeljen kadar** (gore/dolje) su dva komada: gornja osoba na **V1**, donja na **V2**, svaka izrezana na svoju polovicu (Inspector > Cropping), s tamnom crtom između.
+- **V3** — Shofeova gotova uspravna slika (bez titlova), **isključena**. Ako ti podijeljen kadar u DaVinciju izgleda krivo (npr. obje osobe preko cijelog kadra), klikni komad na V3 i pritisni **D** — to je točno slika iz Shofea.
+- **A1** — zvuk glavnog snimača. Titlovi: File > Import > Subtitle > `K1.srt`.
+- Ne briši mapu `isjecci/izvor_9x16/` (V3 je iz nje; ako originalne kamere premjestiš, cijeli timeline je iz nje).
+
 ## Karta videa
 
 Prije montaže Shofe napravi „kartu videa" (`analiza.txt` u mapi `shofe_projekt`): gdje su tišine, koliko je glasno, koliko brzo pričaš, gdje su rezovi, i koji su dijelovi mutni, pretamni ili presvijetli. Claude zatim iz teksta dopiše teme i najjače trenutke (hook, poanta, smijeh, savjet). Pitaj npr.:
