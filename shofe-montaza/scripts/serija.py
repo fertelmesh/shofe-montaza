@@ -146,7 +146,7 @@ def sliku_iz(proj, video, t, png):
 
 def pregled(proj, gotovi):
     """isjecci/pregled.png: prva sekunda (s hookom) i sredina svakog isječka, jedan stupac po isječku."""
-    proj = Path(proj)
+    proj = Path(proj).resolve()
     if not gotovi:
         return None
     tmp = proj / "_tmp"
@@ -171,8 +171,10 @@ def pregled(proj, gotovi):
     return out
 
 
-def renderiraj(proj, data, cs, brzo=False, kvaliteta="dobra", stil=None, kadar=None, ispis=True):
-    """Renderiraj isječke `cs` (dio data["isjecci"]) → [(isječak, rezultat)]. Upisuje c["render"]."""
+def renderiraj(proj, data, cs, brzo=False, kvaliteta="dobra", stil=None, kadar=None, ispis=True, oblik=None):
+    """Renderiraj isječke `cs` (dio data["isjecci"]) → [(isječak, rezultat)]. Upisuje c["render"].
+    oblik = "9:16" | "16:9" | None. Podcast (rezija.py, 16:9 program): zadano 9:16 iz originalnih kamera
+    (uspravno.py); kod ostalih projekata isječak ima oblik projekta."""
     import render  # tek ovdje: render uvozi ffmpeg-alate
     proj = Path(proj).resolve()
     if not (proj / "edit.json").exists():
@@ -181,17 +183,36 @@ def renderiraj(proj, data, cs, brzo=False, kvaliteta="dobra", stil=None, kadar=N
     base = load_json(proj / "edit.json")
     pj = load_json(proj / "project.json")
     words = load_json(proj / "transcript.json")["words"]
-    if ispis and pj["width"] > pj["height"]:
+    usp = None
+    if pj["width"] > pj["height"] and pj.get("podcast") and (oblik or "9:16") == "9:16":
+        import uspravno
+        try:
+            usp = uspravno.ucitaj(proj)
+        except uspravno.Greska as e:
+            if ispis:
+                print(f"Napomena: uspravni isječci iz kamera nisu mogući ({e}) — isječci će biti vodoravni (16:9).")
+        else:
+            if ispis:
+                print("Podcast: isječci 9:16 iz originalnih kamera (lice onoga tko govori; podijeljen kadar kad "
+                      "pričaju dvoje). Vodoravno: --format 16:9")
+    elif ispis and pj["width"] > pj["height"] and not pj.get("podcast"):
         print(f"Napomena: projekt je vodoravan ({pj['width']}×{pj['height']}); za Instagram/TikTok/Shorts "
               f"pripremi snimku u 9:16 (prepare.py --format 9:16, pa kadar.py) — isječci će biti vodoravni.")
     (proj / MAPA).mkdir(exist_ok=True)
     gotovi = []
     for k, c in enumerate(cs, 1):
         e, notes = edit_za_isjecak(base, words, c, pj["duration"], stil)
+        izvor = None
+        if usp is not None:
+            import uspravno
+            izvor = uspravno.pripremi(usp, c, proj / MAPA / "izvor_9x16" / f"{c['id']}.mp4",
+                                      fps=int(round(pj["fps"])))
+            if ispis:
+                print(f"{c['id']}: {uspravno.sazetak(izvor['kadrovi'])}")
         if kadar:
             if ispis:
                 print(f"{c['id']}: kadrovi na {kadar} s")
-            res = render.render(proj, e, kadar=kadar, verzija=False, prevedi=False, ispis=False)
+            res = render.render(proj, e, kadar=kadar, verzija=False, prevedi=False, ispis=False, izvor=izvor)
             zadnja = Path(res["slike"][-1])
             cilj = proj / MAPA / f"{c['id']}_kadrovi.png"
             zadnja.replace(cilj)
@@ -207,12 +228,13 @@ def renderiraj(proj, data, cs, brzo=False, kvaliteta="dobra", stil=None, kadar=N
             for n in notes:
                 print(f"     napomena: {n}")
         res = render.render(proj, e, izlaz=izlaz, brzo=brzo, kvaliteta=kvaliteta, verzija=False,
-                            prevedi=False, ispis=False)
+                            prevedi=False, ispis=False, izvor=izvor)
         save_json((proj / izlaz).with_suffix(".edit.json"), e)
         if not brzo:
             ukloni_stare(proj, c, izlaz)
         c["render"] = {"datoteka": izlaz, "trajanje": round(res["trajanje"], 1), "stil": e.get("stil"),
-                       "hook": e["hook"], "brzo": brzo,
+                       "hook": e["hook"], "brzo": brzo, "oblik": "9:16" if izvor else
+                       f"{pj['width']}x{pj['height']}",
                        "datum": _dt.datetime.now().isoformat(timespec="seconds")}
         if ispis:
             print(f"     gotovo: {res['trajanje']:.1f} s, {res['kadrova']} kadrova, stil {e.get('stil')}, "

@@ -396,11 +396,13 @@ def main():
 
 
 def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None, verzija=None,
-           prevedi=True, ispis=True):
+           prevedi=True, ispis=True, izvor=None):
     """Montaža po `edit_raw` (rječnik u formatu edit.json) → video + SRT (+ FCPXML).
 
     izlaz   = putanja izlaza relativno na projekt (npr. "isjecci/K1.mp4"); None = nova verzija reel_vN.
     verzija = upiši u verzije/ (zadano: samo kad nema `izlaz`); prevedi = i prijevodi titlova.
+    izvor   = drugi video umjesto source.mp4 (uspravni isječak podcasta): {"datoteka", "pomak", "W", "H"};
+              njegova 0 s je `pomak` s source.mp4, pa vremena transkripta i rezova vrijede bez promjene.
     Vraća {"video", "srt", "trajanje", "kadrova", "zumova"} (za `kadar`: {"slike": [...]}).
     """
     import copy
@@ -415,6 +417,11 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     edit = copy.deepcopy(edit_raw)
     edit_raw = copy.deepcopy(edit_raw)  # neizmijenjena kopija za verzije/edit_vN.json
     W, H, fps = pj["width"], pj["height"], pj["fps"]
+    if izvor:
+        W, H = izvor["W"], izvor["H"]
+        src_in = ["-itsoffset", f"{float(izvor['pomak']):.4f}", "-i", Path(izvor["datoteka"]).resolve()]
+    else:
+        src_in = ["-i", proj / "source.mp4"]
     st = resolve_style(edit)
     speed = float(edit.get("brzina") or 1.0)
     if not 0.5 <= speed <= 2.0:
@@ -438,7 +445,7 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     factor, zr = zoom_ranges(cuts, st)
 
     if kadar:
-        return {"slike": stills_mode(kadar, proj, cuts, zr, factor, grade, subs, speed, W, H, total)}
+        return {"slike": stills_mode(kadar, proj, cuts, zr, factor, grade, subs, speed, W, H, total, izvor)}
 
     eps = 0.5 / fps
     sel = "+".join(f"between(t,{c['a'] - eps:.4f},{c['b'] - eps:.4f})" for c in cuts)
@@ -469,7 +476,7 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     clean = ",afftdn=nf=-25" if st.get("zvuk_ciscenje", True) else ""
     g.append(f"[vraw]highpass=f=70{clean},acompressor=threshold=-21dB:ratio=3:attack=5:release=120:makeup=2[voice]")
 
-    inputs = ["-i", proj / "source.mp4"]
+    inputs = list(src_in)
     music = edit.get("glazba")
     if music:
         mp = Path(music)
@@ -524,7 +531,7 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
         import prijevod  # engleski (ili drugi) titlovi, ako ih projekt već prevodi
         translated = prijevod.for_render(proj, cues, out)
     import davinci  # timeline za DaVinci Resolve s istim rezovima (originalne snimke)
-    resolve_lines = davinci.for_render(proj, edit_raw, out)
+    resolve_lines = davinci.for_render(proj, edit_raw, out, izvor=izvor)
     if verzija and v is not None:  # nova verzija: točno ovaj edit.json, datum, trajanje; korisnik sada gleda nju
         verzije.record_render(proj, v, edit_raw, out.name, final, brzo, kvaliteta)
         learn_vocabulary(proj, edit_raw, words)
@@ -547,7 +554,7 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     return res
 
 
-def stills_mode(kadar, proj, cuts, zr, factor, grade, subs, speed, W, H, total):
+def stills_mode(kadar, proj, cuts, zr, factor, grade, subs, speed, W, H, total, izvor=None):
     times = [float(x) for x in str(kadar).split(",") if x.strip()]
     pngs = []
     for k, t in enumerate(times):
@@ -559,7 +566,8 @@ def stills_mode(kadar, proj, cuts, zr, factor, grade, subs, speed, W, H, total):
             chain.append(zoom_chain(factor, W, H))
         chain += [f"setpts=PTS-STARTPTS+{pre:.3f}/TB", subs]
         png = proj / f"kadar_{k + 1}_{t:g}s.png"
-        run([ffmpeg(), "-y", "-v", "error", "-ss", f"{src_t:.3f}", "-i", "source.mp4", "-frames:v", "1",
+        src, off = (Path(izvor["datoteka"]).resolve(), float(izvor["pomak"])) if izvor else ("source.mp4", 0.0)
+        run([ffmpeg(), "-y", "-v", "error", "-ss", f"{max(0.0, src_t - off):.3f}", "-i", src, "-frames:v", "1",
              "-vf", ",".join(chain), png.name], cwd=proj)
         pngs.append(png)
     if len(pngs) > 1:

@@ -289,14 +289,17 @@ def loudness(path):
 
 
 # ---------------------------------------------------------------- FCPXML
-def build(proj, edit, use_originals=True, name=None):
-    """Vrati (ElementTree korijen, sažetak). Ne piše ništa na disk."""
+def build(proj, edit, use_originals=True, name=None, izvor=None):
+    """Vrati (ElementTree korijen, sažetak). Ne piše ništa na disk.
+    izvor = uspravni izvor isječka podcasta (uspravno.py): timeline 9:16 iz te datoteke (slika i zvuk)."""
     import render  # rezovi, zumovi i stil točno kao u renderu
 
     proj = Path(proj)
     pj = load_json(proj / "project.json")
     words = load_json(proj / "transcript.json")["words"]
     W, H, fps = pj["width"], pj["height"], int(round(pj["fps"]))
+    if izvor:
+        W, H, use_originals = izvor["W"], izvor["H"], False
     st = render.resolve_style(edit)
     cuts, _, total = render.build_cuts(words, edit, st, fps, pj["duration"])
     if not cuts:
@@ -307,6 +310,8 @@ def build(proj, edit, use_originals=True, name=None):
     clips = pj.get("clips") or []
     notes = []
     pc = podcast_sources(proj, pj) if use_originals else None
+    if izvor:
+        clips = []
     if pc is not None:
         pc, note = pc
         if note:
@@ -322,6 +327,11 @@ def build(proj, edit, use_originals=True, name=None):
                              + (f" i još {len(missing) - 1}" if len(missing) > 1 else "") + ") → koristim source.mp4")
             use_originals = False
         pieces = pieces_for(cuts, clips, fps, use_originals)
+    if izvor:   # izvor počinje na `pomak` s programa
+        off = Fraction(round(float(izvor["pomak"]) * fps), fps)
+        for p in pieces:
+            p["src"] = max(Fraction(0), p["src"] - off)
+        notes.append("uspravni isječak podcasta: slika iz uspravnog izvora isječka (kamere su već izrezane)")
 
     fd = Fraction(1, fps)
     root = ET.Element("fcpxml", version=FCPXML_VERSION)
@@ -420,7 +430,8 @@ def build(proj, edit, use_originals=True, name=None):
     zoomed_pieces = 0
     for p, (o, n) in zip(pieces, out_frames):
         if p["clip"] is None:
-            a = asset_for("source", proj / "source.mp4", "source.mp4")
+            a = asset_for("source", izvor["datoteka"], Path(izvor["datoteka"]).name) if izvor \
+                else asset_for("source", proj / "source.mp4", "source.mp4")
             clip = {}
         else:
             c = clips[p["clip"]]
@@ -544,7 +555,7 @@ def build(proj, edit, use_originals=True, name=None):
 
     seq.set("duration", ftime(total_frames * fd))
     ET.indent(root, space="  ")
-    summary = {"kadrova": len(pieces), "sekundi": float(total_frames * fd), "izvor": "podcast" if pc else
+    summary = {"kadrova": len(pieces), "sekundi": float(total_frames * fd), "izvor": "uspravno" if izvor else "podcast" if pc else
                "originali" if use_originals else "source.mp4", "datoteke": sorted({a["name"] for a in assets.values()}), "zumova": zoomed_pieces,
                "napomene": notes, "brzina": float(speed), "pieces": pieces, "fps": fps}
     return root, summary
@@ -584,16 +595,16 @@ def write(root, path):
                           encoding="utf-8", newline="\n")
 
 
-def export(proj, edit, base, use_originals=True, name=None):
+def export(proj, edit, base, use_originals=True, name=None, izvor=None):
     """Napiši <base>.fcpxml u projekt; vrati (putanja, sažetak)."""
     proj = Path(proj)
-    root, summ = build(proj, edit, use_originals, name)
+    root, summ = build(proj, edit, use_originals, name, izvor=izvor)
     out = proj / f"{base}.fcpxml"
     write(root, out)
     return out, summ
 
 
-def for_render(proj, edit, out_video):
+def for_render(proj, edit, out_video, izvor=None):
     """render.py: uz svaki video i .fcpxml. Greška ovdje nikad ne ruši render."""
     try:
         ov = Path(out_video)
@@ -601,9 +612,10 @@ def for_render(proj, edit, out_video):
             base = ov.resolve().relative_to(Path(proj).resolve()).with_suffix("").as_posix()
         except ValueError:
             base = ov.stem
-        out, summ = export(proj, edit, base, name=f"{Path(proj).name} {ov.stem}")
+        out, summ = export(proj, edit, base, name=f"{Path(proj).name} {ov.stem}", izvor=izvor)
         lines = [f"DaVinci timeline: {out.name}  ({summ['kadrova']} kadrova iz "
-                 + {"originali": "originalnih snimki", "podcast": "originalnih kamera, ostale kamere na trakama iznad"}
+                 + {"originali": "originalnih snimki", "podcast": "originalnih kamera, ostale kamere na trakama iznad",
+                    "uspravno": "uspravnog izvora isječka"}
                  .get(summ["izvor"], "source.mp4") + ")"]
         lines += [f"  ({n})" for n in summ["napomene"] if "ne postoji" in n]
         return lines

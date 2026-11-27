@@ -75,7 +75,14 @@ def source_info(path):
     dur = float(d["format"].get("duration") or a.get("duration") or 0)
     info = {"vrsta": "video" if v is not None else "zvuk", "trajanje": round(dur, 3)}
     if v is not None:
-        info["w"], info["h"] = int(v["width"]), int(v["height"])
+        w, h = int(v["width"]), int(v["height"])
+        rot = 0       # mobitel snima vodoravno i zapiše okret: slika (i lica) su uspravne
+        for sd in v.get("side_data_list", []) or []:
+            if "rotation" in sd:
+                rot = int(float(sd["rotation"]))
+        if "rotate" in (v.get("tags") or {}):
+            rot = int(float(v["tags"]["rotate"]))
+        info["w"], info["h"] = (h, w) if abs(rot) % 180 == 90 else (w, h)
     return info
 
 

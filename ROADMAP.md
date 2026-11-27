@@ -47,7 +47,8 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
 - [x] M4.2 Tko govori → koja kamera; pravila (najkraći kadar, široki kadar kad pričaju svi) (#27)
 - M4.2b Podcast dalje (podijeljeno):
   - [x] M4.2b1 DaVinci timeline podcasta: program iz originalnih kamera, ostale kamere na trakama iznad (isključene), glavni zvuk ispod (#28)
-  - [ ] M4.2b2 Isječci 9:16 iz podcasta: iz krupnih kadrova originalnih kamera (ne iz 16:9 programa), široki kadar → kadar.py po govorniku
+  - [x] M4.2b2 Isječci 9:16 iz podcasta: iz krupnih kadrova originalnih kamera (ne iz 16:9 programa), široki kadar → izrez po govorniku, podijeljen kadar za dvoje (#29)
+  - [ ] M4.2b3 Uspravni isječci podcasta, dorada: naslovna sličica 9:16 iz kamera (sad iz 16:9 programa), titlovi na spoju podijeljenog kadra, DaVinci 9:16 timeline iz originalnih kamera (sad iz uspravnog izvora)
 - [ ] M4.3 Nastupi bendova: prepoznavanje glazbe, nikad ne rezati unutar pjesme, mix za glazbu
 - [ ] M4.4 Intro/outro/špice, poglavlja za YouTube, MP3 za podcast platforme (−16 LUFS), opis epizode
 - [ ] M4.5 Pregled M4: demo + issue
