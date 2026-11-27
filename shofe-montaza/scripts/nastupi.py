@@ -394,6 +394,9 @@ def write_outputs(proj, data):
             uredi.save_history(proj, "nastupi")
             save_json(ep, edit)
             print(f"edit.json osvježen: pjesme se ne režu (poništi: python uredi.py {proj.name} vrati)")
+    import pregled
+    if pregled.refresh(proj):
+        print(f"Pregled osvježen (pjesme na vremenskoj crti): {proj / 'pregled.html'}")
     rp = proj / "rezija.json"
     if rp.exists():   # podcast: režija za vrijeme pjesme (široki kadar, spori rezovi na takt) ide iz nastupi.json
         had = [(round(p["od"], 2), round(p["do"], 2)) for p in load_json(rp).get("pjesme") or []]

@@ -4,7 +4,8 @@
   python pregled.py shofe_projekt --otvori   (i otvori je u pregledniku)
 
 Čita analiza.json (analyze.py) i source.mp4. Na stranici su: video, vremenska crta
-(glasnoća s tišinama, govornici, teme, najjači trenuci, loši kadrovi, rezovi i spojevi),
+(glasnoća s tišinama, govornici, pjesme s refrenom i isječkom, teme, najjači trenuci, loši kadrovi, rezovi i
+spojevi),
 popis trenutaka i tema, udio govornika i transkript po odsječcima. Klik bilo gdje skače
 na to mjesto u videu. Radi bez interneta (sve je u jednoj datoteci; video se čita iz
 iste mape). analyze.py je sam napravi nakon analize i nakon --provjeri.
@@ -71,6 +72,7 @@ def page_data(proj, an, env):
         gov.append({"id": g["id"], "ime": g.get("ime") or "", "udio": g.get("udio", 0),
                     "govori_s": g.get("govori_s", 0)})
     video = (proj / "source.mp4").exists()
+    pjesme = song_data(proj)
     return {
         "naziv": proj.resolve().name,
         "shofe": an.get("shofe") or version(),
@@ -89,7 +91,50 @@ def page_data(proj, an, env):
         "slika": bool(an.get("slika")),
         "ovojnica": env,
         "video": "source.mp4" if video else "",
+        "pjesme": pjesme,
     }
+
+
+def song_data(proj):
+    """Pjesme iz nastupi.json + isječak iz pjesme i refren iz isjecci.json (ako ih ima)."""
+    import nastupi
+    try:
+        songs = nastupi.active(nastupi.load(proj))
+    except Exception:  # noqa: BLE001 — pregled radi i bez pjesama
+        return []
+    clips = {}
+    p = Path(proj) / "isjecci.json"
+    if p.exists():
+        try:
+            for c in load_json(p).get("isjecci", []):
+                if c.get("vrsta") == "pjesma" and c.get("status") != "odbacen":
+                    clips.setdefault(c.get("nastup"), c)
+        except Exception:  # noqa: BLE001
+            pass
+    out = []
+    for n in songs:
+        e = {"id": n["id"], "od": float(n["od"]), "do": float(n["do"]), "naziv": n.get("naziv") or "",
+             "pjevanje": bool(n.get("pjevanje")), "rucno": n.get("izvor") == "rucno"}
+        if n.get("glasnoca") is not None:
+            e["glasnoca"] = n["glasnoca"]
+        c = clips.get(n["id"])
+        if c:
+            e["isjecak"] = {"id": c["id"], "od": c["od"], "do": c["do"], "status": c.get("status", ""),
+                            "razlog": (c.get("heuristika") or {}).get("razlozi", [""])[0]}
+            e["refren"] = [[float(x), float(y)] for x, y in c.get("refren") or []]
+        out.append(e)
+    return out
+
+
+def refresh(proj):
+    """Osvježi pregled.html ako ga već ima (nakon nastupi.py / isječaka iz pjesama)."""
+    proj = Path(proj)
+    if (proj / "pregled.html").exists() and (proj / "analiza.json").exists():
+        try:
+            return write_pregled(proj)
+        except SystemExit:
+            return None
+    return None
 
 
 def embed_json(data):
@@ -146,7 +191,7 @@ TEMPLATE = r"""<!doctype html>
   --bg: #f6f5f2; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6a66; --line: #e3e1dc;
   --wave: #8a99ad; --silence: rgba(120, 120, 120, .16); --accent: #e0661f; --bad: #d23c3c;
   --cut: #4c4c4c; --join: #2f7de1; --play: #e0661f; --hover: rgba(224, 102, 31, .10);
-  --chip: #efede8;
+  --chip: #efede8; --song: #2e9d5b; --song-soft: rgba(46, 157, 91, .22);
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -243,6 +288,9 @@ input[type=search] { font: inherit; font-size: 13.5px; padding: 4px 10px; border
     </div>
     <div class="legend" id="legend"></div>
   </section>
+  <section class="panel" id="pjesmePanel">
+    <h2>Pjesme (nastupi)</h2><ul class="list" id="pjesme"></ul>
+  </section>
   <section class="cols">
     <div class="panel"><h2>Teme</h2><ul class="list" id="teme"></ul></div>
     <div class="panel">
@@ -325,10 +373,16 @@ stat(String(D.tisine.length), `tišina · ukupno ${tisUk.toFixed(1)} s`);
 if (D.govornici.length) stat(String(D.govornici.length), D.govornici.length === 1 ? "govornik" : "govornika");
 if (D.slika) stat(String(D.losi_kadrovi.length), "loših kadrova");
 stat(String(D.teme.length), `tema · ${D.trenuci.length} trenutaka`);
+if ((D.pjesme || []).length) {
+  const svira = D.pjesme.reduce((a, p) => a + (p.do - p.od), 0);
+  stat(String(D.pjesme.length), `${D.pjesme.length === 1 ? "pjesma" : D.pjesme.length < 5 ? "pjesme" : "pjesama"} · ${fmt(svira)} sviranja`);
+}
 
 // ------------------------------------------------------------ vremenska crta
 const LANES = [["zvuk", "Zvuk", 58]];
 if (D.govornici.length) LANES.push(["gov", "Govornici", 22]);
+const SONGS = D.pjesme || [];
+if (SONGS.length) LANES.push(["pjesme", "Pjesme", 26]);
 LANES.push(["teme", "Teme", 30], ["trenuci", "Trenuci", 28]);
 if (D.slika) LANES.push(["slika", "Slika", 20]);
 LANES.push(["os", "", 20]);
@@ -381,6 +435,31 @@ function draw() {
     const [gy, gh] = LY.gov;
     for (const s of D.odsjecci) if (s.g) svg.appendChild(sv("rect", {x: X(s.od), y: gy, width: Math.max(X(s.do) - X(s.od), 1),
       height: gh, rx: 2, fill: spkColor(s.g), "data-t": s.od}, `${spkName(s.g)} ${fmt(s.od)}: ${s.tekst}`));
+  }
+  // pjesme: cijela pjesma (ne reže se), refren tamnije, isječak iz pjesme obrubljen
+  if (LY.pjesme) {
+    const [py, ph] = LY.pjesme;
+    for (const p of SONGS) {
+      const nm = p.naziv ? ` „${p.naziv}“` : "";
+      svg.appendChild(sv("rect", {x: X(p.od), y: py, width: Math.max(X(p.do) - X(p.od), 2), height: ph, rx: 4,
+        fill: c("--song-soft"), stroke: c("--song"), "data-t": p.od},
+        `pjesma ${p.id}${nm} ${fmt(p.od)}–${fmt(p.do)} (${fmt(p.do - p.od)}) — ne reže se`));
+      for (const [a, b] of p.refren || []) svg.appendChild(sv("rect", {x: X(a), y: py + 4, width: Math.max(X(b) - X(a), 2),
+        height: ph - 8, rx: 2, fill: c("--song"), opacity: .55, "data-t": a}, `refren ${fmt(a)}–${fmt(b)}`));
+      if (p.isjecak) {
+        const k = p.isjecak;
+        svg.appendChild(sv("rect", {x: X(k.od), y: py + 1, width: Math.max(X(k.do) - X(k.od), 2), height: ph - 2, rx: 3,
+          fill: "none", stroke: c("--accent"), "stroke-width": 2.5, "data-t": k.od},
+          `isječak ${k.id} ${fmt(k.od)}–${fmt(k.do)} (${Math.round(k.do - k.od)} s)${k.razlog ? "\n" + k.razlog : ""}`));
+      }
+      const w = X(p.do) - X(p.od);
+      if (w > 34) {
+        const cp = sv("clipPath", {id: "pc" + p.id}); cp.appendChild(sv("rect", {x: X(p.od), y: py, width: w - 6, height: ph}));
+        svg.appendChild(cp);
+        const tx = sv("text", {x: X(p.od) + 6, y: py + ph / 2 + 4, "clip-path": `url(#pc${p.id})`});
+        tx.textContent = "♪ " + p.id + (p.naziv ? " " + p.naziv : ""); svg.appendChild(tx);
+      }
+    }
   }
   // teme
   const [ty, th] = LY.teme;
@@ -457,6 +536,11 @@ function group(name) { legGroup = el("span", {class: "lg"}); legGroup.appendChil
 function leg(color, text) { const s = el("span"); const i = el("i"); i.style.background = color; s.appendChild(i); s.appendChild(document.createTextNode(text)); legGroup.appendChild(s); }
 group("Zvuk"); leg("var(--wave)", "glasnoća"); leg("var(--silence)", "tišina");
 if (D.govornici.length) { group("Govornici"); for (const g of D.govornici) leg(spkColor(g.id), spkName(g.id)); }
+if (SONGS.length) {
+  group("Pjesme"); leg("var(--song-soft)", "pjesma (ne reže se)");
+  if (SONGS.some((p) => (p.refren || []).length)) leg("var(--song)", "refren");
+  if (SONGS.some((p) => p.isjecak)) leg("var(--accent)", "isječak iz pjesme");
+}
 const vrsteUsed = [...new Set(D.trenuci.map((m) => m.vrsta))];
 if (vrsteUsed.length) { group("Trenuci"); for (const v of vrsteUsed) leg(VRSTA[v] || VRSTA.ostalo, VRSTA_HR[v] || v); }
 if (D.slika) { group("Slika"); leg("var(--bad)", "loš kadar"); leg("var(--cut)", "rez"); if (D.spojevi_klipova.length) leg("var(--join)", "spoj klipova"); }
@@ -472,6 +556,25 @@ for (const m of tren) li($("trenuci"), m.od, (x) => {
   const ch = el("span", {class: "chip"}, VRSTA_HR[m.vrsta] || m.vrsta); ch.style.color = VRSTA[m.vrsta] || ""; x.appendChild(ch);
   const oc = Math.round(m.ocjena || 0); if (oc) x.appendChild(el("span", {class: "stars"}, "★".repeat(oc) + "☆".repeat(5 - oc)));
   x.appendChild(el("div", {}, m.opis || ""));
+});
+if (!SONGS.length) $("pjesmePanel").remove();
+for (const p of SONGS) li($("pjesme"), p.od, (x) => {
+  x.appendChild(el("span", {class: "t"}, `${fmt(p.od)}–${fmt(p.do)} `));
+  const ch = el("span", {class: "chip"}, "♪ " + p.id); ch.style.color = "var(--song)"; x.appendChild(ch);
+  x.appendChild(el("b", {}, p.naziv || (p.pjevanje ? "pjesma s pjevanjem" : "glazba")));
+  x.appendChild(el("span", {class: "muted"}, `  ${fmt(p.do - p.od)}${p.rucno ? " · ručno" : ""}` +
+    (p.glasnoca ? ` · ${p.glasnoca > 0 ? "+" : ""}${p.glasnoca} LU od govora` : "")));
+  if (p.isjecak) {
+    const k = p.isjecak, d = el("div");
+    const b = el("button", {}, `▶ isječak ${k.id} ${fmt(k.od)}–${fmt(k.do)} (${Math.round(k.do - k.od)} s)`);
+    b.addEventListener("click", (ev) => { ev.stopPropagation(); seek(k.od); if (videoOk) video.play(); });
+    d.appendChild(b);
+    if (k.status === "odobren") d.appendChild(el("span", {class: "chip"}, "odobren"));
+    if (k.razlog) d.appendChild(el("span", {class: "muted"}, " " + k.razlog));
+    x.appendChild(d);
+  } else {
+    x.appendChild(el("div", {class: "muted"}, "Isječak iz refrena: isjecci.py <projekt> pjesma " + p.id));
+  }
 });
 if (!D.teme.length) $("teme").appendChild(el("li", {class: "empty"}, "Još nema tema."));
 for (const t of D.teme) li($("teme"), t.od, (x) => {

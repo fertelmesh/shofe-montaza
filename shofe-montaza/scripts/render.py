@@ -753,10 +753,11 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     g += ga
     atail = f"{last}"
     atail += f"atempo={speed}," if speed != 1.0 else ""
+    fades = audio_fades(edit, total / speed)
     if glasnoca:  # jedno stalno pojačanje do −14 LUFS + limiter vrhova (4× nadotipkavanje = true peak)
-        g.append(f"{atail}{final_gain(glasnoca['pojacanje'])},aresample=48000[aout]")
+        g.append(f"{atail}{final_gain(glasnoca['pojacanje'])},aresample=48000{fades}[aout]")
     else:
-        g.append(f"{atail}loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000[aout]")
+        g.append(f"{atail}loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000{fades}[aout]")
 
     fg = proj / "_tmp" / "graf.txt"
     fg.parent.mkdir(exist_ok=True)
@@ -811,6 +812,22 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     if edit.get("izrezi"):
         print(f"Izrezano naredbama (dijelova: {len(edit['izrezi'])}), popis: python uredi.py {proj.name} popis")
     return res
+
+
+def audio_fades(edit, dur):
+    """edit.json "pretapanje_zvuka": [ulaz s, izlaz s] (isječak iz pjesme: krene na udarac, utiša se na kraju)."""
+    p = edit.get("pretapanje_zvuka")
+    if not p:
+        return ""
+    try:
+        a, b = float(p[0]), float(p[1])
+    except (TypeError, ValueError, IndexError):
+        return ""
+    a, b = max(0.0, min(a, dur / 4)), max(0.0, min(b, dur / 3))
+    out = f",afade=t=in:d={a:.3f}" if a > 0 else ""
+    if b > 0:
+        out += f",afade=t=out:st={max(0.0, dur - b):.3f}:d={b:.3f}"
+    return out
 
 
 def audio_graph(cuts, st, edit, total, parts, gains, music):
