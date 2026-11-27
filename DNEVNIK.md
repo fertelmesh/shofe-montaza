@@ -296,7 +296,7 @@ Jedan unos po krugu, najnoviji na dnu.
 - Za Marka: kad snimite nastup u autu, pogledaj kako kamera ide za vrijeme pjesme (široki kadar na početku i kraju, izmjena svakih ~8 s u ritmu). Ako ti je prebrzo ili presporo, reci „sporiji rezovi u pjesmi" ili „cijela pjesma u širokom kadru". Za CI vidi issue #30 — sad šest PR-ova čeka testove na Windowsu.
 - Sljedeće: M4.3b3 pjesme u pregled.html + isječak iz pjesme (najbolji refren 30–60 s).
 
-## 2026-11-27 08:00 — spojen niz od šest PR-ova (#29, #31–#35) nakon što je CI opet proradio
+## 2026-11-27 07:45 — spojen niz od šest PR-ova (#29, #31–#35) nakon što je CI opet proradio
 - Živa specifikacija pročitana (rev 13): bez promjena. Marko je u #30 javio da je repozitorij sad javan pa GitHub Actions opet radi, i zatražio da se niz spoji redom od #29.
 - Ponovno pokrenut CI za #31–#35 (#29 je Marko već pokrenuo): svih šest zelenih na Linuxu i Windowsu (pipeline + transkripcija).
 - #29 spojen kao squash. Ostali su bili složeni jedan na drugi pa bi nakon squasha svaki imao sukob u DNEVNIK/ROADMAP/ODLUKE/README/SKILL/VERSION. Zato: u granu #31 spojen `main` (bez promjene sadržaja grane, bez prepisivanja povijesti), CI ponovno zelen, pa su #31–#35 spojeni kao obični merge (svaki s već zelenim CI-jem na svom zadnjem commitu). Sadržaj `main` sad je bajt po bajt isti kao vrh niza (#35), na kojem lokalno prolazi 315 testova, 4 preskočena. Verzija 0.27.0.
