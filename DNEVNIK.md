@@ -315,3 +315,13 @@ Jedan unos po krugu, najnoviji na dnu.
 - Za Marka: kad snimite nastup, reci „napravi isječke" — uz isječke razgovora dobit ćeš i isječak iz svake pjesme (refren). Javi je li krenuo na pravom mjestu; ako nije, reci npr. „isječak pjesme od 12:40 do 13:25".
 - Sljedeće: M4.3b4 uspravni isječak pjesme iz podcasta (režija u ritmu umjesto praćenja „govornika"), zatim M4.4.
 
+## 2026-11-27 10:30 — M4.3b4 uspravni isječak pjesme iz podcasta u ritmu
+- Živa specifikacija: Claude Docs alati nisu bili dostupni u ovoj sesiji, izvor je `SPEC.md`. Nema otvorenog PR-a agenta (#36 je Markov). Issues #7, #18, #25, #38 bez Markova odgovora.
+- Novo u `uspravno.py`: za vrijeme pjesme 9:16 isječak više ne prati „govornika" (pjevanje) nego ide u ritmu kao program — počne i završi na **bendu** (široka kamera), između krupne kamere redom, rez točno na udarcu na početku takta, prosječno 0,75 × kadar pjesme iz režije (≈ 6 s), najmanje 4 s, bez podijeljenog kadra. Vrijedi za isječak pjesme i za svaki 9:16 isječak koji sadrži pjesmu. Udarci iz `rezija.json` (`pjesme[].udarci`, novo), a ako ih nema, izmjere se iz glavnog zvuka.
+- Bend: kad svi u širokom kadru ne stanu u uski kadar, raspored `bend` — slika skalirana da cijela skupina zauzme 96 % širine, malo iznad sredine, iznad i ispod ista kamera zamućena i potamnjena. Ako stanu, običan izrez oko skupine.
+- `davinci.py`: kadar benda u 9:16 timelineu = široka kamera dvaput (V1 izrez kao pozadina, V2 cijela skupina), Shofeova slika na V3 isključena; napomena da se na V1 doda Blur. Verzija 0.29.0. SKILL.md, README, ODLUKE.md.
+- Provjera očima: probna epizoda s bendom (20–45 s, 112 BPM) → isječak K1: bend 20–29,1 s, Marko krupno 29,1–33,4 s, bend do kraja; na sličicama obje osobe cijele u sredini, iznad i ispod mutna tamnija pozadina, hook gore.
+- Testovi: novi `tests/test_uspravna_pjesma.py` (7: pravila u pjesmi i rez na taktu, isječak usred pjesme / `0` / bez ritma / bez širokog kadra, komadići uz rub, geometrija benda, DaVinci sloj; pravi render — lica obiju osoba, pozadina tamnija i mutnija, rez na udarac; FCPXML po DTD-u i slika složena iz njega = Shofeova). Lokalno cijeli paket prolazi (vidi PR #40).
+- Za Marka: kad snimite nastup, reci „napravi isječke" pa pogledaj isječak pjesme na mobitelu — je li bend dovoljno velik i odgovara li ti mutna pozadina. Ako želiš cijelu pjesmu na bendu: „cijela pjesma u širokom kadru".
+- Sljedeće: M4.4 intro/outro/špice, poglavlja za YouTube, MP3 za podcast platforme, opis epizode.
+
