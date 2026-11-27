@@ -209,8 +209,11 @@ Kad u autu svira bend, Shofe pjesmu pronađe sam (prvi put skine mali model od 6
 - `u epizodi svira bend` / `gdje su pjesme?` — dobiješ popis i `nastupi.png` (zeleno = pjesma)
 - `pjesma počinje na 12:28, ne na 12:30` / `ono na 40:00 nije pjesma` / `prva pjesma je „Kutina" od benda X`
 - `makni drugu pjesmu` / `vrati pjesmu` / `ostavi samo pjesmu` (npr. za zaseban video pjesme)
+- `pjesma je preglasna` / `prva pjesma neka bude malo glasnija od razgovora` / `sve pjesme malo tiše`
 
 Naredba „makni 3:10–3:20" koja pada usred pjesme ne reže pjesmu (Shofe javi da pjesma ostaje cijela); dio koji pokriva cijelu pjesmu makne je cijelu. Ako stvarno želiš izrezati dio pjesme (npr. solo), reci to izričito: `izreži solo iz pjesme od 3:10 do 3:40`. „Skrati na N minuta" skraćuje samo razgovor, a isječci za mreže nikad ne idu preko pjesme.
+
+Glasnoću pjesme Shofe namjesti sam: izmjeri koliko je glasan razgovor, a koliko svaka pjesma, i pjesmu pojača ili stiša tako da bude **jednako glasna kao razgovor** (bend u autu zna biti puno glasniji od vas). Pjesma pritom zadrži svoje tiše i glasnije dijelove — ne „pumpa". Cijeli video je na −14 LUFS, kao što traže mreže. Pri renderu napiše npr. „Glasnoća P1: u snimci 5,4 LU glasnija od govora → stišana". Ako ti se ne sviđa, reci npr. `pjesma neka bude malo glasnija` (2 LU) ili točno `pjesma 1 glasnija za 3`.
 
 ## Stilovi
 

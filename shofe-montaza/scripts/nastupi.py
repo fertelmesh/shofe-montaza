@@ -6,13 +6,16 @@
   python nastupi.py shofe_projekt granice P1 12:28-16:15 ispravi početak/kraj
   python nastupi.py shofe_projekt naziv P1 "Bend – Pjesma"
   python nastupi.py shofe_projekt makni P2               to nije pjesma (ponovna analiza je više ne dodaje)
+  python nastupi.py shofe_projekt glasnoca P1 +2         P1 2 LU glasnija od govora (zadano 0 = jednako glasno)
+  python nastupi.py shofe_projekt glasnoca sve -1        sve pjesme 1 LU tiše od govora
 
 Vremena su vremena izvornog videa (source.mp4, kao u transcript.txt). Pjesma je dio gdje se svira i pjeva
 (glazba je jača od govora) najmanje 30 s; radio ispod razgovora nije pjesma. Uz kraj pjesme ide i pljesak.
 
 Pjesma se nikad ne reže iznutra: plan.py je upisuje u edit.json (`nastupi`) kao jedan komad, render.py je
 uzima cijelu (i instrumentalne dijelove bez riječi), bez titlova, a uredi.py pjesmu ili makne cijelu ili ostavi
-cijelu. Ako edit.json već postoji, ovaj alat ga odmah osvježi.
+cijelu. Ako edit.json već postoji, ovaj alat ga odmah osvježi. Glasnoću render.py izjednači sam: izmjeri govor i
+svaku pjesmu (EBU R128) i pjesmu stalnim pojačanjem dovede na glasnoću govora (± `glasnoca`), bez „pumpanja".
 
 Prvo pokretanje skida mali model (~29 MB arhiva, ostaje 6 MB) s GitHuba u mapu modela (Windows:
 %LOCALAPPDATA%\\Shofe\\modeli, drugdje ~/.cache/shofe/modeli; ili SHOFE_MODELI).
@@ -280,6 +283,8 @@ def apply_to_edit(edit, data):
         e = {"id": n["id"], "od": n["od"], "do": n["do"], "zadrzi": True, "titlovi": False}
         if n.get("naziv"):
             e["naziv"] = n["naziv"]
+        if n.get("glasnoca") is not None:
+            e["glasnoca"] = n["glasnoca"]
         for o in old:
             if _overlap(n["od"], n["do"], o["od"], o["do"]) > 0.5 * (n["do"] - n["od"]):
                 e["zadrzi"] = o.get("zadrzi", True)
@@ -293,6 +298,13 @@ def apply_to_edit(edit, data):
         edit["nastupi"] = new
     else:
         edit.pop("nastupi", None)
+    lvl = data.get("glasnoca") if data else None   # pjesme naspram govora (LU), za sve pjesme
+    if lvl != edit.get("nastup_glasnoca"):
+        changed = True
+        if lvl is None:
+            edit.pop("nastup_glasnoca", None)
+        else:
+            edit["nastup_glasnoca"] = lvl
     return changed
 
 
@@ -318,7 +330,9 @@ def lines(data):
         what = "pjesma s pjevanjem" if n.get("pjevanje") else "glazba"
         src = "ručno" if n.get("izvor") == "rucno" else f"sigurnost {n.get('sigurnost', 0):.2f}"
         name = f"  „{n['naziv']}“" if n.get("naziv") else ""
-        out.append(f"{n['id']}  {fmt_time(n['od'])}-{fmt_time(n['do'])}  ({fmt_time(d)}, {what}, {src}){name}")
+        lvl = n.get("glasnoca", data.get("glasnoca"))
+        vol = f", {lvl:+g} LU od govora" if lvl else ""
+        out.append(f"{n['id']}  {fmt_time(n['od'])}-{fmt_time(n['do'])}  ({fmt_time(d)}, {what}, {src}{vol}){name}")
     odb = [n for n in data.get("nastupi", []) if n.get("odbijeno")] if data else []
     for n in odb:
         out.append(f"--  {fmt_time(n['od'])}-{fmt_time(n['do'])}  nije pjesma (odbijeno)")
@@ -431,6 +445,30 @@ def _parse_range(s):
     return od, do
 
 
+GLASNOCA_MAX = 6.0
+
+
+def parse_level(v):
+    """„+2", „-1,5", „0", „glasnije", „tiše" → LU pjesme naspram govora (−6…+6)."""
+    t = str(v).strip().lower().replace(",", ".").replace("lu", "").replace("db", "").strip()
+    words = {"glasnije": 2.0, "jače": 2.0, "jace": 2.0, "tise": -2.0, "tiše": -2.0, "isto": 0.0, "jednako": 0.0}
+    if t in words:
+        return words[t]
+    try:
+        x = float(t)
+    except ValueError:
+        die(f"glasnoća '{v}' nije broj (primjer: +2 ili -1.5; LU naspram govora)")
+    if abs(x) > GLASNOCA_MAX:
+        die(f"glasnoća pjesme naspram govora najviše ±{GLASNOCA_MAX:g} LU (zadano 0 = jednako glasno)")
+    return round(x, 1)
+
+
+def describe_level(x):
+    if not x:
+        return "jednako glasno kao govor"
+    return f"{abs(x):g} LU {'glasnije' if x > 0 else 'tiše'} od govora"
+
+
 def _find(data, pid):
     for n in active(data):
         if n["id"].lower() == pid.lower():
@@ -478,8 +516,29 @@ def manual(proj, a):
                 die("primjer: python nastupi.py projekt naziv P1 \"Bend – Pjesma\"")
             n["naziv"] = name
             msg = f"{args[0]}: „{name}“"
+    elif a.naredba == "glasnoca":
+        if len(args) < 1:
+            die("primjer: python nastupi.py projekt glasnoca P1 +2   (ili: glasnoca sve -1, glasnoca P1 0)")
+        if len(args) == 1:
+            target, val = "sve", args[0]
+        else:
+            target, val = args[0], args[1]
+        lvl = parse_level(val)
+        if target.lower() in ("sve", "svi", "*"):
+            if lvl == 0:
+                data.pop("glasnoca", None)
+            else:
+                data["glasnoca"] = lvl
+            for n in data["nastupi"]:
+                n.pop("glasnoca", None)
+            msg = f"Sve pjesme: {describe_level(lvl)}"
+        else:
+            n = _find(data, target)
+            n["glasnoca"] = lvl
+            msg = f"{target}: {describe_level(lvl)}"
+        msg += f". Vrijedi od sljedećeg rendera (python render.py {proj.name})"
     else:
-        die(f"nepoznata naredba '{a.naredba}' (popis, dodaj, granice, naziv, makni)")
+        die(f"nepoznata naredba '{a.naredba}' (popis, dodaj, granice, naziv, glasnoca, makni)")
     _renumber(data["nastupi"])
     write_outputs(proj, data)
     print(msg)
@@ -489,13 +548,17 @@ def manual(proj, a):
 def main():
     ap = argparse.ArgumentParser(description="Nastupi bendova: pjesme se ne režu")
     ap.add_argument("projekt")
-    ap.add_argument("naredba", nargs="?", default="analiza", help="(ništa) | popis | dodaj | granice | naziv | makni")
+    ap.add_argument("naredba", nargs="?", default="analiza", help="(ništa) | popis | dodaj | granice | naziv | glasnoca | makni")
     ap.add_argument("args", nargs="*")
     ap.add_argument("--naziv", help="naziv pjesme (uz dodaj)")
     ap.add_argument("--min", type=float, default=MIN_PJESMA, help="najkraća pjesma u sekundama (zadano 30)")
     ap.add_argument("--prag", type=float, default=PRAG, help="koliko sigurno mora biti glazba (0–1, zadano 0,5)")
     ap.add_argument("--dretve", type=int, default=2)
-    a = ap.parse_args()
+    a, extra = ap.parse_known_args()
+    if extra:  # „-1,5" (decimalni zarez) argparse ne prepozna kao broj
+        if not all(re.fullmatch(r"-[\d.,]+(lu|db)?", x, re.I) for x in extra):
+            ap.error(f"nepoznati argumenti: {' '.join(extra)}")
+        a.args += extra
     proj = Path(a.projekt).resolve()
     if not proj.is_dir():
         die(f"nema mape {proj}")
