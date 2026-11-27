@@ -136,9 +136,56 @@ def word_starts(words):
     return st if all(a <= b for a, b in zip(st, st[1:])) else None
 
 
+def song_spans(edit):
+    """Pjesme (nastupi bendova) iz edit.json: (zadržane [(od, do, titlovi)], izbačene [(od, do)])."""
+    keep, drop = [], []
+    for n in edit.get("nastupi") or []:
+        a, b = float(n["od"]), float(n["do"])
+        if b <= a:
+            continue
+        if n.get("zadrzi", True):
+            keep.append((a, b, bool(n.get("titlovi", False))))
+        else:
+            drop.append((a, b))
+    return sorted(keep), sorted(drop)
+
+
+# zvuk pjesme: samo makni tutnjavu (auto) i ukroti vrhove; bez afftdn (pojede činele i jeku) i govornog kompresora
+MUSIC_CHAIN = "highpass=f=30,acompressor=threshold=-14dB:ratio=1.6:attack=25:release=300"
+SONG_RAMP = 0.25
+
+
+def song_out_spans(edit, cuts):
+    """Zadržane pjesme u vremenu gotovog videa (prije brzine): [(od, do)]."""
+    keep, _ = song_spans(edit)
+    out = []
+    for a, b, _ in keep:
+        for c in cuts:
+            lo, hi = max(a, c["a"]), min(b, c["b"])
+            if hi - lo > 1e-3:
+                s, e = c["o"] + lo - c["a"], c["o"] + hi - c["a"]
+                if out and s - out[-1][1] < 0.05:
+                    out[-1][1] = e
+                else:
+                    out.append([s, e])
+    return [(s, e) for s, e in out if e - s > 2 * SONG_RAMP]
+
+
+def song_gain_expr(spans, r=SONG_RAMP):
+    """ffmpeg izraz po t: 1 u pjesmi, 0 izvan, linearno pretapanje r s na rubovima."""
+    if not spans:
+        return ""
+    return "+".join(f"clip(min((t-{s:.3f})/{r},({e:.3f}-t)/{r}),0,1)" for s, e in spans)
+
+
 def build_cuts(words, edit, st, fps, total):
     pre, post = st.get("rezanje", [0.05, 0.12])
     spans = cut_spans(edit)
+    # pjesma se nikad ne reže iznutra: zadržana ide cijela (i dijelovi bez riječi), izbačena cijela van;
+    # izrezi (naredbe) je ne diraju, osim izričitih s "u_pjesmi" (uredi.py --u-pjesmi)
+    songs, songs_out = song_spans(edit)
+    song_cuts = sorted((float(r["od"]), float(r["do"])) for r in edit.get("izrezi") or [] if r.get("u_pjesmi"))
+    all_songs = [(a, b) for a, b, _ in songs] + songs_out
     ranges, kept = [], []  # kept: (word_index, display_text)
     segs = sorted((s for s in edit["odsjecci"] if s.get("zadrzi", True)), key=lambda s: s["od"])
     starts = word_starts(words)
@@ -152,6 +199,13 @@ def build_cuts(words, edit, st, fps, total):
             continue
         tokens = [t for t in seg.get("tekst", "").split() if norm_word(t) not in cut] or [words[i]["w"] for i in base_idx]
         gone = {i for i in base_idx if in_spans((words[i]["s"] + words[i]["e"]) / 2, spans)}
+        if all_songs:  # riječi u pjesmi: rez je cijela pjesma; titlovi samo ako ih pjesma traži
+            for i in base_idx:
+                mid = (words[i]["s"] + words[i]["e"]) / 2
+                if in_spans(mid, all_songs):
+                    gone.add(i)
+                    if any(a <= mid < b and sub for a, b, sub in songs) and not in_spans(mid, song_cuts):
+                        kept.append((i, words[i]["w"]))
         if gone:  # dio odsječka izrezan naredbom po vremenu: makni i pripadni ispravljeni tekst
             owner = align_tokens(tokens, [words[i]["w"] for i in base_idx])
             tokens = [t for t, o in zip(tokens, owner) if base_idx[o] not in gone]
@@ -180,6 +234,11 @@ def build_cuts(words, edit, st, fps, total):
                     run_start = keep_idx[j + 1]
     if spans:
         ranges = subtract_spans(ranges, spans)
+    if all_songs:
+        ranges = subtract_spans(ranges, all_songs)
+        song_r = [[max(a, 0.0), min(b, total)] for a, b, _ in songs]
+        ranges += subtract_spans(song_r, song_cuts) if song_cuts else song_r
+        kept.sort(key=lambda k: words[k[0][0] if isinstance(k[0], list) else k[0]]["s"])
     ranges.sort()
     merged = []
     for a, b in ranges:
@@ -474,7 +533,15 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
         asel = "+".join(f"between(t,{c['a']:.4f},{c['b']:.4f})" for c in cuts)
         g.append(f"[0:a]aselect='{asel}',asetpts=N/SR/TB[vraw]")
     clean = ",afftdn=nf=-25" if st.get("zvuk_ciscenje", True) else ""
-    g.append(f"[vraw]highpass=f=70{clean},acompressor=threshold=-21dB:ratio=3:attack=5:release=120:makeup=2[voice]")
+    speech_chain = f"highpass=f=70{clean},acompressor=threshold=-21dB:ratio=3:attack=5:release=120:makeup=2"
+    gm = song_gain_expr(song_out_spans(edit, cuts))
+    if gm:  # pjesme: zvuk za glazbu (bez čišćenja šuma i govornog kompresora), pretapanje 0,25 s
+        g.append("[vraw]asplit=2[vsp][vmu]")
+        g.append(f"[vsp]{speech_chain},volume='1-({gm})':eval=frame[vs]")
+        g.append(f"[vmu]{MUSIC_CHAIN},volume='{gm}':eval=frame[vm]")
+        g.append("[vs][vm]amix=inputs=2:duration=first:normalize=0[voice]")
+    else:
+        g.append(f"[vraw]{speech_chain}[voice]")
 
     inputs = list(src_in)
     music = edit.get("glazba")
@@ -488,7 +555,8 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
         vol = float(edit.get("glazba_glasnoca") or -20)
         g.append(f"[1:a]aresample=48000,aformat=channel_layouts=stereo,atrim=0:{total:.3f},asetpts=PTS-STARTPTS,"
                  f"loudnorm=I=-16:TP=-2,aresample=48000,volume={vol}dB,afade=t=in:d=0.6,"
-                 f"afade=t=out:st={max(total - 1.5, 0):.3f}:d=1.5[mus]")
+                 f"afade=t=out:st={max(total - 1.5, 0):.3f}:d=1.5"
+                 + (f",volume='1-({gm})':eval=frame" if gm else "") + "[mus]")  # pozadinska glazba šuti dok bend svira
         g.append("[voice]asplit=2[vo][sc]")
         g.append("[mus][sc]sidechaincompress=threshold=0.02:ratio=10:attack=15:release=350[duck]")
         g.append("[vo][duck]amix=inputs=2:duration=first:normalize=0[mix]")

@@ -13,6 +13,12 @@ Po sadržaju (Claude pronađe dio u transcript.txt i citira ga doslovno):
   python uredi.py shofe_projekt zadrzi --odsjecak 5-7 | --rijeci 40-62 | --tema "cijena"
   python uredi.py shofe_projekt dodaj --odsjecak 3                   vrati izbačeni dio (npr. drugi pokušaj)
 
+Pjesme (nastupi.py) se nikad ne režu iznutra: dio koji pokriva cijelu pjesmu (≥ 80 %) makne je cijelu,
+dio unutar pjesme je ne dira (napomena). Izričito:
+  python uredi.py shofe_projekt makni --nastup P1        cijela pjesma van (dodaj --nastup P1 je vraća)
+  python uredi.py shofe_projekt zadrzi --nastup P1       samo ta pjesma
+  python uredi.py shofe_projekt makni 3:10-3:20 --u-pjesmi   ipak izreži dio pjesme (samo kad Marko to izričito traži)
+
 Skraćivanje (izbacuje najmanje važne cijele misli, nikad pola rečenice):
   python uredi.py shofe_projekt skrati 60 --proba        popis misli s važnošću i što bi ostalo
   python uredi.py shofe_projekt skrati 1:00 --ocjene "3:5,7-9:1" --obavezno "Pratite SF klimu"
@@ -32,7 +38,7 @@ from pathlib import Path
 import copy
 
 from common import die, fmt_time, load_json, save_json
-from render import align_tokens, build_cuts, resolve_style, to_out, word_starts, words_in
+from render import align_tokens, build_cuts, resolve_style, song_out_spans, to_out, word_starts, words_in
 import sadrzaj
 import skrati as sk
 import verzije
@@ -114,6 +120,57 @@ def timeline(words, edit, pj):
             out.append({"i": i, "s": s / speed, "e": e / speed, "t": tok, "seg": owner.get(i)})
     out.sort(key=lambda w: w["s"])
     return out, total / speed
+
+
+def song_timeline(words, edit, pj):
+    """Zadržane pjesme u gotovom videu: [{id, s, e, od, do}] (s/e vrijeme gotovog videa nakon brzine)."""
+    st = resolve_style(edit)
+    speed = float(edit.get("brzina") or 1.0)
+    cuts, _, _ = build_cuts(words, edit, st, pj["fps"], pj["duration"])
+    res = []
+    for n in edit.get("nastupi") or []:
+        if not n.get("zadrzi", True):
+            continue
+        spans = song_out_spans({"nastupi": [dict(n, zadrzi=True)]}, cuts)
+        if spans:
+            res.append({"id": n["id"], "s": spans[0][0] / speed, "e": spans[-1][1] / speed,
+                        "od": float(n["od"]), "do": float(n["do"])})
+    return res
+
+
+def out_to_source(t, cuts, speed=1.0):
+    """Vrijeme gotovog videa → vrijeme izvornog videa (None ako ga nema)."""
+    t *= speed
+    for c in cuts:
+        if c["o"] - 1e-6 <= t <= c["o"] + (c["b"] - c["a"]) + 1e-6:
+            return c["a"] + t - c["o"]
+    return None
+
+
+def set_songs(edit, ids, zadrzi, label):
+    """Uključi/isključi cijele pjesme; vrati id-eve koji su se promijenili."""
+    changed = []
+    for n in edit.get("nastupi") or []:
+        if n["id"] in ids and n.get("zadrzi", True) != zadrzi:
+            n["zadrzi"] = zadrzi
+            n["napomena"] = label
+            changed.append(n["id"])
+    return changed
+
+
+def song_ids(edit, spec):
+    """'P1' / 'P1,P3' / 'sve' → popis postojećih id-eva pjesama."""
+    have = [n["id"] for n in edit.get("nastupi") or []]
+    if not have:
+        die("u ovom projektu nema pjesama (python nastupi.py projekt)")
+    if spec.strip().lower() in ("sve", "svi", "all"):
+        return have
+    ids = [x.strip().upper() for x in spec.split(",") if x.strip()]
+    ids = [x if x.startswith("P") else f"P{x}" for x in ids]
+    bad = [x for x in ids if x not in have]
+    if bad:
+        die(f"nema pjesme {bad[0]} (postoje: {', '.join(have)})")
+    return ids
 
 
 def source_spans(words, idxs):
@@ -341,6 +398,16 @@ def cmd_sadrzaj(proj, naredba, words, edit, pj, a):
             return
     label_cmd = f"{naredba} {opis}"
     edit2, bez = apply_target(words, edit, pj, target, label_cmd)
+    # pjesme: cijele unutar odabira idu s odabirom (makni/dodaj); kod „zadrži" ostaju samo one u odabiru
+    lo, hi = words[sel[0]]["s"], words[sel[-1]]["e"]
+    inside = [n["id"] for n in edit2.get("nastupi") or [] if n["od"] >= lo - 1.0 and n["do"] <= hi + 1.0]
+    if naredba == "makni":
+        song_msg = set_songs(edit2, inside, False, label_cmd)
+    elif naredba == "dodaj":
+        song_msg = set_songs(edit2, inside, True, label_cmd)
+    else:
+        song_msg = set_songs(edit2, [n["id"] for n in edit2.get("nastupi") or [] if n["id"] not in inside],
+                             False, label_cmd)
     new_tl, new_dur = timeline(words, edit2, pj)
     new_set = {w["i"] for w in new_tl}
     by_i = {w["i"]: w for w in cur_tl}
@@ -360,8 +427,11 @@ def cmd_sadrzaj(proj, naredba, words, edit, pj, a):
     edges = sel if naredba != "makni" else [i for i in sel if i in cur_set]
     for note in sadrzaj.edge_notes(words, edges):
         print(f"  napomena: odabir {note} — ako je to cijela misao, dodaj --cijele-recenice")
+    for sid in song_msg:
+        n = next(x for x in edit2["nastupi"] if x["id"] == sid)
+        print(f"  pjesma {sid} ({fmt_time(n['od'])}-{fmt_time(n['do'])}): {'ostaje' if n['zadrzi'] else 'ide van'} cijela")
     print(f"Trajanje: {fmt_time(cur_dur)} → {fmt_time(new_dur)} ({new_dur - cur_dur:+.1f} s)")
-    if not new_tl:
+    if new_dur <= 0.1:
         die("nakon ovoga u videu ne bi ostalo ništa")
     if a.proba:
         print("(proba: edit.json nije promijenjen)")
@@ -415,6 +485,14 @@ def cmd_skrati(proj, words, edit, pj, a):
     if cur_dur <= N + 1e-3:
         print(f"Video već traje {fmt_time(cur_dur)}, što je unutar {fmt_time(N)}. Ništa za skratiti.")
         return
+    songs = song_timeline(words, edit, pj)
+    if songs:
+        tot = sum(sg["e"] - sg["s"] for sg in songs)
+        ids = ",".join(sg["id"] for sg in songs)
+        print(f"Pjesme {ids} ({fmt_time(tot)}) ostaju cijele; skraćuje se samo govor. "
+              f"Bez pjesme: python uredi.py {proj.name} makni --nastup {songs[0]['id']}")
+        if tot >= N:
+            die(f"same pjesme traju {fmt_time(tot)}, dulje od {fmt_time(N)}: prvo makni pjesmu (--nastup) pa skrati")
     speed = float(edit.get("brzina") or 1.0)
     pre, post = resolve_style(edit).get("rezanje", [0.05, 0.12])
     misli, lanci = sk.build_thoughts(words, sorted(w["i"] for w in cur_tl), pre + post)
@@ -429,7 +507,7 @@ def cmd_skrati(proj, words, edit, pj, a):
 
     # procjena trajanja misli nije točna do okvira (rubovi rezova, spojeni rezovi) → proračun se
     # podešava dok pravo trajanje gotovog videa ne bude tik ispod cilja
-    budget = N * speed
+    budget = max(N - sum(sg["e"] - sg["s"] for sg in songs), 0.5) * speed  # pjesme ostaju cijele
     lo_b, hi_b = 0.0, float("inf")
     best, seen = None, {}
     for _ in range(10):
@@ -510,6 +588,40 @@ def reference_edit(proj, edit, a):
     return load_json(found[n]), f"reel_v{n} ({why})"
 
 
+def cmd_nastup(proj, naredba, words, edit, pj, a):
+    """makni/dodaj/zadrzi --nastup P1: cijela pjesma van, natrag, ili samo ona."""
+    if naredba not in ("makni", "dodaj", "zadrzi"):
+        die("--nastup ide uz makni, dodaj ili zadrzi")
+    if a.vremena or any([a.od, a.do, a.rijeci, a.odsjecak, a.tema]):
+        die("--nastup ide sam (bez vremena i citata)")
+    ids = song_ids(edit, a.nastup)
+    label_cmd = f"{naredba} pjesmu {','.join(ids)}"
+    _, cur_dur = timeline(words, edit, pj)
+    if naredba == "zadrzi":
+        edit2, _ = apply_target(words, edit, pj, [], label_cmd)
+        set_songs(edit2, ids, True, label_cmd)
+        set_songs(edit2, [n["id"] for n in edit2.get("nastupi") or [] if n["id"] not in ids], False, label_cmd)
+    else:
+        edit2 = copy.deepcopy(edit)
+        if not set_songs(edit2, ids, naredba == "dodaj", label_cmd):
+            print(f"Ništa za promijeniti: {', '.join(ids)} {'je već u videu' if naredba == 'dodaj' else 'već nije u videu'}.")
+            return
+    _, new_dur = timeline(words, edit2, pj)
+    for n in edit2.get("nastupi") or []:
+        if n["id"] in ids:
+            print(f"Pjesma {n['id']} ({fmt_time(n['od'])}-{fmt_time(n['do'])}"
+                  + (f", „{n['naziv']}“" if n.get("naziv") else "") + f"): {'ostaje' if n['zadrzi'] else 'ide van'} cijela")
+    print(f"Trajanje: {fmt_time(cur_dur)} → {fmt_time(new_dur)} ({new_dur - cur_dur:+.1f} s)")
+    if new_dur <= 0.1:
+        die("nakon ovoga u videu ne bi ostalo ništa")
+    if a.proba:
+        print("(proba: edit.json nije promijenjen)")
+        return
+    save_history(proj, label_cmd)
+    save_json(proj / "edit.json", edit2)
+    print(f"Upisano u edit.json. Poništi: python uredi.py {proj.name} vrati")
+
+
 def cmd_popis(words, edit, pj, label):
     tl, dur = timeline(words, edit, pj)
     print(f"Gotovi video prema: {label}, trajanje {fmt_time(dur)}")
@@ -520,9 +632,18 @@ def cmd_popis(words, edit, pj, label):
             rows.append(cur)
         cur["e"] = w["e"]
         cur["ws"].append(w)
+    for sg in song_timeline(words, edit, pj):
+        rows.append({"s": sg["s"], "e": sg["e"], "pjesma": sg["id"]})
+    rows.sort(key=lambda r: r["s"])
     for r in rows:
+        if r.get("pjesma"):
+            print(f"  {fmt_time(r['s'])}-{fmt_time(r['e'])}  ♪ PJESMA {r['pjesma']} (ide cijela)")
+            continue
         sid = f"#{r['seg']}" if r["seg"] is not None else ""
         print(f"  {fmt_time(r['s'])}-{fmt_time(r['e'])}  {sid:<4} {' '.join(w['t'] for w in r['ws'] if w['t'])}")
+    out_songs = [n for n in edit.get("nastupi") or [] if not n.get("zadrzi", True)]
+    for n in out_songs:
+        print(f"  (izbačena pjesma {n['id']}: izvor {fmt_time(n['od'])}-{fmt_time(n['do'])}; vrati: dodaj --nastup {n['id']})")
     iz = edit.get("izrezi") or []
     if iz:
         print("\nIzrezano naredbama (makni/zadrži; vrijeme izvornog videa):")
@@ -548,6 +669,10 @@ def main():
     k.add_argument("--ocjene", help="Claudeove ocjene važnosti misli, npr. \"3:5,7-9:1\" (misao:1–5)")
     k.add_argument("--obavezno", action="append", default=[], help="citat koji mora ostati (može više puta)")
     k.add_argument("--nebitno", action="append", default=[], help="citat koji prvi ide van (može više puta)")
+    p_ = ap.add_argument_group("pjesme (nastupi.py)")
+    p_.add_argument("--nastup", help="cijela pjesma: P1 ili P1,P3 ili sve (uz makni, dodaj, zadrzi)")
+    p_.add_argument("--u-pjesmi", action="store_true",
+                    help="dopusti rez unutar pjesme (samo na izričit zahtjev; inače se pjesma ne reže iznutra)")
     ap.add_argument("--verzija", type=int, default=None, help="vremena iz reel_vN (zadano: zadnji render)")
     ap.add_argument("--trenutno", action="store_true", help="vremena prema trenutnom edit.json")
     ap.add_argument("--proba", action="store_true", help="samo pokaži što bi se promijenilo")
@@ -573,6 +698,9 @@ def main():
             die("skrati ne ide uz --od/--rijeci/--odsjecak/--tema (za to: makni); za dijelove koji moraju "
                 "ostati koristi --obavezno \"citat\"")
         cmd_skrati(proj, words, edit, pj, a)
+        return
+    if a.nastup:
+        cmd_nastup(proj, naredba, words, edit, pj, a)
         return
     if naredba == "trazi":
         if not a.vremena:
@@ -617,42 +745,88 @@ def main():
                     print(f"  napomena: {fmt_time(t)} pada usred riječi „{w['t']}“ → cijela riječ {side}")
 
     picked = [w for w in ref_tl if any(inside(w, lo, hi) for lo, hi in ranges)]
+    # pjesme u gotovom videu: koliko ih dio pokriva (cijela ≥ 80 %, inače se ne reže iznutra)
+    ref_songs = song_timeline(words, ref, pj)
+
+    def cover(sg):
+        return max(max(0.0, min(hi, sg["e"]) - max(lo, sg["s"])) for lo, hi in ranges) / max(sg["e"] - sg["s"], 1e-3)
+
+    whole = [sg["id"] for sg in ref_songs if cover(sg) >= 0.8]
+    partial = [sg for sg in ref_songs if 0 < cover(sg) < 0.8 and sg["id"] not in whole]
+    label_cmd = f"{naredba} " + " ".join(f"{fmt_time(lo)}-{fmt_time(hi)}" for lo, hi in ranges)
+    n = max((r.get("n", 0) for r in edit.get("izrezi") or []), default=0) + 1
+    edit2 = copy.deepcopy(edit)
+    in_song = []
     if naredba == "makni":
-        if not picked:
+        song_ch = set_songs(edit2, whole, False, label_cmd)
+        if partial and a.u_pjesmi:  # izričito: rez unutar pjesme (vrijeme izvornog videa)
+            st_ = resolve_style(ref)
+            rcuts, _, _ = build_cuts(words, ref, st_, pj["fps"], pj["duration"])
+            sp = float(ref.get("brzina") or 1.0)
+            for sg in partial:
+                for lo, hi in ranges:
+                    a_, b_ = max(lo, sg["s"]), min(hi, sg["e"])
+                    if b_ - a_ <= 0.05:
+                        continue
+                    so, sd = out_to_source(a_, rcuts, sp), out_to_source(b_, rcuts, sp)
+                    if so is not None and sd is not None and sd > so:
+                        in_song.append({"od": round(so, 3), "do": round(sd, 3), "n": n, "naredba": label_cmd,
+                                        "u_pjesmi": True, "tekst": f"dio pjesme {sg['id']}"})
+        elif partial:
+            for sg in partial:
+                print(f"  napomena: {fmt_time(sg['s'])}-{fmt_time(sg['e'])} je pjesma {sg['id']} — pjesma se ne reže "
+                      f"iznutra, ostaje cijela. Cijela van: --nastup {sg['id']}; ipak izrezati dio: --u-pjesmi")
+        if not picked and not song_ch and not in_song:
+            if partial:
+                die("taj dio je unutar pjesme, a pjesma se ne reže iznutra (vidi napomenu)")
             die("u tom dijelu nema govora koji bi se mogao maknuti (provjeri vremena: python uredi.py "
                 f"{proj.name} popis)")
         remove = [w["i"] for w in picked if w["i"] in cur_idx]
         shown = picked
-    else:  # zadrzi
-        if not picked:
+    else:  # zadrzi: ostaju pjesme koje dio pokriva barem napola
+        keep_songs = [sg["id"] for sg in ref_songs if cover(sg) >= 0.5]
+        song_ch = set_songs(edit2, [x["id"] for x in edit2.get("nastupi") or [] if x["id"] not in keep_songs],
+                            False, label_cmd)
+        for sg in partial:
+            if sg["id"] in keep_songs:
+                print(f"  napomena: pjesma {sg['id']} ostaje cijela ({fmt_time(sg['s'])}-{fmt_time(sg['e'])})")
+        if not picked and not keep_songs:
             die("u tom dijelu nema govora; ništa ne bi ostalo")
         keep = {w["i"] for w in picked}
         remove = [w["i"] for w in cur_tl if w["i"] not in keep]
         shown = [w for w in cur_tl if w["i"] not in keep]
-    if not remove:
+    if not remove and not song_ch and not in_song:
         print("Ništa za promijeniti: taj dio je već izrezan.")
         return
 
-    label_cmd = f"{naredba} " + " ".join(f"{fmt_time(lo)}-{fmt_time(hi)}" for lo, hi in ranges)
-    n = max((r.get("n", 0) for r in edit.get("izrezi") or []), default=0) + 1
     by_i = {w["i"]: w for w in cur_tl}
     new = []
     for od, do, g in source_spans(words, remove):
         new.append({"od": od, "do": do, "n": n, "naredba": label_cmd,
                     "tekst": excerpt([by_i[i] for i in g if i in by_i], 3)})
-    edit2 = dict(edit)
-    edit2["izrezi"] = list(edit.get("izrezi") or []) + new
+    new += in_song
+    if new:
+        edit2["izrezi"] = list(edit.get("izrezi") or []) + new
     _, new_dur = timeline(words, edit2, pj)
+    for sid in song_ch:
+        x = next(v for v in edit2["nastupi"] if v["id"] == sid)
+        print(f"Pjesma {sid} ({fmt_time(x['od'])}-{fmt_time(x['do'])} izvornog videa) ide van cijela")
+    for r in in_song:
+        print(f"Izričito izrezan dio pjesme: izvor {fmt_time(r['od'])}-{fmt_time(r['do'])}")
 
+    if new_dur <= 0.1:
+        die("nakon ovoga u videu ne bi ostalo ništa")
     if naredba == "makni":
         for lo, hi in ranges:
             part = [w for w in picked if inside(w, lo, hi)]
             if part:
                 print(f"Makni {fmt_time(lo)}-{fmt_time(hi)}: stvarno {fmt_time(part[0]['s'])}-{fmt_time(part[-1]['e'])}, "
                       f"{n_rijeci(len(part))}: „{excerpt(part)}“")
-    else:
+    elif picked:
         print(f"Zadrži samo: „{excerpt(picked)}“ ({fmt_time(picked[0]['s'])}-{fmt_time(picked[-1]['e'])})")
         print(f"Ide van {len(shown)} riječi: „{excerpt(shown)}“")
+    else:
+        print(f"Zadrži samo pjesmu: {', '.join(keep_songs)}; ide van {len(shown)} riječi")
     print(f"Trajanje: {fmt_time(cur_dur)} → {fmt_time(new_dur)} (−{cur_dur - new_dur:.1f} s), rezova u izvornom videu: {len(new)}")
     if a.proba:
         print("(proba: edit.json nije promijenjen)")
