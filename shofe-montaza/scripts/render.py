@@ -312,7 +312,38 @@ def chunk_words(ws, st):
 
 
 # ---------------------------------------------------------------- titlovi
-def write_ass(path, ws, st, edit, W, H, total):
+def split_spans(izvor, cuts):
+    """Uspravni izvor podcasta: gdje je u gotovom videu (prije `brzina`) podijeljen kadar (gore/dolje) →
+    [(od, do)]. Vrijeme kadrova u izvor["kadrovi"] je vrijeme programa (source.mp4)."""
+    shots = [(float(k["od"]), float(k["do"])) for k in (izvor or {}).get("kadrovi") or []
+             if k.get("raspored") == "dvoje"]
+    out = []
+    for c in cuts:
+        for a, b in shots:
+            lo, hi = max(a, c["a"]), min(b, c["b"])
+            if hi - lo > 1e-3:
+                s, e = c["o"] + lo - c["a"], c["o"] + hi - c["a"]
+                if out and s - out[-1][1] < 1e-3:
+                    out[-1] = (out[-1][0], e)
+                else:
+                    out.append((s, e))
+    return out
+
+
+def split_at(s, e, spans):
+    """Događaj titla [s, e] razdijeljen na granicama podijeljenog kadra → [(s, e, na_spoju)]."""
+    cuts_t = sorted({x for a, b in spans for x in (a, b) if s + 1e-3 < x < e - 1e-3})
+    pts = [s, *cuts_t, e]
+    out = []
+    for a, b in zip(pts, pts[1:]):
+        m = (a + b) / 2
+        out.append((a, b, any(x <= m < y for x, y in spans)))
+    return out
+
+
+def write_ass(path, ws, st, edit, W, H, total, spoj=()):
+    """spoj = [(od, do)] u vremenu gotovog videa gdje je podijeljen kadar: titlovi idu na spoj (sredina
+    visine, između gornjeg i donjeg lica), inače bi stajali preko usta donje osobe."""
     portrait = H > W
     scale = min(W, H) / 1080 * (1.0 if portrait else 0.8)
     fs = round(st["velicina"] * scale)
@@ -400,6 +431,16 @@ def write_ass(path, ws, st, edit, W, H, total):
         *styles, "", "[Events]",
         "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
     ]
+    if spoj:
+        seam = f"{{\\an5\\pos({W // 2},{H // 2})}}"
+        moved = []
+        for layer, s, e, sty, txt in ev:
+            if sty != "Cap":
+                moved.append((layer, s, e, sty, txt))
+                continue
+            for a, b, na_spoju in split_at(s, e, spoj):
+                moved.append((layer, a, b, sty, seam + txt if na_spoju else txt))
+        ev = moved
     for layer, s, e, sty, txt in sorted(ev, key=lambda x: x[1]):
         lines.append(f"Dialogue: {layer},{ass_time(s)},{ass_time(e)},{sty},,0,0,0,,{txt}")
     Path(path).write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -498,7 +539,7 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     for f in FONTS_DIR.glob("*.ttf"):
         if not (fdir / f.name).exists():
             shutil.copy2(f, fdir / f.name)
-    write_ass(proj / "captions.ass", ws, st, edit, W, H, total)
+    write_ass(proj / "captions.ass", ws, st, edit, W, H, total, spoj=split_spans(izvor, cuts))
     subs = "subtitles=filename=captions.ass:fontsdir=fonts"
     grade = GRADES.get(st.get("boja_slike", "neutralno"), GRADES["neutralno"])
     factor, zr = zoom_ranges(cuts, st)
