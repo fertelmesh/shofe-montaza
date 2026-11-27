@@ -6,6 +6,8 @@
   python objava.py shofe_projekt --serija "SF klima"   potpis i stalni hashtagovi serije
   python objava.py shofe_projekt --mreze instagram,youtube
   python objava.py shofe_projekt --ispis         ispiši gotove tekstove
+  python objava.py shofe_projekt epizoda         podcast epizoda (gledana verzija): YouTube opis s poglavljima
+                                                 + naslov i opis za podcast platforme (Spotify, Apple…)
 
   python objava.py serija                        popis serija (Markove stalne postavke)
   python objava.py serija "SF klima" --hashtagovi "#sfklima,#kutina" --potpis "SF klima Kutina · 091 …"
@@ -16,6 +18,11 @@ napravi objava.json s kontekstom (govor iz SRT-a, hook, naslov isječka), provje
 (duljina, najviše 5 hashtagova na Instagramu i TikToku, < > na YouTubeu, prvi redak, brojevi kojih
 nema u govoru…) i složi gotov tekst za kopiranje u `<video>.objava.txt` uz video i `objava.txt`
 u projektu. Izlazni kod 1 dok nešto fali ili ne valja.
+
+Epizoda (M4.4b): vodoravni video ≥ 3 min s temama dobije poglavlja na kraju YouTube opisa (Shofe ih dodaje
+sam, iz epizoda.py); epizoda podcasta (više kamera, nastupi, MP3 ili `epizoda`) još i „podcast": naslov i
+opis epizode za Spotify for Creators / Apple Podcasts, s poglavljima u Spotifyjevu obliku (≥ 30 s), bez
+hashtagova.
 """
 import argparse
 import hashlib
@@ -29,11 +36,23 @@ from sadrzaj import fold
 DATOTEKA = "objava.json"
 SERIJE = "objava_serije.json"
 MREZE = ("instagram", "tiktok", "youtube")
-IME_MREZE = {"instagram": "Instagram", "tiktok": "TikTok", "youtube": "YouTube"}
+PODCAST = "podcast"
+SVE_MREZE = MREZE + (PODCAST,)
+IME_MREZE = {"instagram": "Instagram", "tiktok": "TikTok", "youtube": "YouTube", PODCAST: "Podcast"}
 SHORTS_MAX = 180.0  # YouTube Shorts: do 3 min uspravno ili kvadratno
+POGLAVLJA_OD = 180.0  # vodoravni video od 3 min s temama: poglavlja u YouTube opisu
+
+# Podcast platforme (provjereno studeni 2026, izvori u ODLUKE.md)
+PODCAST_NASLOV_MAX = 150      # Apple Podcasts Connect: Name do 150 znakova
+PODCAST_OPIS_MAX = 4000       # najstroži host (Spotify for Creators / RSS.com 4000; Apple 10 000)
+PODCAST_POGLAVLJE_MIN = 30.0  # Spotify: poglavlja iz opisa najmanje 30 s razmaka, barem 3
+PODCAST_POGLAVLJE_NASLOV = 40  # Spotify: naslov poglavlja do 40 znakova (Apple preporuča 45)
+VRIJEME_RED_RE = re.compile(r"^\s*\(?\d{1,2}:\d{2}(?::\d{2})?\)?\s+\S", re.MULTILINE)
+BROJ_EPIZODE_RE = re.compile(r"(#\s*\d+|\b(?:ep|epizoda|epizode|episode)\.?\s*(?:br\.?\s*)?\d+|\b\d+\.\s*epizod\w*)",
+                             re.IGNORECASE)
 
 # Ograničenja mreža (provjereno studeni 2026, izvori u ODLUKE.md)
-MAX_OPIS = {"instagram": 2200, "tiktok": 4000, "youtube": 5000}
+MAX_OPIS = {"instagram": 2200, "tiktok": 4000, "youtube": 5000, PODCAST: PODCAST_OPIS_MAX}
 MAX_HASH = {"instagram": 5, "tiktok": 5, "youtube": 60}   # IG od 12/2025, TikTok od 8/2025; YT >60 → sve zanemari
 PREPORUKA_HASH = {"instagram": (3, 5), "tiktok": (3, 5), "youtube": (1, 5)}  # YT: prva 3 iznad naslova
 YT_NASLOV_MAX = 100
@@ -142,8 +161,9 @@ def cmd_serija(a):
         s["hashtagovi"] = h
     if a.potpis is not None:
         mreza = a.mreza or "sve"
-        if mreza != "sve" and mreza not in MREZE:
-            raise Greska(f"nepoznata mreža '{a.mreza}' ({', '.join(MREZE)})")
+        mreza = {"spotify": PODCAST, "apple": PODCAST}.get(fold(mreza), mreza)
+        if mreza != "sve" and mreza not in SVE_MREZE:
+            raise Greska(f"nepoznata mreža '{a.mreza}' ({', '.join(SVE_MREZE)})")
         if a.potpis.strip():
             s["potpis"][mreza] = a.potpis.replace("\\n", "\n").strip()
         else:
@@ -201,10 +221,20 @@ def _trajanje(path, poznato=None):
         return 0.0
 
 
-def zadane_mreze(fmt, trajanje):
+def zadane_mreze(fmt, trajanje, vrsta=None):
+    if vrsta == "epizoda":
+        return ["youtube", PODCAST]
     if fmt == "16:9" or trajanje > SHORTS_MAX:
         return ["youtube"]
     return list(MREZE)
+
+
+OZNAKE_EPIZODE = ("sinkro.json", "rezija.json", "epizoda.json", "nastupi.json")
+
+
+def je_epizoda(proj, fmt, trajanje):
+    """Vodoravna epizoda podcasta: ≥ 3 min i projekt s više kamera / režijom / nastupima / MP3 postavkama."""
+    return fmt == "16:9" and trajanje >= POGLAVLJA_OD and any((Path(proj) / f).exists() for f in OZNAKE_EPIZODE)
 
 
 def videi_isjecaka(proj, spec=None):
@@ -259,7 +289,7 @@ def video_reela(proj, v=None):
             hook = load_json(ep).get("hook") or ""
         except (OSError, ValueError):
             pass
-    return {"id": Path(f).stem.replace("_pregled", ""), "vrsta": "reel", "video": f,
+    return {"id": Path(f).stem.replace("_pregled", ""), "vrsta": "reel", "video": f, "v": v,
             "trajanje": _trajanje(Path(proj) / f, info.get("trajanje")), "hook": hook, "naslov": "",
             "razlog": "", "brzo": bool(info.get("brzi_pregled"))}
 
@@ -273,6 +303,12 @@ def odaberi_videe(proj, cilj):
         return videi_isjecaka(proj)
     if c in ("isjecci", "isjecke", "sve"):
         return videi_isjecaka(proj)
+    if c in ("epizoda", "epizodu", "podcast"):
+        r = video_reela(proj)
+        if not r:
+            raise Greska("nema renderirane epizode — prvo render.py (epizoda se opisuje iz gotovog videa)")
+        r["vrsta"] = "epizoda"
+        return [r]
     if c in ("reel", "video"):
         r = video_reela(proj)
         if not r:
@@ -285,7 +321,54 @@ def odaberi_videe(proj, cilj):
 
 
 def prazna_mreza(m):
+    if m == PODCAST:
+        return {"naslov": "", "opis": "", "broj": ""}
     return {"naslov": "", "opis": "", "hashtagovi": []} if m == "youtube" else {"opis": "", "hashtagovi": []}
+
+
+GOVOR_KRATKO = 1500   # epizoda: početak govora u objava.json, cijeli tekst je u SRT-u
+
+
+def kontekst_epizode(proj, v, epizoda_je):
+    """Poglavlja (YouTube ≥ 10 s, podcast ≥ 30 s), teme, pjesme i govornici gotove verzije v. → (dict, upozorenja)."""
+    import epizoda
+    proj = Path(proj)
+    out, upoz = {}, []
+    try:
+        edit = epizoda.odaberi(proj, v)[0]
+        ch, final, _ = epizoda.poglavlja_za(proj, edit)
+        out["poglavlja_youtube"] = epizoda.youtube_tekst(ch, final) if len(ch) >= epizoda.MIN_BROJ else ""
+        if epizoda_je:
+            chp, _, _ = epizoda.poglavlja_za(proj, edit, PODCAST_POGLAVLJE_MIN)
+            out["poglavlja_podcast"] = epizoda.podcast_tekst(chp, final) if len(chp) >= epizoda.MIN_BROJ else ""
+            if len(chp) < epizoda.MIN_BROJ:
+                upoz.append(f"samo {poglavlja(len(chp))} od ≥ 30 s — Spotify ih iz opisa prikaže tek od 3; "
+                            "opis epizode ide bez poglavlja")
+            duga = [c["naslov"] for c in chp if len(c["naslov"]) > PODCAST_POGLAVLJE_NASLOV]
+            if duga:
+                upoz.append(f"poglavlje „{duga[0]}” ima > {PODCAST_POGLAVLJE_NASLOV} znakova — Spotify ga skraćuje; "
+                            "skrati naslov teme u analiza.json")
+        if len(ch) < epizoda.MIN_BROJ:
+            upoz.append(f"samo {poglavlja(len(ch))} — YouTube ih prikazuje tek od 3, opis ide bez poglavlja"
+                        + ("" if ch else " (u analiza.json nema tema: Claude ih treba upisati)"))
+        an = epizoda.load_json(proj / "analiza.json") if (proj / "analiza.json").exists() else {}
+        out["teme"] = [{"naslov": t.get("naslov", ""), "sazetak": t.get("sazetak", "")}
+                       for t in an.get("teme") or [] if isinstance(t, dict)]
+        out["pjesme"] = [n.get("naziv") or n.get("id", "pjesma") for n in edit.get("nastupi") or []
+                         if n.get("zadrzi", True)]
+        out["govornici"] = [g.get("ime") or g.get("id") for g in an.get("govornici") or []]
+    except SystemExit:
+        upoz.append("poglavlja nisu izračunata (nema transcript.json/project.json te verzije)")
+    except Exception as ex:   # opis je važniji od poglavlja
+        upoz.append(f"poglavlja nisu izračunata: {ex}")
+    if epizoda_je:
+        import epizoda as _e
+        cfg = _e.postavke(proj)
+        mp3 = (proj / f"reel_v{v}.mp3")
+        out["mp3"] = mp3.name if mp3.exists() else ""
+        out["mp3_naslov"] = cfg.get("naslov") or ""
+        out["podcast_ime"] = cfg.get("autor") or _e.ZADANI_AUTOR
+    return out, upoz
 
 
 def ucitaj(proj):
@@ -311,19 +394,38 @@ def uskladi(proj, d, videi, mreze=None):
         h = hashlib.sha1(tekst.encode("utf-8")).hexdigest()[:12]
         e = d["videi"].setdefault(v["id"], {})
         old_h = e.get("tekst_hash")
+        if v["vrsta"] == "reel" and (e.get("vrsta") == "epizoda" or je_epizoda(proj, fmt, v["trajanje"])):
+            v["vrsta"] = "epizoda"
         e.update({"video": v["video"], "vrsta": v["vrsta"], "trajanje": v["trajanje"], "format": fmt,
                   "hook": v["hook"]})
+        for k in ("poglavlja_youtube", "poglavlja_podcast", "teme", "pjesme", "govornici", "mp3", "mp3_naslov",
+                  "podcast_ime", "brojevi_govora"):
+            e.pop(k, None)
+        if v.get("v") is not None and (v["vrsta"] == "epizoda" or (fmt == "16:9" and v["trajanje"] >= POGLAVLJA_OD)):
+            ctx, up = kontekst_epizode(proj, v["v"], v["vrsta"] == "epizoda")
+            e.update(ctx)
+            upoz += [f"{v['id']}: {u}" for u in up]
+        if v["vrsta"] == "epizoda" and len(tekst) > GOVOR_KRATKO:
+            e["brojevi_govora"] = sorted(_brojevi_u_govoru(tekst), key=lambda x: (len(x), x))
+            cut = tekst.rfind(" ", 0, GOVOR_KRATKO)
+            tekst_kratko = tekst[:cut if cut > 0 else GOVOR_KRATKO] + \
+                f" … (početak; cijeli govor: {Path(v['video']).with_suffix('.srt').name} ili transcript.txt)"
+        else:
+            tekst_kratko = tekst
         if v.get("naslov"):
             e["naslov_isjecka"] = v["naslov"]
         if v.get("razlog"):
             e["razlog"] = v["razlog"]
         if v.get("pjesma") and not tekst.strip():
-            tekst = f"(isječak iz pjesme „{v['pjesma']}“ — nastup benda uživo, bez govora)"
-        e["govor"] = tekst
+            tekst_kratko = f"(isječak iz pjesme „{v['pjesma']}“ — nastup benda uživo, bez govora)"
+        e["govor"] = tekst_kratko
         e["tekst_hash"] = h
         if mreze:
             e["mreze_popis"] = list(mreze)
-        e.setdefault("mreze_popis", zadane_mreze(fmt, v["trajanje"]))
+            e["mreze_izabrane"] = True
+        elif v["vrsta"] == "epizoda" and not e.get("mreze_izabrane") and PODCAST not in e.get("mreze_popis", []):
+            e["mreze_popis"] = zadane_mreze(fmt, v["trajanje"], "epizoda")   # reel koji je postao epizoda
+        e.setdefault("mreze_popis", zadane_mreze(fmt, v["trajanje"], v["vrsta"]))
         e.setdefault("mreze", {})
         for m in e["mreze_popis"]:
             e["mreze"].setdefault(m, prazna_mreza(m))
@@ -338,7 +440,7 @@ def uskladi(proj, d, videi, mreze=None):
 
 
 def ispunjeno(e):
-    return any((e.get("mreze") or {}).get(m, {}).get("opis") for m in MREZE)
+    return any((e.get("mreze") or {}).get(m, {}).get("opis") for m in SVE_MREZE)
 
 
 # ---------------------------------------------------------------- slaganje i provjera
@@ -350,6 +452,15 @@ def slozi(e, m, serija):
     """Gotov tekst za mrežu m: (naslov ili None, opis s potpisom i hashtagovima, popis hashtagova)."""
     n = (e.get("mreze") or {}).get(m) or {}
     opis = (n.get("opis") or "").strip()
+    if m == PODCAST:     # podcast platforme: opis + poglavlja + potpis, bez hashtagova
+        dijelovi = [opis] if opis else []
+        if e.get("poglavlja_podcast"):
+            dijelovi.append("Poglavlja:\n" + e["poglavlja_podcast"].strip())
+        pot = potpis_za(serija, m)
+        if pot:
+            dijelovi.append(pot)
+        full = "\n\n".join(dijelovi)
+        return (n.get("naslov") or "").strip(), full, hashtagovi_u(full)
     vlastiti = parse_hashtagovi(n.get("hashtagovi") or [])
     stalni = parse_hashtagovi((serija or {}).get("hashtagovi") or [])
     u_opisu = {h.lower() for h in hashtagovi_u(opis)}
@@ -359,6 +470,8 @@ def slozi(e, m, serija):
             seen.add(h.lower())
             tagovi.append(h)
     dijelovi = [opis] if opis else []
+    if m == "youtube" and e.get("poglavlja_youtube"):
+        dijelovi.append("Poglavlja:\n" + e["poglavlja_youtube"].strip())
     pot = potpis_za(serija, m)
     if pot:
         dijelovi.append(pot)
@@ -407,6 +520,10 @@ def _brojevi_u_govoru(govor):
     return out
 
 
+def poglavlja(n):
+    return f"{n} poglavlje" if n % 10 == 1 and n % 100 != 11 else f"{n} poglavlja"
+
+
 def hashtaga(n):
     if n % 10 == 1 and n % 100 != 11:
         return f"{n} hashtag"
@@ -415,22 +532,71 @@ def hashtaga(n):
     return f"{n} hashtagova"
 
 
+def _vremena_u_opisu(e, m, opis, gr, up):
+    """Poglavlja dodaje Shofe: vremena koja je Claude sam napisao bila bi kriva nakon svake promjene montaže."""
+    if not VRIJEME_RED_RE.search(opis or ""):
+        return
+    ima = e.get("poglavlja_podcast" if m == PODCAST else "poglavlja_youtube")
+    if ima:
+        gr.append(f"{IME_MREZE[m]}: u opisu su vremena (npr. „{VRIJEME_RED_RE.search(opis).group(0).strip()}…”) — "
+                  "ne piši ih, Shofe sam dodaje poglavlja iz gotovog videa")
+    elif e.get("vrsta") == "epizoda" or "poglavlja_youtube" in e:
+        up.append(f"{IME_MREZE[m]}: u opisu su vremena napisana rukom — provjeri da odgovaraju gotovom videu "
+                  "(bolje: teme u analiza.json, Shofe složi poglavlja)")
+
+
+def provjeri_podcast(e, n, naslov, full, gr, up):
+    ime = "Podcast"
+    if len(naslov) > PODCAST_NASLOV_MAX:
+        gr.append(f"{ime}: naslov epizode ima {len(naslov)} znakova, najviše {PODCAST_NASLOV_MAX} (Apple)")
+    if len(full) > PODCAST_OPIS_MAX:
+        gr.append(f"{ime}: opis ima {len(full)} znakova, najviše {PODCAST_OPIS_MAX} (Spotify for Creators)")
+    m = BROJ_EPIZODE_RE.search(naslov)
+    if m:
+        up.append(f"{ime}: broj epizode („{m.group(0)}”) je u naslovu — Apple ga želi u zasebnom polju: "
+                  "upiši ga u \"broj\" i makni iz naslova")
+    show = (e.get("podcast_ime") or "").strip()
+    if show and fold(show) in fold(naslov):
+        up.append(f"{ime}: ime podcasta „{show}” je u naslovu epizode — aplikacije ga već prikazuju iznad, "
+                  "Apple traži da se ne ponavlja")
+    b = str(n.get("broj") or "").strip()
+    if b and not re.fullmatch(r"[1-9]\d{0,4}", b):
+        gr.append(f"{ime}: broj epizode „{b}” mora biti cijeli broj veći od 0 (bez #, točke ili decimala)")
+    if hashtagovi_u(n.get("opis")):
+        up.append(f"{ime}: hashtagovi u opisu epizode — podcast aplikacije ih ne koriste, makni ih")
+    if naslov and naslov.isupper() and len(naslov) > 12:
+        up.append(f"{ime}: naslov je sav velikim slovima — istakni najviše 1–2 riječi")
+
+
 def provjeri(e, serija):
     """→ (fali, greske, upozorenja) za jedan video."""
     fali, gr, up = [], [], []
     popis = e.get("mreze_popis") or []
     opisi = {}
     govor_br = _brojevi_u_govoru(e.get("govor", "")) | _brojevi(" ".join(
-        potpis_za(serija, m) for m in MREZE)) | _brojevi(e.get("hook", "")) | _brojevi(e.get("naslov_isjecka", ""))
+        potpis_za(serija, m) for m in SVE_MREZE)) | _brojevi(e.get("hook", "")) | \
+        _brojevi(e.get("naslov_isjecka", "")) | set(e.get("brojevi_govora") or []) | \
+        _brojevi(" ".join(t.get("naslov", "") + " " + t.get("sazetak", "") for t in e.get("teme") or [])) | \
+        _brojevi(" ".join(e.get("pjesme") or []))
     for m in popis:
         n = (e.get("mreze") or {}).get(m) or {}
         ime = IME_MREZE[m]
-        if m == "youtube" and not (n.get("naslov") or "").strip():
+        if m in ("youtube", PODCAST) and not (n.get("naslov") or "").strip():
             fali.append(f"{m}.naslov")
         if not (n.get("opis") or "").strip():
             fali.append(f"{m}.opis")
             continue
         naslov, full, tags = slozi(e, m, serija)
+        _vremena_u_opisu(e, m, n.get("opis"), gr, up)
+        for polje, t in (("naslov", naslov), ("opis", n.get("opis"))):
+            if t and ZAMJENSKI_RE.search(t):
+                gr.append(f"{ime}: {polje} ima zamjenski tekst „{ZAMJENSKI_RE.search(t).group(0)}” — napiši pravi tekst")
+        for t in (naslov or "", n.get("opis") or ""):
+            for b in sorted(_brojevi(t) - govor_br - {"1", str(n.get("broj") or "").strip()}):
+                up.append(f"{ime}: broj {b} se ne čuje u videu — provjeri da je točan (ne izmišljaj cijene i brojke)")
+        if m == PODCAST:
+            provjeri_podcast(e, n, naslov, full, gr, up)
+            continue
         opisi[m] = (n.get("opis") or "").strip()
         raw = n.get("hashtagovi") or []
         gr += [f"{ime}: {g}" for g in provjeri_hashtagove(parse_hashtagovi(raw) + hashtagovi_u(n.get("opis")))]
@@ -449,9 +615,6 @@ def provjeri(e, serija):
         if m in ("instagram", "tiktok") and len(prvi) > PRVI_REDAK:
             up.append(f"{ime}: prvi redak ima {len(prvi)} znakova — vidi se samo ~{PRVI_REDAK} prije „više”; "
                       "skrati ga ili prelomi redak iza glavne misli")
-        for polje, t in (("naslov", naslov), ("opis", n.get("opis"))):
-            if t and ZAMJENSKI_RE.search(t):
-                gr.append(f"{ime}: {polje} ima zamjenski tekst „{ZAMJENSKI_RE.search(t).group(0)}” — napiši pravi tekst")
         if m == "youtube":
             if naslov and len(naslov) > YT_NASLOV_MAX:
                 gr.append(f"YouTube: naslov ima {len(naslov)} znakova, najviše {YT_NASLOV_MAX}")
@@ -462,9 +625,6 @@ def provjeri(e, serija):
                 gr.append("YouTube: znakovi < i > nisu dopušteni u naslovu ni opisu")
             if naslov and naslov.isupper() and len(naslov) > 12:
                 up.append("YouTube: naslov je sav velikim slovima — djeluje kao vikanje, istakni najviše 1–2 riječi")
-        for t in (naslov or "", n.get("opis") or ""):
-            for b in sorted(_brojevi(t) - govor_br - {"1"}):
-                up.append(f"{ime}: broj {b} se ne čuje u videu — provjeri da je točan (ne izmišljaj cijene i brojke)")
         dij = [h for h in tags if re.search(r"[čćšžđ]", h.lower())]
         if dij:
             up.append(f"{ime}: {' '.join(dij)} — hashtag s kvačicama; provjeri koji oblik ljudi stvarno koriste "
@@ -496,8 +656,24 @@ def tekst_datoteke(vid, e, serija, proj=None):
             lines.insert(-1, f"Naslovna sličica ({za}): {ime}")
     for m in e.get("mreze_popis") or []:
         naslov, full, tags = slozi(e, m, serija)
+        if m == PODCAST:
+            n = (e.get("mreze") or {}).get(m) or {}
+            lines += ["=== PODCAST PLATFORME (Spotify for Creators, Apple Podcasts…) ===", "Naslov epizode:",
+                      "-" * 40, naslov, "-" * 40]
+            if str(n.get("broj") or "").strip():
+                lines += [f"Broj epizode (zasebno polje „Episode number”): {str(n['broj']).strip()}"]
+            lines += ["Opis epizode:", "-" * 40, full, "-" * 40,
+                      f"({len(full)}/{PODCAST_OPIS_MAX} znakova"
+                      + (", poglavlja iz opisa vidi Spotify" if e.get("poglavlja_podcast") else "") + ")"]
+            if e.get("mp3"):
+                lines += [f"Zvuk: {e['mp3']} (poglavlja su već u MP3-u za Apple Podcasts i ostale aplikacije)"]
+            else:
+                lines += ["Zvuk: MP3 još nije napravljen — epizoda.py <projekt> mp3"]
+            lines.append("")
+            continue
         if m == "youtube":
-            vrsta = "Shorts" if e.get("format") != "16:9" and e["trajanje"] <= SHORTS_MAX else "video"
+            vrsta = ("Shorts" if e.get("format") != "16:9" and e["trajanje"] <= SHORTS_MAX else
+                     "epizoda" if e.get("vrsta") == "epizoda" else "video")
             lines += [f"=== YOUTUBE ({vrsta}) ===", "Naslov:", "-" * 40, naslov, "-" * 40, "Opis:"]
         else:
             lines += [f"=== {IME_MREZE[m].upper()} ==="]
@@ -529,8 +705,23 @@ def napisi(proj, d, ids, serija):
 def opis_videa(vid, e, serija, d_serija_ime):
     m = e.get("mreze_popis") or []
     yt = ("YouTube Shorts" if e.get("format") != "16:9" and e["trajanje"] <= SHORTS_MAX else "YouTube")
-    mreze = ", ".join(yt if x == "youtube" else IME_MREZE[x] for x in m)
-    lines = [f"{vid}  {e['video']}  {e['trajanje']:.0f} s  {e.get('format')}  → {mreze}"]
+    ime = {"youtube": yt, PODCAST: "podcast platforme (Spotify, Apple…)"}
+    mreze = ", ".join(ime.get(x, IME_MREZE[x]) for x in m)
+    lines = [f"{vid}  {e['video']}  {e['trajanje']:.0f} s  {e.get('format')}"
+             + ("  EPIZODA" if e.get("vrsta") == "epizoda" else "") + f"  → {mreze}"]
+    if e.get("podcast_ime"):
+        lines.append(f"  podcast: {e['podcast_ime']}" + (f"; naslov u MP3: {e['mp3_naslov']}" if e.get("mp3_naslov") else ""))
+    if e.get("govornici"):
+        lines.append(f"  govornici: {', '.join(e['govornici'])}")
+    if e.get("teme"):
+        lines.append("  teme: " + " · ".join(t["naslov"] + (f" ({t['sazetak']})" if t.get("sazetak") else "")
+                                           for t in e["teme"]))
+    if e.get("pjesme"):
+        lines.append(f"  pjesme: {', '.join(e['pjesme'])}")
+    if e.get("poglavlja_youtube"):
+        lines.append("  poglavlja (Shofe ih dodaje sam na kraj YouTube" + (" i podcast" if e.get("poglavlja_podcast")
+                                                                         else "") + " opisa — ne piši vremena):")
+        lines += [f"    {x}" for x in e["poglavlja_youtube"].strip().splitlines()]
     if e.get("naslov_isjecka"):
         lines.append(f"  naslov isječka: {e['naslov_isjecka']}")
     if e.get("hook"):
@@ -571,11 +762,12 @@ def cmd_projekt(proj, a):
     mreze = None
     if a.mreze:
         mreze = [fold(x) for x in re.split(r"[,;\s]+", a.mreze) if fold(x)]
-        alias = {"ig": "instagram", "insta": "instagram", "tt": "tiktok", "yt": "youtube", "shorts": "youtube"}
+        alias = {"ig": "instagram", "insta": "instagram", "tt": "tiktok", "yt": "youtube", "shorts": "youtube",
+                 "spotify": PODCAST, "apple": PODCAST}
         mreze = list(dict.fromkeys(alias.get(x, x) for x in mreze))
-        bad = [x for x in mreze if x not in MREZE]
+        bad = [x for x in mreze if x not in SVE_MREZE]
         if bad:
-            raise Greska(f"nepoznata mreža {', '.join(bad)} (instagram, tiktok, youtube)")
+            raise Greska(f"nepoznata mreža {', '.join(bad)} (instagram, tiktok, youtube, podcast)")
     videi = odaberi_videe(proj, a.cilj)
     upoz = uskladi(proj, d, videi, mreze)
     save_json(Path(proj) / DATOTEKA, d)
@@ -592,7 +784,7 @@ def cmd_projekt(proj, a):
             gotovi.append(vid)
     if nedovrseno:
         print(f"Tekstovi za objavu — napiši ih u {Path(proj) / DATOTEKA} "
-              f"(videi → <id> → mreze → instagram/tiktok/youtube):\n")
+              f"(videi → <id> → mreze → instagram/tiktok/youtube/podcast):\n")
         for vid, e, fali, gr in nedovrseno:
             print(opis_videa(vid, e, serija, sk))
             if fali:
@@ -600,6 +792,12 @@ def cmd_projekt(proj, a):
             for g in gr:
                 print(f"  GREŠKA: {g}")
             print()
+    for vid in ids:   # MP3 naslov = naslov epizode na podcast platformama
+        e = d["videi"][vid]
+        pn = ((e.get("mreze") or {}).get(PODCAST) or {}).get("naslov", "").strip()
+        if pn and PODCAST in (e.get("mreze_popis") or []) and pn != (e.get("mp3_naslov") or ""):
+            upoz.append(f"{vid}: naslov u MP3-u " + (f"je „{e['mp3_naslov']}”" if e.get("mp3_naslov") else "nije upisan")
+                        + f" — da bude isti kao na platformama: epizoda.py \"{proj}\" mp3 --naslov \"{pn}\"")
     for u in upoz:
         print(f"Upozorenje: {u}")
     if gotovi:
@@ -620,13 +818,14 @@ def cmd_projekt(proj, a):
 def main():
     ap = argparse.ArgumentParser(description="Tekstovi za objavu po mreži (objava.json → <video>.objava.txt)")
     ap.add_argument("projekt", help="mapa projekta, ili 'serija' za stalne postavke serija")
-    ap.add_argument("cilj", nargs="?", default="", help="isjecci | K1,K3 | reel | v3 (projekt); ime serije (serija)")
+    ap.add_argument("cilj", nargs="?", default="",
+                    help="isjecci | K1,K3 | reel | v3 | epizoda (projekt); ime serije (serija)")
     ap.add_argument("--serija", help="projekt: serija čiji se potpis i stalni hashtagovi dodaju (\"\" = bez)")
-    ap.add_argument("--mreze", help="projekt: npr. instagram,tiktok,youtube (zadano: po formatu i trajanju)")
+    ap.add_argument("--mreze", help="projekt: npr. instagram,tiktok,youtube,podcast (zadano: po vrsti videa)")
     ap.add_argument("--ispis", action="store_true", help="projekt: ispiši gotove tekstove")
     ap.add_argument("--hashtagovi", help="serija: stalni hashtagovi (najviše 3), npr. \"#sfklima,#kutina\"")
     ap.add_argument("--potpis", help="serija: redak na kraju opisa (\\n = novi red, \"\" = makni)")
-    ap.add_argument("--mreza", help="serija: potpis samo za ovu mrežu (instagram, tiktok, youtube)")
+    ap.add_argument("--mreza", help="serija: potpis samo za ovu mrežu (instagram, tiktok, youtube, podcast)")
     ap.add_argument("--napomena", help="serija: ton, publika, poziv na akciju — Claude to čita prije pisanja")
     ap.add_argument("--brisi", action="store_true", help="serija: obriši seriju")
     a = ap.parse_args()

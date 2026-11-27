@@ -336,3 +336,14 @@ Jedan unos po krugu, najnoviji na dnu.
 - Za Marka: kad imaš epizodu, reci „poglavlja za YouTube" i „napravi MP3, naslov …". Javi koji naslov i autora želiš za MP3 (zadano „Sunčani4M") i imaš li kvadratnu sliku podcasta (za MP3).
 - PR #41.
 - Sljedeće: M4.4b opis epizode (YouTube opis s poglavljima, tekst za podcast platforme).
+
+## 2026-11-27 14:00 — M4.4b opis epizode (YouTube opis s poglavljima + tekst za podcast platforme)
+- Claude Docs alati nisu bili dostupni u ovoj sesiji, izvor je `SPEC.md`. Nema otvorenog PR-a agenta (#36 je Markov). Issues #7, #18, #25, #38 bez Markova odgovora.
+- Novo u `objava.py`: `objava.py projekt epizoda` (ili sama prepoznata epizoda: vodoravni ≥ 3 min u projektu s kamerama/režijom/nastupima/MP3 postavkama) → u `objava.json` mreže `youtube` + nova `podcast` (`naslov`, `opis`, `broj`). Claude dobije kontekst umjesto sata govora: teme sa sažetkom, pjesme, govornike, poglavlja, ime podcasta, MP3 i početak govora (brojevi iz cijelog govora vrijede za provjeru).
+- **Poglavlja dodaje Shofe sam**: na kraj YouTube opisa blok „Poglavlja:" (≥ 10 s), na kraj opisa za podcast Spotifyjev oblik (`MM:SS`/`HH:MM:SS`, ≥ 30 s, samo kad ih je ≥ 3). Vremena koja Claude sam upiše = greška. Svaki vodoravni video ≥ 3 min s temama dobije poglavlja u YouTube opisu.
+- Pravila podcasta: naslov ≤ 150, opis ≤ 4000, upozorenje za broj epizode ili ime podcasta u naslovu (Apple: zasebna polja), broj epizode cijeli broj, bez hashtagova, naslov poglavlja ≤ 40. Potpis serije ide i na podcast (`--mreza podcast` ili `spotify`). Ako MP3 ima drugi naslov, ispiše se naredba za novi MP3. `epizoda.py` dobio `podcast_tekst`. Verzija 0.31.0. SKILL.md, README, ODLUKE.md.
+- Provjera: probna epizoda s bendom → `reel_v1.objava.txt` pročitan: YouTube opis (Claudeov tekst → Poglavlja 00:00/00:17 Pjesma/01:06/01:27 → hashtagovi), podcast naslov, „Broj epizode: 12", opis bez hashtagova; naslov „Sunčani4M #12: …" dobije oba upozorenja.
+- Testovi: novi `tests/test_objava_epizoda.py` (6: kostur i kontekst epizode, gotov tekst i redoslijed, drugi poziv bez dupliranja; samo prepoznata epizoda i dugi video bez oznaka (samo YouTube s poglavljima), MP3 s drugim naslovom; pravila podcasta i ručna vremena; potpis serije samo za Spotify; Spotifyjev oblik vremena i spajanje < 30 s; provjera brojeva iz cijelog govora i tema). `test_objava.py` bez promjene prolazi. Lokalno 348 prošlo, 4 preskočena (modeli nisu u sandboxu); usput uhvaćeno da isječak pjesme gubi oznaku „bez govora” — popravljeno prije PR-a.
+- Za Marka: kad imaš epizodu, reci „napiši opis epizode" — dobiješ YouTube naslov/opis s poglavljima i naslov/opis za Spotify/Apple u jednoj datoteci za kopiranje. Javi koji je broj sljedeće epizode i želiš li stalni potpis za Sunčani4M (npr. „Slušaj nas svaki petak").
+- PR #42.
+- Sljedeće: M4.4c intro/outro/špice.
