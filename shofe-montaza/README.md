@@ -213,6 +213,8 @@ Kad u autu svira bend, Shofe pjesmu pronađe sam (prvi put skine mali model od 6
 
 Naredba „makni 3:10–3:20" koja pada usred pjesme ne reže pjesmu (Shofe javi da pjesma ostaje cijela); dio koji pokriva cijelu pjesmu makne je cijelu. Ako stvarno želiš izrezati dio pjesme (npr. solo), reci to izričito: `izreži solo iz pjesme od 3:10 do 3:40`. „Skrati na N minuta" skraćuje samo razgovor, a isječci za mreže nikad ne idu preko pjesme.
 
+Kamera za vrijeme pjesme (podcast): Shofe ne prati „govornika" (pjevanje nije razgovor) nego režira kao koncert — pjesma počne i završi u **širokom kadru**, a između se široki kadar izmjenjuje s vašim kamerama, **sporo** (prosječno 8 sekundi po kadru, nikad kraće od 4). Shofe izmjeri tempo pjesme i reže **na udarac, na početku takta**, pa rezovi idu u ritmu. Nakon što Shofe nađe pjesme, Claude još jednom pokrene režiju epizode. Reci npr. `sporiji rezovi u pjesmi` ili `cijela pjesma u širokom kadru`. U DaVinciju svaka pjesma ima oznaku cijelom duljinom („Pjesma P1: naziv"), a zvuk pjesme je na **svojoj traci** ispod govora (A1 govor, A2 pjesma), pa pjesmu možeš obraditi kao glazbu, a razgovor kao govor.
+
 Glasnoću pjesme Shofe namjesti sam: izmjeri koliko je glasan razgovor, a koliko svaka pjesma, i pjesmu pojača ili stiša tako da bude **jednako glasna kao razgovor** (bend u autu zna biti puno glasniji od vas). Pjesma pritom zadrži svoje tiše i glasnije dijelove — ne „pumpa". Cijeli video je na −14 LUFS, kao što traže mreže. Pri renderu napiše npr. „Glasnoća P1: u snimci 5,4 LU glasnija od govora → stišana". Ako ti se ne sviđa, reci npr. `pjesma neka bude malo glasnija` (2 LU) ili točno `pjesma 1 glasnija za 3`.
 
 ## Stilovi
