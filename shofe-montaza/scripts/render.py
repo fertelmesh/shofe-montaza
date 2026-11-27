@@ -777,7 +777,7 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     else:
         g.append(f"{atail}loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000{fades}{alab}")
     if sp_r:  # uvodna (iza najave ili na početku) i odjavna špica u istom prolazu kodiranja
-        sg, sin = spica.graf(sp_r, sp_files, sum(1 for x in inputs if str(x) == "-i"), brzo, W)
+        sg, sin = spica.graf(sp_r, sp_files, sum(1 for x in inputs if str(x) == "-i"), brzo, W, fps, speed)
         g += sg
         inputs += sin
 
@@ -816,9 +816,8 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
         import prijevod  # engleski (ili drugi) titlovi, ako ih projekt već prevodi
         translated = prijevod.for_render(proj, cues, out)
     import davinci  # timeline za DaVinci Resolve s istim rezovima (originalne snimke)
-    resolve_lines = davinci.for_render(proj, edit_raw, out, izvor=izvor)
-    if sp_r and resolve_lines:
-        resolve_lines.append("  (DaVinci timeline je još bez špice — dodaj je ručno na početak/kraj)")
+    resolve_lines = davinci.for_render(proj, edit_raw, out, izvor=izvor, glavni=not izlaz and izvor is None,
+                                       spica={"r": sp_r, "files": sp_files} if sp_r else None)
     if not izlaz and not brzo:  # epizoda / dulji YouTube video s temama: poglavlja uz video
         import epizoda
         resolve_lines += epizoda.for_render(proj, edit_raw, out, W, H, final)

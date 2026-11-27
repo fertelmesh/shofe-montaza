@@ -357,8 +357,10 @@ def pripremi(proj, edit, W, H, fps, boja="#FF7A00", ispis=True):
 
 
 # ---------------------------------------------------------------- render
-def graf(r, files, n_inputs, brzo, W):
-    """Filteri koji glavni [vout]/[aout] spoje sa špicama → (filteri, ulazni argumenti, oznake)."""
+def graf(r, files, n_inputs, brzo, W, fps=None, speed=1.0):
+    """Filteri koji glavni [vout]/[aout] spoje sa špicama → (filteri, ulazni argumenti, oznake).
+    Slika se reže četvrt sličice prije točke (trim točno na vremenu sličice zna zbog zaokruživanja uzeti
+    sličicu više, a concat bi onda zvuk iza špice pomaknuo za tu sličicu)."""
     g, inputs = [], []
     k = n_inputs
     segs = []
@@ -376,8 +378,9 @@ def graf(r, files, n_inputs, brzo, W):
     if files.get("uvod") and at > 0:
         g.append("[vm]split=2[vm1][vm2]")
         g.append("[am]asplit=2[am1][am2]")
-        g.append(f"[vm1]trim=end={at:.4f},setpts=PTS-STARTPTS[p1v]")
-        g.append(f"[vm2]trim=start={at:.4f},setpts=PTS-STARTPTS[p2v]")
+        vt = at - (0.25 / (float(fps) * float(speed)) if fps else 0.0)   # slika prije brzine ima fps × brzina
+        g.append(f"[vm1]trim=end={vt:.6f},setpts=PTS-STARTPTS[p1v]")
+        g.append(f"[vm2]trim=start={vt:.6f},setpts=PTS-STARTPTS[p2v]")
         g.append(f"[am1]atrim=end={at:.4f},asetpts=PTS-STARTPTS[p1a]")
         g.append(f"[am2]atrim=start={at:.4f},asetpts=PTS-STARTPTS[p2a]")
         segs += ["[p1v][p1a]", "[sp_uvod_v][sp_uvod_a]", "[p2v][p2a]"]

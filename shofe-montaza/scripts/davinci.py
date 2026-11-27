@@ -30,6 +30,13 @@ cijela skupina u širini (FCPXML nema prenosivo zamućenje, pa je pozadina oštr
 Pjesme (nastupi bendova, nastupi.py, M4.3b2): svaka pjesma koja ostaje u videu ima oznaku (marker) cijelom duljinom
 „Pjesma P1: naziv", a njezin zvuk ide na vlastitu traku ispod govora (A2, uloga music), pa se u DaVinciju pjesma
 obrađuje za glazbu, a govor za govor. Pozadinska glazba tada ide traku niže (A3).
+
+Špice i poglavlja epizode (M4.4d): uvodna špica (spica.py) je klip na glavnoj traci točno tamo gdje je u Shofeovu
+videu (kadar na toj točki se podijeli, sve iza se pomakne; glazba i zvuk ispod ne prelaze preko špice), odjavna na
+kraju. Markova datoteka ide kao original (cijela slika, Fit), generirana kartica kao spica/<ime>.mov. Poglavlja
+(epizoda.py, iste kao u YouTube opisu) su chapter-marker oznake u timelineu, a uz timeline ide i
+reel_vN.poglavlja.edl: u DaVinciju desni klik na timeline u Media Poolu > Timelines > Import > Timeline Markers from
+EDL → zelene oznake; Deliver > „Chapters from Markers" (boja Green) ih upiše kao poglavlja u MP4/MOV.
 """
 import argparse
 import re
@@ -39,6 +46,8 @@ from fractions import Fraction
 from pathlib import Path, PureWindowsPath
 
 from common import GRADES, die, ffmpeg, fmt_time, load_json, probe, run
+
+EDL_BOJA = "ResolveColorGreen"   # boja oznaka poglavlja (DaVinci: Deliver > Chapters from Markers > Green)
 
 FCPXML_VERSION = "1.10"   # DaVinci Resolve 18+ uvozi 1.10 (17 samo do 1.8/1.9)
 COMMON_RATES = [Fraction(15), Fraction(24000, 1001), Fraction(24), Fraction(25), Fraction(30000, 1001), Fraction(30),
@@ -444,10 +453,106 @@ def loudness(path):
         return None
 
 
+# ---------------------------------------------------------------- špice i poglavlja (M4.4d)
+def split_pieces_at(pieces, out_frames, frame, speed, fps):
+    """Podijeli kadar koji sadrži sličicu `frame` gotovog videa (prije špice) → (kadrovi, indeks prvog kadra
+    od `frame` nadalje). Drugi dio nastavlja u istoj snimci (src, out, prog, ostale kamere)."""
+    res, idx = [], None
+    for p, (o, n) in zip(pieces, out_frames):
+        if idx is None and o < frame < o + n:
+            k = frame - o
+            f1 = max(1, min(p["frames"] - 1, round(k * speed) if speed != 1 else k))
+            a = dict(p, frames=f1)
+            b = dict(p, frames=p["frames"] - f1, src=p["src"] + Fraction(f1, fps), out=p["out"] + f1)
+            if "prog" in p:
+                b["prog"] = p["prog"] + f1
+            if "alts" in p:
+                b["alts"] = [(j, s + Fraction(f1, fps)) for j, s in p["alts"]]
+            if "cut" in p:   # zvuk ispod ide po komadima istog reza: drugi dio je novi komad (iza špice)
+                b["cut"] = (p["cut"], "iza_spice")
+            res += [a, b]
+            idx = len(res) - 1
+            continue
+        if idx is None and o >= frame:
+            idx = len(res)
+        res.append(p)
+    return res, (len(res) if idx is None else idx)
+
+
+def frames_of(pieces, speed):
+    out, t = [], 0
+    for p in pieces:
+        n = max(1, round(p["frames"] / speed)) if speed != 1 else p["frames"]
+        out.append((t, n))
+        t += n
+    return out, t
+
+
+def spica_media(proj, path):
+    """Generirana špica (_tmp/spica_*.mkv) → spica/<ime>.mov u projektu (isti sadržaj, bez ponovnog kodiranja):
+    DaVinci MOV uvozi uvijek, a _tmp se smije obrisati."""
+    path = Path(path)
+    if path.suffix.lower() != ".mkv":
+        return path
+    dest = Path(proj) / "spica" / (path.stem + ".mov")
+    if not dest.exists():
+        dest.parent.mkdir(exist_ok=True)
+        run([ffmpeg(), "-y", "-v", "error", "-i", path.resolve(), "-map", "0", "-c", "copy", "-movflags", "+faststart",
+             dest.relative_to(proj).as_posix()], cwd=proj)
+    return dest
+
+
+def spica_za(proj, edit, W, H, fps):
+    """Špica koju render stavlja u glavni video → {"r": raspored, "files": {uvod, odjava}} ili None."""
+    import render
+    import spica as SP
+    if not SP.aktivna(edit):
+        return None
+    pj = load_json(Path(proj) / "project.json")
+    words = load_json(Path(proj) / "transcript.json")["words"]
+    st = render.resolve_style(edit)
+    cuts, kept, total = render.build_cuts(words, edit, st, pj["fps"], pj["duration"])
+    speed = float(edit.get("brzina") or 1.0)
+    r = SP.raspored(edit, cuts, speed, pj["fps"], total / speed, render.out_words(words, kept, cuts, set()))
+    files = SP.pripremi(proj, edit, W, H, pj["fps"], st.get("boja_isticanja", "#FF7A00"), ispis=False)
+    return {"r": r, "files": files}
+
+
+def poglavlja_za(proj, edit, W, H):
+    """Poglavlja epizode (kao u YouTube opisu, vrijeme videa sa špicom) za vodoravni video s temama; inače []."""
+    proj = Path(proj)
+    if W <= H or not (proj / "analiza.json").exists() or not load_json(proj / "analiza.json").get("teme"):
+        return []
+    import epizoda
+    ch, _, _ = epizoda.poglavlja_za(proj, edit)
+    return ch
+
+
+def tc(frame, fps):
+    """Sličica → vremenski kod HH:MM:SS:FF (NDF, cijeli fps)."""
+    f = int(frame)
+    return f"{f // (3600 * fps):02d}:{f // (60 * fps) % 60:02d}:{f // fps % 60:02d}:{f % fps:02d}"
+
+
+def marker_edl(ch, fps, title, boja=EDL_BOJA):
+    """EDL s oznakama za DaVinci (Timelines > Import > Timeline Markers from EDL): jedna oznaka po poglavlju,
+    vrijeme timelinea od 00:00:00:00 (kao tcStart u FCPXML-u)."""
+    safe = "".join(ch_ if ch_.isalnum() or ch_ in " _-." else "_" for ch_ in title).strip() or "Shofe"
+    lines = [f"TITLE: {safe}", "FCM: NON-DROP FRAME", ""]
+    for i, c in enumerate(ch, 1):
+        f = round(float(c["od"]) * fps)
+        a, b = tc(f, fps), tc(f + 1, fps)
+        name = " ".join(str(c["naslov"]).replace("|", "/").split())
+        lines += [f"{i:03d}  001      V     C        {a} {b} {a} {b}", f" |C:{boja} |M:{name} |D:1", ""]
+    return "\r\n".join(lines)
+
+
 # ---------------------------------------------------------------- FCPXML
-def build(proj, edit, use_originals=True, name=None, izvor=None):
+def build(proj, edit, use_originals=True, name=None, izvor=None, glavni=False, spica="auto"):
     """Vrati (ElementTree korijen, sažetak). Ne piše ništa na disk.
-    izvor = uspravni izvor isječka podcasta (uspravno.py): timeline 9:16 iz te datoteke (slika i zvuk)."""
+    izvor = uspravni izvor isječka podcasta (uspravno.py): timeline 9:16 iz te datoteke (slika i zvuk).
+    glavni = glavni video (reel_vN, ne isječak): špice i poglavlja epizode. spica = {"r", "files"} iz rendera
+    (spica.raspored / spica.pripremi), "auto" = izračunaj iz edit.json, None = bez špice."""
     import render  # rezovi, zumovi i stil točno kao u renderu
 
     proj = Path(proj)
@@ -553,12 +658,25 @@ def build(proj, edit, use_originals=True, name=None, izvor=None):
     spine = ET.SubElement(seq, "spine")
 
     # gotov video u sličicama (nakon brzine): kadar n počinje tamo gdje završava n−1
-    out_frames, t = [], 0
-    for p in pieces:
-        n = max(1, round(p["frames"] / speed)) if speed != 1 else p["frames"]
-        out_frames.append((t, n))
-        t += n
-    total_frames = t
+    out_frames, total_frames = frames_of(pieces, speed)
+
+    # špice (M4.4d): samo u glavnom videu, kao u renderu; kadar na točki uvodne špice se podijeli
+    sp = None
+    if glavni and not izvor:
+        sp = spica_za(proj, edit, W, H, fps) if spica == "auto" else spica
+    sp_files = {k: v for k, v in ((sp or {}).get("files") or {}).items() if k in ("uvod", "odjava") and v}
+    sp_r = sp["r"] if sp and sp.get("r") and sp_files else None
+    uvod_n = round(sp_r["uvod"] * fps) if sp_r and sp_files.get("uvod") else 0
+    odjava_n = round(sp_r["odjava"] * fps) if sp_r and sp_files.get("odjava") else 0
+    at_idx, at_o = len(pieces), total_frames
+    if uvod_n:
+        pieces, at_idx = split_pieces_at(pieces, out_frames, round(sp_r["at"] * fps), speed, fps)
+        out_frames, total_frames = frames_of(pieces, speed)
+        at_o = out_frames[at_idx][0] if at_idx < len(pieces) else total_frames
+
+    def tl(o):
+        """Sličica gotovog videa bez špice → sličica timelinea (iza uvodne špice pomak za njezino trajanje)."""
+        return o + uvod_n if uvod_n and o >= at_o else o
 
     def make_clip(parent, a, offset, src_start, dur, name, **extra):
         """asset-clip od src_start (vrijeme u datoteci, s vremenskim kodom) u trajanju dur gotovog videa.
@@ -609,7 +727,7 @@ def build(proj, edit, use_originals=True, name=None, izvor=None):
         if bend:
             name = f"{cam['ime']} bend" + (" (pozadina)" if bend == "pozadina" else "")
         start = a["tc"] + on_grid(t, a["afd"])
-        off = o * fd if parent is spine else parse_time(parent.get("start"))   # usidreni: lokalno vrijeme
+        off = tl(o) * fd if parent is spine else parse_time(parent.get("start"))   # usidreni: lokalno vrijeme
         el = make_clip(parent, a, off, start, n * fd, name, srcEnable="video", **extra)
         if bend == "prednja":
             zx, zy, px, py, trim = *vertical_layer_bend(cam, part, W, H, z), None
@@ -624,7 +742,34 @@ def build(proj, edit, use_originals=True, name=None, izvor=None):
         ET.SubElement(el, "adjust-volume", amount="-96dB")
         return el
 
-    for p, (o, n) in zip(pieces, out_frames):
+    sp_els = {}
+
+    def spica_clip(vrsta, at_frame, nfr):
+        """Špica na glavnoj traci: Markova datoteka kao original (Fit, kao crni rub u Shofeu) ili generirana
+        kartica (spica/*.mov). Bez brzine: špica u Shofeovu videu nije ubrzana."""
+        dio = (edit.get("spica") or {}).get(vrsta) or {}
+        own = bool(dio.get("datoteka"))
+        path = Path(dio["datoteka"]) if own else spica_media(proj, sp_files[vrsta])
+        if own and not path.is_absolute():
+            path = proj / path
+        if not path.exists():
+            path = spica_media(proj, sp_files[vrsta])
+            own = False
+        a = asset_for(("spica", vrsta), path, path.name)
+        ime = "Uvodna špica" if vrsta == "uvod" else "Odjavna špica"
+        el = ET.SubElement(spine, "asset-clip", ref=a["id"], name=f"{ime} ({path.name})", offset=ftime(at_frame * fd),
+                           start=ftime(a["tc"]), duration=ftime(nfr * fd), tcFormat="NDF")
+        ET.SubElement(el, "adjust-conform", type="fit")
+        note = ("Markova datoteka; u Shofeovu videu zvuk je izjednačen na −14 LUFS kao epizoda" if own else
+                "generirana kartica (spica.py)") + ("; zadnjih 5–20 s je mjesto za YouTube završni zaslon"
+                                                     if vrsta == "odjava" else "")
+        _insert_marker(el, ET.Element("marker", start=ftime(a["tc"]), duration=ftime(nfr * fd), value=ime, note=note))
+        sp_els[vrsta] = (at_frame, nfr, el, a["tc"])
+        return el
+
+    for idx, (p, (o, n)) in enumerate(zip(pieces, out_frames)):
+        if uvod_n and idx == at_idx:
+            spica_clip("uvod", at_o, uvod_n)
         if vc and p.get("parts"):
             mid = (p["out"] + p["frames"] / 2) / fps
             z = factor if factor and any(s <= mid < e for s, e in zr) else 1.0
@@ -664,7 +809,7 @@ def build(proj, edit, use_originals=True, name=None, izvor=None):
         mid = (p["out"] + p["frames"] / 2) / fps          # sredina kadra u vremenu prije brzine
         z = factor if factor and any(s <= mid < e for s, e in zr) else 1.0
         name = clip.get("naziv", a["name"])
-        el = make_clip(spine, a, o * fd, src_start, n * fd, name, **mute)
+        el = make_clip(spine, a, tl(o) * fd, src_start, n * fd, name, **mute)
         if p["clip"] is not None:
             place(el, clip, z)
         elif z != 1.0:
@@ -679,6 +824,11 @@ def build(proj, edit, use_originals=True, name=None, izvor=None):
             # ako DaVinci ipak donese i zvuk kamere, neka bude utišan (zvuk je glavni izvor ispod)
             ET.SubElement(el, "adjust-volume", amount="-96dB")
         clip_els.append((el, o, n, parse_time(el.get("start"))))
+
+    if uvod_n and at_idx >= len(pieces):
+        spica_clip("uvod", at_o, uvod_n)
+    if odjava_n:
+        spica_clip("odjava", total_frames + uvod_n, odjava_n)
 
     if song_frames and not pc and not vc:
         # obični projekt: kadar koji zahvaća pjesmu daje samo sliku, zvuk ide ispod iz iste snimke —
@@ -799,15 +949,27 @@ def build(proj, edit, use_originals=True, name=None, izvor=None):
                 d = min(mdur, total_t - pos)
                 anchors.append((pos, d))
                 pos += d
-            for pos, d in anchors:
+            loops = len(anchors)
+            if uvod_n and at_o > 0:   # glazba ne svira ispod uvodne špice: dio iza nje pomakne se za špicu
+                cut_t, split = at_o * fd, []
+                for pos, d in anchors:
+                    if pos < cut_t < pos + d:
+                        split += [(pos, cut_t - pos, Fraction(0)), (pos, pos + d - cut_t, cut_t - pos)]
+                    else:
+                        split.append((pos, d, Fraction(0)))
+                anchors = [(pos + skip + (uvod_n * fd if pos + skip >= cut_t else 0), d, skip)
+                           for pos, d, skip in split]
+            else:
+                anchors = [(pos, d, Fraction(0)) for pos, d in anchors]
+            for pos, d, skip in anchors:
                 m = ET.Element("asset-clip", ref=aid, name=mp.name,
                                lane="-3" if song_audio[0] else "-2" if (pc or vc) else "-1",
                                offset=ftime(fstart + pos),
-                               start="0s", duration=ftime(d), audioRole="music")
+                               start=ftime(skip), duration=ftime(d), audioRole="music")
                 ET.SubElement(m, "adjust-volume", amount=f"{gain:g}dB")
                 _insert_anchored(first, m)
             notes.append(f"glazba na traci ispod: {mp.name}, {gain:g} dB"
-                         + (f", {len(anchors)}× zaredom" if len(anchors) > 1 else "")
+                         + (f", {loops}× zaredom" if loops > 1 else "")
                          + " (stišavanje ispod govora nije preneseno)")
 
     # oznake: što je Shofe dodao preko slike (naslov, stil, zumovi)
@@ -853,12 +1015,33 @@ def build(proj, edit, use_originals=True, name=None, izvor=None):
         notes.append(f"pjesme: {len(songs)} (oznaka cijelom duljinom"
                      + (", zvuk pjesme na traci A2" if song_audio[0] else "") + ")")
 
-    seq.set("duration", ftime(total_frames * fd))
+    # poglavlja epizode (iste kao u YouTube opisu i MP3-u) kao chapter-marker oznake na mjestu u timelineu
+    segs = [(tl(o), n, el, start) for el, o, n, start in clip_els] + list(sp_els.values())
+    ch = poglavlja_za(proj, edit, W, H) if glavni and not izvor else []
+    ch_placed = 0
+    for c in ch:
+        F = round(float(c["od"]) * fps)
+        for f0, n, el, start in segs:
+            if f0 <= F < f0 + n:
+                _insert_marker(el, ET.Element("chapter-marker", start=ftime(start + (F - f0) * fd),
+                                              duration=ftime(fd), value=str(c["naslov"])))
+                ch_placed += 1
+                break
+    if ch:
+        notes.append(f"poglavlja: {ch_placed} oznaka (chapter-marker) u timelineu")
+    if sp_els:
+        import spica as SP
+        notes.append(SP.opis(sp_r, edit) + " — u timelineu")
+
+    full = total_frames + uvod_n + odjava_n
+    seq.set("duration", ftime(full * fd))
     ET.indent(root, space="  ")
-    summary = {"kadrova": len(pieces), "sekundi": float(total_frames * fd), "izvor": "uspravno_kamere" if vc else "uspravno" if izvor else "podcast" if pc else
+    summary = {"kadrova": len(pieces), "sekundi": float(full * fd), "izvor": "uspravno_kamere" if vc else "uspravno" if izvor else "podcast" if pc else
                "originali" if use_originals else "source.mp4", "datoteke": sorted({a["name"] for a in assets.values()}), "zumova": zoomed_pieces,
                "napomene": notes, "brzina": float(speed), "pieces": pieces, "fps": fps,
-               "pjesama": len(songs), "zvuk_pjesme": song_audio[0], "bend": bend_shots}
+               "pjesama": len(songs), "zvuk_pjesme": song_audio[0], "bend": bend_shots,
+               "poglavlja": ch, "spica": ({"r": sp_r, "uvod": uvod_n, "odjava": odjava_n, "at": at_o}
+                                          if sp_els else None)}
     return root, summary
 
 
@@ -873,7 +1056,7 @@ def media_info_audio(path):
 
 # redoslijed djece asset-clipa po DTD-u 1.10: timeMap, adjust-*, usidreni klipovi, markeri
 _ORDER = {"note": 0, "conform-rate": 1, "timeMap": 2, "adjust-crop": 2.5, "adjust-conform": 3, "adjust-transform": 4,
-          "adjust-volume": 5, "asset-clip": 6, "marker": 7}
+          "adjust-volume": 5, "asset-clip": 6, "marker": 7, "chapter-marker": 7}
 
 
 def _insert(parent, child):
@@ -896,30 +1079,46 @@ def write(root, path):
                           encoding="utf-8", newline="\n")
 
 
-def export(proj, edit, base, use_originals=True, name=None, izvor=None):
-    """Napiši <base>.fcpxml u projekt; vrati (putanja, sažetak)."""
+def export(proj, edit, base, use_originals=True, name=None, izvor=None, glavni=False, spica="auto"):
+    """Napiši <base>.fcpxml u projekt (+ <base>.poglavlja.edl ako ima poglavlja); vrati (putanja, sažetak)."""
     proj = Path(proj)
-    root, summ = build(proj, edit, use_originals, name, izvor=izvor)
+    root, summ = build(proj, edit, use_originals, name, izvor=izvor, glavni=glavni, spica=spica)
     out = proj / f"{base}.fcpxml"
     write(root, out)
+    edl = proj / f"{base}.poglavlja.edl"
+    if summ["poglavlja"]:
+        edl.write_bytes(marker_edl(summ["poglavlja"], summ["fps"], name or base).encode("utf-8"))
+        summ["edl"] = edl
+    elif edl.exists():
+        edl.unlink()
     return out, summ
 
 
-def for_render(proj, edit, out_video, izvor=None):
-    """render.py: uz svaki video i .fcpxml. Greška ovdje nikad ne ruši render."""
+def for_render(proj, edit, out_video, izvor=None, glavni=False, spica=None):
+    """render.py: uz svaki video i .fcpxml. Greška ovdje nikad ne ruši render.
+    glavni = reel_vN (ne isječak); spica = {"r", "files"} kakvu je render stavio u video (ili None)."""
     try:
         ov = Path(out_video)
         try:  # isti folder kao video (npr. isjecci/K1.fcpxml)
             base = ov.resolve().relative_to(Path(proj).resolve()).with_suffix("").as_posix()
         except ValueError:
             base = ov.stem
-        out, summ = export(proj, edit, base, name=f"{Path(proj).name} {ov.stem}", izvor=izvor)
+        out, summ = export(proj, edit, base, name=f"{Path(proj).name} {ov.stem}", izvor=izvor, glavni=glavni,
+                           spica=spica)
         lines = [f"DaVinci timeline: {out.name}  ({summ['kadrova']} kadrova iz "
                  + {"originali": "originalnih snimki", "podcast": "originalnih kamera, ostale kamere na trakama iznad",
                     "uspravno": "uspravnog izvora isječka",
                     "uspravno_kamere": "originalnih kamera, uspravno 9:16"}
                  .get(summ["izvor"], "source.mp4") + ")"]
         lines += [f"  ({n})" for n in summ["napomene"] if "ne postoji" in n]
+        if summ["spica"]:
+            s = summ["spica"]
+            lines.append("  (špica u timelineu: " + ", ".join(
+                ([f"uvodna na {fmt_time(s['at'] / summ['fps'])}"] if s["uvod"] else []) + (["odjavna na kraju"] if s["odjava"] else []))
+                + ")")
+        if summ.get("edl"):
+            lines.append(f"  (poglavlja: {len(summ['poglavlja'])} oznaka u timelineu + {summ['edl'].name} → u DaVinciju "
+                         "Timelines > Import > Timeline Markers from EDL, pa Deliver > Chapters from Markers: Green)")
         return lines
     except SystemExit as e:  # die() u izvozu
         return [f"(DaVinci timeline nije napravljen: {e})"]
@@ -943,10 +1142,13 @@ def main():
     proj = Path(a.projekt).resolve()
     edit, base, what = titlovi.pick(proj, a.verzija, a.trenutno)
     base = a.izlaz or base
-    out, summ = export(proj, edit, base, a.izvor == "original", name=f"{proj.name} {base}")
+    out, summ = export(proj, edit, base, a.izvor == "original", name=f"{proj.name} {base}", glavni=True)
     srt = proj / f"{base}.srt"
     if not srt.exists():
         cues, _ = titlovi.cues_for(proj, edit)
+        if summ["spica"]:
+            import spica as SP
+            cues = SP.pomakni_cues(cues, summ["spica"]["r"])
         titlovi.write_srt(srt, cues)
     if a.ispis:
         pj = load_json(proj / "project.json")
@@ -963,6 +1165,9 @@ def main():
         print(f"  napomena: {n}")
     print(f"  {out}\n  {srt}")
     print("U DaVinciju: File > Import > Timeline > " + out.name + ", zatim File > Import > Subtitle > " + srt.name)
+    if summ.get("edl"):
+        print(f"Poglavlja ({len(summ['poglavlja'])}): desni klik na timeline u Media Poolu > Timelines > Import > "
+              f"Timeline Markers from EDL > {summ['edl'].name} (zelene oznake); Deliver > Chapters from Markers: Green")
 
 
 if __name__ == "__main__":

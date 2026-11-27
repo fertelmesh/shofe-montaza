@@ -191,7 +191,7 @@ def test_render_sa_spicom(ep, tmp_path):
 
     r = run("render.py", p, env=env)
     assert "Špica: uvodna 3.0 s (moj intro.mp4)" in r.stdout and "odjavna 8.0 s (generirana)" in r.stdout
-    assert "DaVinci timeline je još bez špice" in r.stdout
+    assert "špica u timelineu: uvodna na" in r.stdout and "odjavna na kraju" in r.stdout
     edit = load(p / "edit.json")
     ws = render.out_words(words, kept, cuts, set())
     rr = SP.raspored(edit, cuts, 1.0, pj["fps"], total, ws)

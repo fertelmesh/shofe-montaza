@@ -137,6 +137,13 @@ Uz svaki video Shofe napravi i **timeline za DaVinci**: `reel_v3.mp4` → `reel_
 - Za stariju verziju reci „DaVinci za verziju 2".
 - Ako u DaVinciju kadar vodoravne snimke nije isti kao u Shofeu, reci „DaVinci iz pripremljenog videa" (koristi već izrezani `source.mp4`).
 
+**Špica i poglavlja u DaVinciju.** Timeline epizode ima **špicu na istom mjestu** kao Shofeov video: uvodnu (i iza najave), odjavnu na kraju. Tvoj intro/outro je ondje kao original (zvuk neobrađen), a generirana kartica je u mapi projekta `spica/` (ne briši je). **Poglavlja** (ista kao u opisu za YouTube) su oznake u timelineu, a uz timeline dobiješ i `reel_vN.poglavlja.edl` — tako ih DaVinci upiše kao poglavlja u izvezeni video:
+
+1. U Media Poolu desni klik na timeline > **Timelines > Import > Timeline Markers from EDL** → `reel_vN.poglavlja.edl` (dobiješ zelene oznake s imenima poglavlja).
+2. Na stranici **Deliver** (format MP4 ili QuickTime) uključi **Chapters from Markers** i odaberi boju **Green**.
+
+Ako ti zelene oznake sjednu sat vremena iza videa, timeline u DaVinciju počinje od 01:00:00:00 — javi Shofeu.
+
 **Podcast u DaVinciju.** Za epizodu Sunčani4M timeline nije gotov video nego tvoje **originalne kamere**:
 
 - **V1** — program kakav je Shofe montirao: na svakom kadru originalna snimka kamere koju je Shofe izabrao (isti izrez, i za uspravni mobitel), bez zvuka kamere.
@@ -252,7 +259,7 @@ Imaš li svoj intro ili outro video, reci `moj intro je C:\…\intro.mp4, zapamt
 - `špica s glazbom spica.mp3`, `naslov na špici „Bend iz Kutine"`, `epizoda 12`
 - `bez odjavne špice`, `makni špicu`
 
-Špica je samo u cijeloj epizodi, ne u isječcima. Titlovi, poglavlja, MP3 i naredbe poput „makni 5:00–5:10" sami se pomaknu za špicu — uvijek govoriš vremena iz videa koji gledaš. DaVinci timeline zasad nema špicu (dodaj je ručno na početak/kraj; dolazi uskoro).
+Špica je samo u cijeloj epizodi, ne u isječcima. Titlovi, poglavlja, MP3 i naredbe poput „makni 5:00–5:10" sami se pomaknu za špicu — uvijek govoriš vremena iz videa koji gledaš. I DaVinci timeline ima špicu na istom mjestu (vidi „Špica i poglavlja u DaVinciju").
 
 ## Stilovi
 
