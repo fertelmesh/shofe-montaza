@@ -223,3 +223,20 @@ def test_obican_projekt_pjesma_na_svojoj_traci(tmp_path, dtd):
             if a.get("lane") in ("-1", "-2"):
                 d = T(a.get("offset")) - T(c.get("start"))
                 assert T(a.get("start")) - T(c.get("start")) == d
+
+
+def test_podcast_bend_isjecak_pjesme_9x16(bend, tmp_path):
+    """M4.3b3: isječak iz pjesme podcasta ide kroz uspravni izvor iz kamera (9:16) bez greške."""
+    proj = tmp_path / "ep"
+    shutil.copytree(bend[0], proj, ignore=shutil.ignore_patterns("_tmp", "isjecci", "isjecci.json"))
+    out = run("isjecci.py", proj, "pjesma", "P1")
+    d = load(proj / "isjecci.json")
+    c = d["isjecci"][0]
+    assert c["vrsta"] == "pjesma" and (c["od"], c["do"]) == pytest.approx((20.0, 45.0), abs=0.6), out
+    assert c["hook"] == "Bend – Kutina uživo"          # iz naziva pjesme
+    out = run("isjecci.py", proj, "render", c["id"], "--kadar", "2,15")
+    assert "9:16" in out
+    from PIL import Image
+    assert (proj / "isjecci" / f"{c['id']}_kadrovi.png").exists()
+    im = Image.open(proj / "kadar_1_2s.png")
+    assert im.height > im.width                         # uspravni kadar

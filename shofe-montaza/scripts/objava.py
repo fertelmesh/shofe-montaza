@@ -235,6 +235,8 @@ def videi_isjecaka(proj, spec=None):
         out.append({"id": k, "vrsta": "isjecak", "video": f, "trajanje": _trajanje(Path(proj) / f, r.get("trajanje")),
                     "hook": r.get("hook") or c.get("hook") or "", "naslov": c.get("naslov") or "",
                     "razlog": c.get("razlog") or ""})
+        if c.get("vrsta") == "pjesma":   # isječak iz pjesme: bez govora, Claude piše o nastupu
+            out[-1]["pjesma"] = c.get("naslov") or c.get("tema") or c.get("nastup") or "nastup benda"
     if not out:
         raise Greska("nema renderiranih isječaka — prvo: isjecci.py <projekt> render")
     return out
@@ -315,6 +317,8 @@ def uskladi(proj, d, videi, mreze=None):
             e["naslov_isjecka"] = v["naslov"]
         if v.get("razlog"):
             e["razlog"] = v["razlog"]
+        if v.get("pjesma") and not tekst.strip():
+            tekst = f"(isječak iz pjesme „{v['pjesma']}“ — nastup benda uživo, bez govora)"
         e["govor"] = tekst
         e["tekst_hash"] = h
         if mreze:

@@ -6,6 +6,8 @@
   python isjecci.py shofe_projekt popis               ispiši popis (bez provjere)
   python isjecci.py shofe_projekt novi [--broj 5]     još kandidata, bez preklapanja s postojećima
   python isjecci.py shofe_projekt dodaj --od "citat" [--do "citat"] [--umjesto K3]
+  python isjecci.py shofe_projekt pjesma P1 [--od 12:40 --do 13:25] [--umjesto K3]
+                                                      isječak iz pjesme: najbolji refren 30–60 s (refren.py)
   python isjecci.py shofe_projekt odobri K1,K3        Marko je odabrao
   python isjecci.py shofe_projekt odbaci K2 [--razlog "…"]
   python isjecci.py shofe_projekt render [K1,K3] [--brzo] [--stil podcast] [--kadar 1,10] [--format 16:9]
@@ -23,6 +25,8 @@ Postupak (isti duh kao Spotifyjevi pregledi epizoda i PodReels, vidi ODLUKE.md):
   5. Claude pročita svaki kandidat i upiše "ocjena" (1–10), "razlog" (jedna rečenica), po želji
      "naslov" i "hook"; može dodati svoje kandidate (dodaj) ili pomaknuti granice (od/do).
   6. provjeri: konačni poredak po Claudeovoj ocjeni (heuristika samo kod jednakih ocjena).
+Pjesme (nastupi.json): isječak govora ne ide preko pjesme, a iz svake pjesme Shofe predloži jedan isječak
+(vrsta „pjesma"): najbolji refren 30–60 s, na udarcu, do kraja refrena ili pjesme; bez titlova.
 """
 import argparse
 import datetime as _dt
@@ -42,6 +46,7 @@ from govornici import load_words, speaker_names
 from sadrzaj import SENT_END, fold
 
 MIN_S, MAX_S = 20.0, 60.0
+PJESMA_S = (30.0, 60.0)  # isječak iz pjesme (refren.py)
 IDEAL = (25.0, 45.0)
 PAUZA_REZ = 0.35        # pauza dulja od ovoga se u isječku skrati na ovoliko (procjena trajanja)
 PAUZA_GRANICA = 1.0     # pauza prije/poslije koja znači prirodan početak/kraj
@@ -453,8 +458,67 @@ def ucitaj(proj):
             an = {}
     sn = Snimka(words, an, speaker_names(proj))
     import nastupi
-    sn.pjesme = [(n["od"], n["do"]) for n in nastupi.active(nastupi.load(proj))]
+    sn.nastupi = nastupi.active(nastupi.load(proj))
+    sn.pjesme = [(n["od"], n["do"]) for n in sn.nastupi]
+    sn.proj = proj
     return sn
+
+
+# ---------------------------------------------------------------- isječak iz pjesme (M4.3b3)
+def je_pjesma(c):
+    return c.get("vrsta") == "pjesma"
+
+
+def _nastup(sn, pid):
+    for n in getattr(sn, "nastupi", []):
+        if str(n["id"]).upper() == str(pid).upper():
+            return n
+    raise sadrzaj.Greska(f"nema pjesme {pid} (pjesme: {', '.join(n['id'] for n in getattr(sn, 'nastupi', [])) or 'nijedna'})")
+
+
+def kandidat_pjesme(sn, n, od=None, do=None):
+    """Isječak iz pjesme n (nastupi.json): najbolji refren 30–60 s (refren.py) ili zadane granice."""
+    import refren
+    src = Path(sn.proj) / "source.mp4"
+    if od is None:
+        r = refren.analyse_song(src, float(n["od"]), float(n["do"]))
+    else:
+        od, do = max(float(n["od"]), od), min(float(n["do"]), do)
+        if do - od < 5:
+            raise sadrzaj.Greska(f"isječak iz pjesme {n['id']} mora biti unutar pjesme "
+                                 f"({fmt(n['od'])}–{fmt(n['do'])}) i trajati barem 5 s")
+        r = {"od": round(od, 3), "do": round(do, 3), "refren": [], "razlog": "granice zadane ručno",
+             "do_kraja": abs(do - float(n["do"])) < 0.05, "refren_sigurnost": 0.0, "na_taktu": False, "bpm": None}
+    dur = r["do"] - r["od"]
+    h = refren.heuristic_score(r, dur)
+    naziv = n.get("naziv") or ""
+    ime = f"„{naziv}“" if naziv else n["id"]
+    return {
+        "id": "", "vrsta": "pjesma", "nastup": n["id"],
+        "od": r["od"], "do": r["do"], "trajanje": round(dur, 1),
+        "pocetak": f"♪ pjesma {ime}", "kraj": "", "tekst": "",
+        "govornici": [], "tema": naziv or "nastup benda",
+        "refren": [list(x) for x in r["refren"]], "bpm": r.get("bpm"),
+        "heuristika": {"ocjena": h, "pocetak": round(10 * r.get("refren_sigurnost", 0), 1),
+                       "zaokruzenost": 10.0 if r.get("do_kraja") else 7.0, "sadrzaj": 7.0, "energija": 8.0,
+                       "razlozi": [r["razlog"]] + (["rez na udarac"] if r.get("na_taktu") else [])},
+        # Claude ne čuje pjesmu: Shofeova ocjena vrijedi dok je Claude ili Marko ne promijene
+        "ocjena": round(h), "razlog": f"Nastup benda: {r['razlog']}.",
+        "naslov": naziv, "hook": f"{naziv} uživo" if naziv else "", "status": "prijedlog", "izvor": "shofe",
+    }
+
+
+def kandidati_pjesama(sn, data=None, ispis=True):
+    """Po jedan kandidat iz svake pjesme koja ga još nema."""
+    have = {str(c.get("nastup")) for c in (data or {}).get("isjecci", []) if je_pjesma(c)}
+    out = []
+    for n in getattr(sn, "nastupi", []):
+        if n["id"] in have:
+            continue
+        if ispis:
+            print(f"Tražim refren u pjesmi {n['id']} ({fmt(n['od'])}–{fmt(n['do'])}) ...")
+        out.append(kandidat_pjesme(sn, n))
+    return out
 
 
 def path_of(proj):
@@ -476,6 +540,16 @@ def resnap(sn, c):
         od, do = float(c["od"]), float(c["do"])
     except (KeyError, TypeError, ValueError):
         raise sadrzaj.Greska(f"{c.get('id')}: 'od'/'do' moraju biti sekunde")
+    if je_pjesma(c):   # isječak iz pjesme: po vremenu, unutar pjesme (bez riječi)
+        n = _nastup(sn, c.get("nastup"))
+        od2, do2 = max(od, float(n["od"])), min(do, float(n["do"]))
+        if do2 - od2 < 5:
+            raise sadrzaj.Greska(f"{c.get('id')}: isječak iz pjesme {n['id']} mora biti unutar pjesme "
+                                 f"({fmt(n['od'])}–{fmt(n['do'])})")
+        c["od"], c["do"], c["trajanje"] = round(od2, 3), round(do2, 3), round(do2 - od2, 1)
+        if (od2, do2) != (od, do):
+            return f"{c['id']}: granice pomaknute unutar pjesme {n['id']} ({fmt(od2)}–{fmt(do2)})"
+        return None
     if a is not None and b is not None and 0 <= a <= b < len(w) and abs(w[a]["s"] - od) < 0.06 and abs(w[b]["e"] - do) < 0.06:
         return None
     idx = sadrzaj.words_in(w, od, do)
@@ -516,10 +590,11 @@ def provjeri(sn, data, min_s=MIN_S, max_s=MAX_S):
         if c.get("status") not in STATUSI:
             gr.append(f"{cid}: status mora biti {', '.join(STATUSI)}")
         d = c["trajanje"]
+        lo, hi = (PJESMA_S if je_pjesma(c) else (min_s, max_s))
         if d < 10 or d > 90:
-            gr.append(f"{cid}: traje {d:.0f} s — isječak mora imati 10–90 s (cilj {min_s:.0f}–{max_s:.0f})")
-        elif d < min_s or d > max_s:
-            up.append(f"{cid}: traje {d:.0f} s (cilj {min_s:.0f}–{max_s:.0f} s)")
+            gr.append(f"{cid}: traje {d:.0f} s — isječak mora imati 10–90 s (cilj {lo:.0f}–{hi:.0f})")
+        elif d < lo or d > hi:
+            up.append(f"{cid}: traje {d:.0f} s (cilj {lo:.0f}–{hi:.0f} s)")
         if c.get("status") == "odbacen":
             continue
         oc = c.get("ocjena")
@@ -577,6 +652,10 @@ def tekst_popisa(data, cijeli=True):
             L.append(f"      Marko:  {c['napomena_marka']}")
         if c.get("render"):
             L.append(f"      video: {serija.jedan_redak(c).strip()[2:]}")
+        if je_pjesma(c):
+            ref = ", ".join(f"{fmt(x)}–{fmt(y)}" for x, y in c.get("refren") or [])
+            L.append(f"      pjesma: {c.get('nastup')}" + (f", {c['bpm']:.0f} BPM" if c.get("bpm") else "")
+                     + (f", refren {ref}" if ref else "") + " — bez titlova, zvuk za glazbu")
         if cijeli and c.get("status") != "odbacen":
             for line in textwrap.wrap(c["tekst"], 100):
                 L.append(f"      │ {line}")
@@ -584,9 +663,12 @@ def tekst_popisa(data, cijeli=True):
     return "\n".join(L)
 
 
-def spremi(proj, data):
+def spremi(proj, data, pregled=False):
     save_json(path_of(proj), data)
     (Path(proj) / "isjecci.txt").write_text(tekst_popisa(data), encoding="utf-8")
+    if pregled:   # isječak iz pjesme i refren na vremenskoj crti pregled.html
+        import pregled as P
+        P.refresh(proj)
 
 
 # ---------------------------------------------------------------- naredbe
@@ -603,10 +685,16 @@ def cmd_predlozi(proj, sn, a):
         c = kandidat(sn, x, y)
         c["id"] = f"K{n}"
         data["isjecci"].append(c)
-    spremi(proj, data)
+    pj = kandidati_pjesama(sn, data)
+    for c in pj:
+        c["id"] = f"K{next_id(data)}"
+        data["isjecci"].append(c)
+        print(f"{c['id']}: iz pjesme {c['nastup']} {fmt(c['od'])}–{fmt(c['do'])} ({c['trajanje']:.0f} s) — "
+              f"{c['heuristika']['razlozi'][0]}")
+    spremi(proj, data, pregled=bool(pj))
     dur = sn.words[-1]["e"] - sn.words[0]["s"]
     print(f"Snimka {fmt(dur)}, {len(sn.misli)} misli, {len(pro)} mogućih isječaka od {a.min:.0f}–{a.max:.0f} s.")
-    if not chosen:
+    if not chosen and not data["isjecci"]:
         print(f"Nema nijednog niza cijelih misli od {a.min:.0f}–{a.max:.0f} s (snimka prekratka?). "
               f"Probaj --min 10 ili napravi običan reel (plan.py).")
         return 1
@@ -650,6 +738,14 @@ def cmd_novi(proj, sn, a):
     lo, hi = st.get("min_s", a.min), st.get("max_s", a.max)
     zauzeto = [(c["od"], c["do"]) for c in data.get("isjecci", [])]
     chosen = odaberi(sn, svi_prozori(sn, lo, hi), a.broj, zauzeto)
+    pj = kandidati_pjesama(sn, data)
+    for c in pj:
+        c["id"] = f"K{next_id(data)}"
+        data["isjecci"].append(c)
+    if pj and not chosen:
+        spremi(proj, data, pregled=True)
+        print(f"Dodano {len(pj)} isječaka iz pjesama: {', '.join(c['id'] for c in pj)}")
+        return 0
     if not chosen:
         print("Nema novih isječaka koji se ne preklapaju s postojećima (i odbačenima). "
               "Dodaj svoj: isjecci.py dodaj --od … --do …")
@@ -662,7 +758,8 @@ def cmd_novi(proj, sn, a):
         n += 1
         data["isjecci"].append(c)
         new.append(c)
-    spremi(proj, data)
+    spremi(proj, data, pregled=bool(pj))
+    new = pj + new
     print(f"Dodano {len(new)} novih kandidata: {', '.join(c['id'] for c in new)}\n")
     print(tekst_popisa({"isjecci": new}))
     print("Claude: ocijeni nove (ocjena, razlog), zatim isjecci.py provjeri.")
@@ -706,6 +803,45 @@ def cmd_dodaj(proj, sn, a):
     print(f"  početak: {c['pocetak']}\n  kraj:    {c['kraj'] or c['pocetak']}")
     spremi(proj, data)
     print("Claude: upiši ocjenu i razlog, zatim isjecci.py provjeri.")
+    return 0
+
+
+def cmd_pjesma(proj, sn, a):
+    """isjecci.py projekt pjesma P1 [--od 1:20 --do 2:05] [--umjesto K3]: isječak iz pjesme (refren ili granice)."""
+    if not getattr(sn, "nastupi", None):
+        raise sadrzaj.Greska(f"u snimci nema pjesama (prvo: python nastupi.py {proj})")
+    n = _nastup(sn, a.ids or sn.nastupi[0]["id"])
+    data = load(proj) or {"shofe": version(), "napravljeno": _dt.datetime.now().isoformat(timespec="seconds"),
+                          "postavke": {"min_s": a.min, "max_s": a.max}, "upute": UPUTE, "isjecci": []}
+    od = do = None
+    if a.od or a.do:
+        import uredi
+        try:
+            od = uredi.parse_time(a.od) if a.od else float(n["od"])
+            do = uredi.parse_time(a.do) if a.do else float(n["do"])
+        except Exception:  # noqa: BLE001
+            raise sadrzaj.Greska("pjesma: --od/--do su vremena snimke, npr. --od 12:40 --do 13:25")
+    c = kandidat_pjesme(sn, n, od, do)
+    old = find(data, a.umjesto)[0] if a.umjesto else next(
+        (x for x in data["isjecci"] if je_pjesma(x) and x.get("nastup") == n["id"] and x.get("status") != "odbacen"),
+        None)
+    if old:
+        for key in ("naslov", "hook", "status", "napomena_marka", *serija.PREUZMI, "izrezi"):
+            if old.get(key):
+                c[key] = old[key]
+        c["id"] = old["id"]
+        data["isjecci"][data["isjecci"].index(old)] = c
+    else:
+        c["id"] = f"K{next_id(data)}"
+        data["isjecci"].append(c)
+    spremi(proj, data, pregled=True)
+    print(f"{c['id']}: iz pjesme {n['id']} {fmt(c['od'])}–{fmt(c['do'])} ({c['trajanje']:.0f} s) — "
+          f"{c['heuristika']['razlozi'][0]}")
+    if c.get("refren"):
+        print("   refren: " + ", ".join(f"{fmt(x)}–{fmt(y)}" for x, y in c["refren"]))
+    if not (c.get("hook") or "").strip():
+        print(f"Claude: upiši \"naslov\" i \"hook\" za {c['id']} (npr. naziv pjesme i benda) — "
+              f"naziv pjesme: python nastupi.py {proj} naziv {n['id']} \"Bend – Pjesma\"")
     return 0
 
 
@@ -776,14 +912,14 @@ def main():
     ap = argparse.ArgumentParser(description="Kandidati za isječke za mreže (isjecci.json)")
     ap.add_argument("projekt")
     ap.add_argument("naredba", nargs="?", default="",
-                    help="predlozi | provjeri | popis | novi | dodaj | odobri | odbaci | vrati | render")
-    ap.add_argument("ids", nargs="?", default="", help="za odobri/odbaci/vrati: npr. K1,K3")
+                    help="predlozi | provjeri | popis | novi | dodaj | pjesma | odobri | odbaci | vrati | render")
+    ap.add_argument("ids", nargs="?", default="", help="za odobri/odbaci/vrati: npr. K1,K3; za pjesma: P1")
     ap.add_argument("--broj", type=int, default=None, help="koliko kandidata (predlozi: 10, novi: 5)")
     ap.add_argument("--min", type=float, default=MIN_S, help="najkraći isječak u sekundama (20)")
     ap.add_argument("--max", type=float, default=MAX_S, help="najdulji isječak u sekundama (60)")
     ap.add_argument("--ponovo", action="store_true", help="predlozi: sve ispočetka (briše ocjene i odabir)")
-    ap.add_argument("--od", help="dodaj: doslovni citat početka")
-    ap.add_argument("--do", help="dodaj: doslovni citat kraja")
+    ap.add_argument("--od", help="dodaj: doslovni citat početka; pjesma: vrijeme snimke (12:40)")
+    ap.add_argument("--do", help="dodaj: doslovni citat kraja; pjesma: vrijeme snimke (13:25)")
     ap.add_argument("--pojava", type=int, help="dodaj: koja pojava citata (ako ih ima više)")
     ap.add_argument("--umjesto", help="dodaj: zamijeni granice postojećeg isječka (npr. K3)")
     ap.add_argument("--razlog", help="odbaci/odobri: Markova napomena")
@@ -801,9 +937,11 @@ def main():
     nar = fold(a.naredba) or ("provjeri" if path_of(proj).exists() else "predlozi")
     alias = {"predlozi": "predlozi", "predlozii": "predlozi", "provjeri": "provjeri", "popis": "popis",
              "novi": "novi", "jos": "novi", "dodaj": "dodaj", "odobri": "odobri", "odbaci": "odbaci",
-             "vrati": "vrati", "render": "render", "renderiraj": "render", "napravi": "render"}
+             "vrati": "vrati", "render": "render", "renderiraj": "render", "napravi": "render",
+             "pjesma": "pjesma", "refren": "pjesma"}
     if nar not in alias:
-        die(f"nepoznata naredba '{a.naredba}' (predlozi, provjeri, popis, novi, dodaj, odobri, odbaci, vrati, render)")
+        die(f"nepoznata naredba '{a.naredba}' (predlozi, provjeri, popis, novi, dodaj, pjesma, odobri, odbaci, vrati, "
+            "render)")
     a.naredba = alias[nar]
     if a.min < 5 or a.max <= a.min:
         die("--min mora biti barem 5 s, a --max veći od --min")
@@ -823,6 +961,8 @@ def main():
             code = cmd_dodaj(proj, sn, a)
         elif a.naredba == "render":
             code = cmd_render(proj, sn, a)
+        elif a.naredba == "pjesma":
+            code = cmd_pjesma(proj, sn, a)
         else:
             code = cmd_status(proj, sn, a, {"odobri": "odobren", "odbaci": "odbacen", "vrati": "prijedlog"}[a.naredba])
     except sadrzaj.Greska as e:

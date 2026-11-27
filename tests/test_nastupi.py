@@ -252,8 +252,13 @@ def test_skrati_cuva_pjesmu(epizoda, tmp_path):
 def test_isjecci_ne_idu_preko_pjesme(epizoda, tmp_path):
     p = _proj(epizoda, tmp_path)
     run("isjecci.py", p, "predlozi", "--min", "8", "--max", "30", ok=False)  # 1 = Claude još ocjenjuje
-    for c in load(p / "isjecci.json")["isjecci"]:
+    cs = load(p / "isjecci.json")["isjecci"]
+    for c in cs:
+        if c.get("vrsta") == "pjesma":   # M4.3b3: isječak iz pjesme; pjesma od 49 s stane cijela
+            assert (c["od"], c["do"], c["nastup"]) == (19.74, 68.75, "P1"), c
+            continue
         assert c["do"] <= 19.74 + 0.01 or c["od"] >= 68.75 - 0.01, c
+    assert sum(c.get("vrsta") == "pjesma" for c in cs) == 1
 
 
 def test_nastupi_rucno(epizoda, tmp_path):

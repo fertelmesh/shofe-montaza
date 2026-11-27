@@ -55,24 +55,51 @@ def granice(words, c):
     return a, b
 
 
+PRETAPANJE_PJESME = (0.08, 1.2)   # s: isječak iz pjesme krene na udarac (kratko) i lagano se utiša na kraju
+
+
 def edit_za_isjecak(base, words, c, duration, stil=None):
     """→ (edit, napomene). Sve izvan isječka ide u `izrezi`; vlastiti rezovi isječka (`izrezi` u
-    isjecci.json, sekunde snimke) dodaju se; rezovi glavnog videa (uredi.py) se ne prenose."""
-    a, b = granice(words, c)
+    isjecci.json, sekunde snimke) dodaju se; rezovi glavnog videa (uredi.py) se ne prenose.
+    Isječak iz pjesme (vrsta „pjesma") je po vremenu: pjesma u editu je samo dio od–do isječka."""
+    pjesma = c.get("vrsta") == "pjesma"
     e = copy.deepcopy(base)
     notes = []
     glavni = e.pop("izrezi", None) or []
-    od, do = words[a]["s"], words[b]["e"]
+    if pjesma:
+        od, do = float(c["od"]), float(c["do"])
+    else:
+        a, b = granice(words, c)
+        od, do = words[a]["s"], words[b]["e"]
     preklop = [r for r in glavni if float(r["do"]) > od and float(r["od"]) < do]
-    if preklop:
+    if preklop and not pjesma:
         notes.append(f"{len(preklop)} rez(ova) iz glavnog videa (uredi.py) unutar isječka nije preneseno "
                      f"— isječak ima cijeli tekst kakav je Marko odobrio")
+    # pjesme: render pjesmu uzima cijelu (izrezi je ne diraju), pa isječak smije imati samo dio pjesme unutar
+    # svojih granica (prije se u isječak govora uvukla cijela pjesma iz glavnog edit.json)
+    songs = []
+    for n in e.get("nastupi") or []:
+        lo, hi = max(od, float(n["od"])), min(do, float(n["do"]))
+        if hi - lo > 0.5 and n.get("zadrzi", True) and (not pjesma or str(n.get("id")) == str(c.get("nastup"))):
+            songs.append(dict(n, od=round(lo, 3), do=round(hi, 3), zadrzi=True,
+                              titlovi=bool(n.get("titlovi", False))))
+    if songs:
+        e["nastupi"] = songs
+    else:
+        e.pop("nastupi", None)
     izrezi = []
-    if a > 0:
-        izrezi.append({"od": 0.0, "do": round(words[a - 1]["e"], 3), "naredba": f"isječak {c['id']}: prije"})
-    if b + 1 < len(words):
-        izrezi.append({"od": round(words[b + 1]["s"], 3), "do": round(max(duration, words[-1]["e"]) + 1, 3),
+    if pjesma:
+        if od > 0:
+            izrezi.append({"od": 0.0, "do": round(od, 3), "naredba": f"isječak {c['id']}: prije"})
+        izrezi.append({"od": round(do, 3), "do": round(max(duration, words[-1]["e"] if words else 0) + 1, 3),
                        "naredba": f"isječak {c['id']}: poslije"})
+        e["pretapanje_zvuka"] = list(c.get("pretapanje_zvuka") or PRETAPANJE_PJESME)
+    else:
+        if a > 0:
+            izrezi.append({"od": 0.0, "do": round(words[a - 1]["e"], 3), "naredba": f"isječak {c['id']}: prije"})
+        if b + 1 < len(words):
+            izrezi.append({"od": round(words[b + 1]["s"], 3), "do": round(max(duration, words[-1]["e"]) + 1, 3),
+                           "naredba": f"isječak {c['id']}: poslije"})
     for r in c.get("izrezi") or []:
         try:
             x, y = float(r["od"]), float(r["do"])
@@ -93,6 +120,8 @@ def edit_za_isjecak(base, words, c, duration, stil=None):
             why = f" ({s['napomena']})" if s.get("napomena") else ""
             notes.append(f"odsječak #{s['id']} isključen u edit.json{why}: „{_kratko(s.get('tekst', ''))}”")
     e["isjecak"] = {"id": c["id"], "od": c["od"], "do": c["do"], "naslov": c.get("naslov", "")}
+    if pjesma:
+        e["isjecak"].update(vrsta="pjesma", nastup=c.get("nastup"))
     return e, notes
 
 
@@ -255,8 +284,9 @@ def provjera_trajanja(gotovi, lo=20.0, hi=60.0):
     up = []
     for c, res in gotovi:
         t = res.get("trajanje")
-        if t is not None and not lo - 1 <= t <= hi + 1:
-            up.append(f"{c['id']} traje {t:.0f} s (cilj {lo:.0f}–{hi:.0f} s)")
+        a, b = (30.0, 60.0) if c.get("vrsta") == "pjesma" else (lo, hi)
+        if t is not None and not a - 1 <= t <= b + 1:
+            up.append(f"{c['id']} traje {t:.0f} s (cilj {a:.0f}–{b:.0f} s)")
     return up
 
 
