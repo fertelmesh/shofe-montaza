@@ -56,7 +56,7 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
   - M4.3b Pjesma dalje (podijeljeno):
     - [x] M4.3b1 Glasnoća pjesme naspram govora: mjerenje po dijelu (EBU R128), stalno pojačanje pjesme, video −14 LUFS bez dinamičkog loudnorma, `nastupi.py glasnoca` (#34)
     - [x] M4.3b2 Režija za vrijeme pjesme (široki kadar, sporiji rezovi na takt, `ritam.py`) + oznake pjesama u DaVinciju (marker + zvuk pjesme na vlastitoj traci) (#35)
-    - [x] M4.3b3 Pjesme u pregled.html + isječak iz pjesme (najbolji refren 30–60 s) (#PR)
+    - [x] M4.3b3 Pjesme u pregled.html + isječak iz pjesme (najbolji refren 30–60 s) (#39)
     - [ ] M4.3b4 Uspravni (9:16) isječak pjesme iz podcasta: režija u ritmu (bend/široki kadar izrezan, rez na takt) umjesto praćenja „govornika" za vrijeme pjevanja
 - [ ] M4.4 Intro/outro/špice, poglavlja za YouTube, MP3 za podcast platforme (−16 LUFS), opis epizode
 - [ ] M4.5 Pregled M4: demo + issue
