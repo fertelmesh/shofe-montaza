@@ -63,6 +63,21 @@ def test_pjesma_je_svoje_poglavlje_tema_se_nastavlja():
     assert round(ch[2]["od"]) == 160
 
 
+def test_kratka_tema_iza_pjesme_ide_u_sljedecu_temu():
+    """Pregled M4: kratki razgovor iza pjesme ne nestane u poglavlju pjesme ako iza njega ima tema
+    (inače bi „Pjesma" trajala do kraja epizode); zadnja kratka tema ima samo pjesmu za susjeda."""
+    cuts, total = cuts_of((0, 193))
+    teme = [{"od": 0, "do": 35, "naslov": "Dobrodošli"}, {"od": 35, "do": 57, "naslov": "Klima"},
+            {"od": 57, "do": 92, "naslov": "Greška"}, {"od": 150, "do": 168, "naslov": "Priča o bendu"},
+            {"od": 168, "do": 193, "naslov": "Odjava"}]
+    song = [{"od": 92, "do": 150, "naziv": "Bend"}]
+    ch = EP.slozi(teme, song, cuts, total, min_len=30)
+    assert [(round(c["od"]), c["naslov"]) for c in ch] == [
+        (0, "Dobrodošli"), (57, "Greška"), (92, "Pjesma: Bend"), (150, "Odjava")]
+    ch = EP.slozi(teme[:4], song, cuts, 170.0, min_len=30)      # bez odjave: priča (20 s) ostane uz pjesmu
+    assert [c["naslov"] for c in ch][-1] == "Pjesma: Bend"
+
+
 def test_vrijeme_gotovog_videa_izrezi_i_brzina():
     cuts, total = cuts_of((0, 50), (80, 200), (260, 400))   # izrezano 50–80 i 200–260
     teme = [{"od": 5, "do": 60, "naslov": "A"}, {"od": 60, "do": 90, "naslov": "B"},

@@ -235,7 +235,7 @@ Kod podcasta je isječak pjesme **uspravan (9:16) i u ritmu**: počne i završi 
 
 ### Poglavlja za YouTube i MP3 za podcast
 
-Kad Claude napravi kartu epizode, upiše i **teme** (npr. „Kako smo kupili Renault 4"). Iz njih Shofe sam složi **poglavlja za YouTube**: pri svakom renderu vodoravnog videa duljeg od 3 minute uz video dobiješ `reel_vN.poglavlja.txt` s redovima poput `00:00 Uvod`, `12:40 Pjesma: Bend – Ljeto`, `14:05 Kako smo kupili Renault 4` — samo ih zalijepi u opis videa na YouTubeu. Vremena su iz **gotovog** videa (nakon svih rezova), svaka pjesma je svoje poglavlje, prvo je uvijek 00:00 i nijedno nije kraće od 10 sekundi (to traži YouTube; kraći dio ide u susjedno poglavlje). Reci npr.:
+Kad Claude napravi kartu epizode, upiše i **teme** (npr. „Kako smo kupili Renault 4"). Iz njih Shofe sam složi **poglavlja za YouTube**: pri svakom renderu vodoravnog videa duljeg od 3 minute uz video dobiješ `reel_vN.poglavlja.txt` s redovima poput `00:00 Uvod`, `12:40 Pjesma: Bend – Ljeto`, `14:05 Kako smo kupili Renault 4` — samo ih zalijepi u opis videa na YouTubeu. Vremena su iz **gotovog** videa (nakon svih rezova), svaka pjesma je svoje poglavlje, prvo je uvijek 00:00 i nijedno nije kraće od 10 sekundi (to traži YouTube; kraći dio ide u susjedno poglavlje, a kratki razgovor iza pjesme u sljedeću temu, ne u pjesmu). Reci npr.:
 
 - `poglavlja za YouTube` — dobiješ popis za kopiranje
 - `preimenuj treće poglavlje u „Gost iz Zagreba"` / `spoji prva dva poglavlja` / `novo poglavlje na 23:10`

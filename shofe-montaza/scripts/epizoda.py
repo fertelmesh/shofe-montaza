@@ -110,6 +110,9 @@ def slozi(teme, pjesme, cuts, trajanje, brzina=1.0, min_len=MIN_POGLAVLJE, spica
             break
         i = min(short, key=dur)
         j = i - 1 if i > 0 else 1          # spoji s prethodnim (prvo: sa sljedećim)
+        if ch[i]["vrsta"] != "pjesma" and ch[j]["vrsta"] == "pjesma" and i + 1 < len(ch) \
+                and ch[i + 1]["vrsta"] != "pjesma":
+            j = i + 1                      # razgovor iza pjesme ide u sljedeću temu, ne nestane u pjesmi
         lo, hi = min(i, j), max(i, j)
         p_lo, p_hi = ch[lo]["vrsta"] == "pjesma", ch[hi]["vrsta"] == "pjesma"
         if p_lo != p_hi:                    # pjesma zadrži svoje ime, ostatak teme uz nju nestane

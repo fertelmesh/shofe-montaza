@@ -1,14 +1,13 @@
-# Demo — pregled M3 (Isječci za mreže)
+# Demo — pregled M4 (podcast Sunčani4M)
 
-Sve je napravljeno iz probne epizode Sunčani4M (3 min, dva nacrtana voditelja u vodoravnom kadru, sintetski glasovi), ne iz tvojih snimki. Na slici je **vrijeme snimke**, pa se vidi iz kojeg dijela epizode je isječak. Ocjene, hookove i tekstove za objavu napisao je Claude kao što bi na tvom laptopu; sve ostalo (kandidati, kadar, montaža, titlovi, provjera pravila mreža, naslovne sličice) je Shofe. Pravu kvalitetu provjeri na svojoj snimci (upute u issueu „Pregled M3").
+Sve je napravljeno iz **probne epizode 12** (3 min): Marko i Ivan u Renaultu 4, na stražnjem sjedalu bend Kutina koji usred vožnje zasvira pjesmu. Snimaju **tri kamere i diktafon**, svaki uključen u drugom trenutku: široka GoPro kamera 4,2 s prije diktafona, kamera na Marku 2,5 s poslije, Ivanov mobitel uspravno 6,1 s poslije (i ugasi se prije kraja). Na slici svake kamere piše koja je i vrijeme **u toj datoteci**. Glasovi i bend su sintetski, ne tvoje snimke. Teme, opis epizode i ocjene isječaka napisao je Claude kao što bi na tvom laptopu; sve ostalo (sinkronizacija, režija, pjesma, špice, poglavlja, MP3, DaVinci, isječci) je Shofe. Pravu kvalitetu provjeri na svojoj epizodi (upute u issueu „Pregled M4").
 
 | Datoteka | Što pokazuje |
 |---|---|
-| `M3_isjecci.mp4` | „Napravi isječke iz ove epizode": 4 kandidata s Claudeovom ocjenom i Shofeovim bodovima (čavrljanje, lutanje, nedovršena priča i odjava nisu predloženi), Marko odobri K1–K3 i odbaci K4, pa sva tri gotova isječka 9:16 jedan za drugim — svaki sa svojim stilom (čisto, podcast, kino), hookom i titlovima. |
-| `M3_kadar.mp4` | Lijevo vodoravna snimka s narančastim okvirom koji Shofe izreže, desno gotov 9:16 kadar. Uvodno čavrljanje (brze izmjene) i pitanje–odgovor o održavanju klime: kadar uvijek na onome tko govori, rez a ne švenk. |
-| `M3_objava.png` | Za K1: naslovna sličica 9:16 (Reels/TikTok/Shorts) i 16:9 (YouTube, krupno lice iz vodoravne snimke) + tekstovi za Instagram, TikTok i YouTube sa stalnim potpisom i hashtagovima serije Sunčani4M (iz `K1_….objava.txt`). |
-| `M3_naslovna.jpg` | 6 najboljih kadrova za naslovnu s ocjenom i razlogom — to Claude pogleda prije nego predloži sličicu. |
+| `M4_epizoda.mp4` | Korak po korak: sinkronizacija po zvuku (pomaci točni), mozaik **tri kamere + program** (narančasti okvir = kamera u programu: kamera prati onoga tko govori, brza izmjena → široki kadar), pjesma (široki kadar, sporiji rezovi na takt), pa dijelovi **gotove epizode**: najava → uvodna špica → dobrodošlica, početak pjesme, nakon pjesme, odjavna špica. Dolje lijevo je poglavlje u kojem si (kao na YouTubeu). |
+| `M4_isjecci.mp4` | Dva uspravna isječka iz epizode, iz **originalnih kamera**: razgovor (svatko iz svoje kamere, podijeljen kadar kad se brzo izmjenjuju) i pjesma (cijeli bend u kadru, rez na takt, bez titlova). |
+| `M4_paket.png` | Sve ostalo za objavu: generirana uvodna i odjavna špica, MP3 za Spotify/Apple s poglavljima, YouTube opis s poglavljima, tekst za podcast platforme s brojem epizode, i **DaVinci timeline** kako ga Resolve otvori (program iz originalnih kamera na V1, ostale kamere iznad, pjesma na svojoj traci, zelene oznake poglavlja). |
 
-Ranije: [demo M2](https://github.com/fertelmesh/shofe-montaza/tree/8e13791/demo) (naredbe, engleski titlovi, verzije, DaVinci), [demo M1](https://github.com/fertelmesh/shofe-montaza/tree/d322cb95f66afc3efe74ee8e4a33de2c4f3063a0/demo) (reel, 5 stilova, karta videa).
+Ranije: [demo M3](https://github.com/fertelmesh/shofe-montaza/tree/a6504b8/demo) (isječci za mreže, kadar 9:16, objava, naslovne), [demo M2](https://github.com/fertelmesh/shofe-montaza/tree/8e13791/demo) (naredbe, engleski titlovi, verzije, DaVinci), [demo M1](https://github.com/fertelmesh/shofe-montaza/tree/d322cb95f66afc3efe74ee8e4a33de2c4f3063a0/demo) (reel, 5 stilova, karta videa).
 
-Ponovno napraviti: `python tests/make_demo_m3.py` (treba ffmpeg, espeak-ng, OpenCV, Pillow i Playwright s Chromiumom; ~6 min). Ranije: `python tests/make_demo_m2.py`, `python tests/make_demo.py`.
+Ponovno napraviti: `python tests/make_demo_m4.py` (treba ffmpeg, espeak-ng, OpenCV, Pillow i Playwright s Chromiumom; ~15 min). Ranije: `python tests/make_demo_m3.py`, `python tests/make_demo_m2.py`, `python tests/make_demo.py`.
