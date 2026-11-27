@@ -59,7 +59,7 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
     - [x] M4.3b3 Pjesme u pregled.html + isječak iz pjesme (najbolji refren 30–60 s) (#39)
     - [x] M4.3b4 Uspravni (9:16) isječak pjesme iz podcasta: režija u ritmu (bend/široki kadar izrezan, rez na takt) umjesto praćenja „govornika" za vrijeme pjevanja (#40)
 - M4.4 Epizoda do kraja (podijeljeno):
-  - [x] M4.4a Poglavlja za YouTube (teme + pjesme u vremenu gotovog videa, pravila YouTubea) + MP3 za podcast platforme (−16 LUFS, ID3 poglavlja) (#PR)
+  - [x] M4.4a Poglavlja za YouTube (teme + pjesme u vremenu gotovog videa, pravila YouTubea) + MP3 za podcast platforme (−16 LUFS, ID3 poglavlja) (#41)
   - [ ] M4.4b Opis epizode: YouTube opis s poglavljima i tekst za podcast platforme (`objava.py` za epizodu)
   - [ ] M4.4c Intro/outro/špice (Markove datoteke ili generirana špica), poglavlja i MP3 se pomaknu za intro
   - [ ] M4.4d Poglavlja kao oznake u DaVinci timelineu (FCPXML chapter-marker)
