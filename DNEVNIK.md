@@ -525,3 +525,21 @@ Jedan unos po krugu, najnoviji na dnu.
 - PR #57.
 - Za Marka: kad stigneš, probaj „na početku napiši SUNČANO iza mene" na reelu gdje imaš malo prostora iznad glave i javi treperi li rub kose.
 - Sljedeće: M5.7b zamjena pozadine (boja, slika, video, zamućenje) i HTML predlošci iza osobe.
+
+## 2026-11-28 20:50 — M5.7b nova pozadina iza osobe + HTML predlošci iza osobe
+- Živa specifikacija (rev 13) i plan efekata (rev 9) pročitani: bez promjena. Nema otvorenog PR-a agenta (#36 je Markov). Issues #7, #18, #25, #38, #44, #46 bez Markova odgovora.
+- Istraženo: zamućenje pozadine s maskom (Google Meet: maska teži zamućenje, „light wrapping"), sintetička dubinska oštrina (Google Pixel), čišćenje boje u mekanom rubu maske. Odluka, alternative i izvori u ODLUKE.md.
+- Novo: efekt **`pozadina`** — `efekti.py projekt dodaj pozadina 0:00-0:08` (zamućena vlastita pozadina, `--zamuti 0–1`), `--boja #1E3A5F`, `--slika ured.jpg`, `--video more.mp4` (pokrije kadar, kraći se vrti u krug; uz `--zamuti` malo dubine). Aliasi `zamuti`, `nova_pozadina`, `green_screen`, `blur`. 0,5–600 s, dvije pozadine se ne preklapaju, pretapanje 0,2 s (ne na samom početku/kraju videa).
+  - Zamućenje bez osobe (normalizirano, nema aure oko glave); rub: maska malo stegnuta, stara pozadina oduzeta iz mekanog ruba kose, light wrap 35 %.
+  - **HTML predlošci i vlastita grafika iza osobe**: `dodaj recenica … --varijable '{…, "polozaj": "gore"}' --iza` (ne za mobitel / `--pozadina`).
+  - **Titlovi, naslov i natpisi ostaju ispred** svih efekata s maskom (i teksta iza osobe): Shofe za taj dio renderira samo sloj titlova (captions.ass, `alpha=1`) i vrati ih preko.
+  - **Maska iz slike bez titlova**: kad ima takvih efekata, render u istom prolazu zapiše i sliku prije titlova (`_tmp/grafika/cisto.mp4`, obriše se poslije); `--kadar` isto. Za pozadinu i grafiku iza osobe maska na 512 px.
+  - `grafika.umetni` u dvije faze: prvo pozadine, pa tekst/grafika iza osobe (stoje na novoj pozadini). Bez osobe u kadru (maska < 2 %) pozadina se ne mijenja + napomena. Bez HyperFramesa pozadina i tekst iza osobe ipak rade.
+  - Galerija efekata: `pozadina` (tamnoplava, najbolje pokaže rub) — grafika skupina sad 12.
+  - Verzija 0.43.0. SKILL.md (New background behind the person, Templates behind the person, opis skilla), README (Nova pozadina iza tebe), ODLUKE.md.
+- Provjera očima na pravom portretu (javna NASA fotografija iz scikit-image, nije u repou) u reelu 1080×1920 s titlovima: zamućena, boja, slika, video u krug, tekst iza osobe na video pozadini, rečenica iza osobe (video i `--kadar` isti), `--brzo`, galerija. Usput nađeno i popravljeno: (1) svijetli rub stare pozadine u kosi → čišćenje ruba; (2) u galeriji je MODNet natpis uključio u osobu, a tijelo ispod titla izgubio → maska iz slike bez titlova; (3) na 384 px gubi donji dio tijela u širem kadru → 512 px. Nacrtana osoba iz probnih klipova i dalje nije prepoznata (zato zaštita „ne vidi osobu").
+- Brzina (ovdje, 2 CPU-a): 3 s pozadine u 1080×1920 ~40–45 s prvi put (maske ~20 s + slaganje ~20 s), drugi put iz predmemorije.
+- Testovi: novi `tests/test_pozadina.py` (13: parametri i „cover", zamućenje bez osobe (crvena osoba ne curi u plavo), slaganje + čist rub + pretapanje, sloj titlova (alfa, vraćanje), `efekti.py dodaj pozadina` (greške, alias, preklapanje, `--zamijeni`, relativna slika, `--iza`, mobitel odbijen), umetanje boje na točne sličice + predmemorija + pozadina i tekst iza osobe zajedno, slika/video u krug/bez osobe/nepostojeća slika, `--kadar`, maska iz čiste slike, render piše i briše cisto.mp4, pravi MODNet render bez HyperFramesa, pravi HyperFrames predložak iza osobe). Cijeli skup lokalno: 457 prošlo, 4 preskočena.
+- PR #PRBROJ.
+- Za Marka: na pravom reelu probaj „zamuti pozadinu" i „stavi me na tamnoplavu pozadinu" (ili sliku) i javi kako izgledaju rub kose, ruke i ono što držiš u ruci (alat, daljinski) — MODNet traži ljude, predmeti daleko od tijela mogu nestati.
+- Sljedeće: M5.7c klon (ista osoba dvaput u kadru) + provjera treperenja maske.
