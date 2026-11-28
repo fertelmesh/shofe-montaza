@@ -99,6 +99,19 @@ Zvuk efekta je uvijek tiši od glasa: Shofe prvo izmjeri koliko glasno govoriš 
 
 Zumovi idu prema licu i lice ostaje na istom mjestu u kadru, pa titlovi i oznake ne skaču. Efekt je vezan za riječi, a ne za sekundu: kad kasnije nešto izrežeš, efekt ostaje na istoj rečenici. Dva zuma ne idu jedan preko drugog; stari film i retro mogu ići preko zuma. Render s efektima traje malo dulje (reel od 15 s sa sedam efekata otprilike dvostruko). **U DaVinciju:** prijelazi su u timelineu pravi prijelazi (Cross Dissolve na istom rezu, iste duljine), a na svakom rezu s prijelazom je oznaka koji je prijelaz bio u Shofeu i koji DaVincijev daje isti izgled (npr. iris → Effects > Video Transitions > Iris > Oval Iris, rolete → Wipe > Venetian Blind Wipe, vrata → Motion > Barn Door) — povuci ga na rez preko pretapanja ako želiš isto. Ostali efekti (zumovi, zamrzni, stari film, retro) i zvučni efekti u timelineu su samo **oznake** cijelom duljinom efekta („Efekt E1: trzaj“) — ondje ih dodaješ sam.
 
+### Galerija efekata (svi efekti u jednom videu)
+
+Reci **„pokaži sve efekte"** (ili „galerija efekata"). Shofe uzme jednu rečenicu iz tvog videa (oko 3 sekunde, cijela misao) i složi jedan video u kojem se ta rečenica ponavlja, svaki put s drugim efektom: prvo bez efekta (za usporedbu), zatim zumovi, zamrzni kadar s oznakom, stari film, retro, zvučni efekt, svih 11 prijelaza (na rezu između dva ponavljanja; svako drugo ponavljanje je krupni kadar, kao druga kamera, da se prijelaz vidi) i 10 gotovih predložaka grafike. Gore u kadru piše broj i ime efekta („7/30 TRZAJ") i što radi. Sve je u tvom stilu, s tvojim titlovima i zvukovima, točno kako bi izgledalo u pravom reelu.
+
+- dobiješ `galerija.mp4`, sliku `galerija.png` (po jedna sličica svakog efekta s imenom i vremenom) i `galerija.txt` (popis s naredbom za svaki efekt)
+- samo dio: „pokaži samo prijelaze" (`--samo prijelazi`; skupine: kamera, boja, zvuk, prijelazi, grafika), „pokaži trzaj, iris i brojač" (`--samo trzaj,iris,brojac`)
+- druga rečenica: „galerija od 0:12" (`--od 0:12`); brže: „galerija bez grafike" ili „brza galerija" (pola rezolucije)
+- tvoj video se ne mijenja; galerija radi u mapi `_galerija` unutar projekta, pa drugi put ide brže (prijelazi i grafike iz predmemorije)
+
+Ovdje (2 jezgre, bez grafičke) cijela galerija bez predložaka (20 efekata, 31 s) renderira se oko 2,5 minute, s predlošcima još ~3 minute. Na tvom laptopu bi trebalo biti brže. Kod predloška „mobitel" natpis s imenom efekta ode u mobitel zajedno s videom (vidi se mali) — to je zato što mobitel prikazuje gotov video.
+
+Ono što ti se ne sviđa javi po broju: „7 je prejak", „iris neka bude sporiji", „brojač mi je presitan" — po tome dorađujem efekte.
+
 ### Grafika (kartice, brojke, mobitel)
 
 Grafiku koju ffmpeg ne zna nacrtati (animirana kartica s cijenom, popis koraka, video koji se smanji u mobitel) Claude napiše kao malu HTML stranicu, a **HyperFrames** (besplatan, radi na tvom laptopu, bez računa i bez interneta) od nje napravi taj komad videa sličicu po sličicu. Shofe ga zatim položi točno na to mjesto u gotovom videu; ostatak videa i zvuk ostaju isti.

@@ -495,3 +495,17 @@ Jedan unos po krugu, najnoviji na dnu.
 - PR #55.
 - Za Marka: ništa odmah; u Pregledu M5 probaj „na 0:05 kartica …", „kad kažem 350 eura neka se odbroji", „na kraju gumb Zaprati" i javi koji ti se izgled ne sviđa.
 - Sljedeće: M5.6 galerija efekata (jedan render sa svim efektima).
+
+## 2026-11-28 14:30 — M5.6 galerija efekata
+- Živa specifikacija (rev 13) i plan efekata (rev 9) pročitani: bez promjena. Nema otvorenog PR-a agenta (#36 je Markov). Issues #7, #18, #25, #38, #44, #46 bez Markova odgovora.
+- Novo: `efekti.py projekt galerija` (`galerija.py`): jedan video sa svim efektima na istom komadu tvoje snimke.
+  - Shofe izabere ~3 s govora iz gotovog videa (cijela rečenica, bez reza unutra; `--od 0:12`), složi probnu snimku u `projekt/_galerija` u kojoj se taj komad ponavlja; svako drugo ponavljanje je krupni kadar (zum 1,3 prema licu), da se prijelazi vide.
+  - Prvo ponavljanje bez efekta, zatim po jedan efekt: guranje, trzaj, pad, vertigo, zamrzni s oznakom, film, retro, samostalan zvuk i 10 predložaka grafike; 11 prijelaza na rezovima između ponavljanja. Gore u kadru natpis „7/30 TRZAJ" + što radi (novi `galerija_natpisi` u edit.json → ASS u istom prolazu kao titlovi).
+  - Izlaz: `galerija.mp4`, `galerija.png` (sličica svakog efekta u najjačem trenutku, s brojem i vremenom), `galerija.txt` (naredba za svaki efekt). `--samo prijelazi|kamera|boja|zvuk|grafika` ili `--samo trzaj,iris,brojac`, `--bez-grafike`, `--brzo`, `--proba`. Bez HyperFramesa predlošci izostanu uz napomenu. Markov edit.json i verzije se ne diraju.
+  - Verzija 0.41.0. SKILL.md (Effect gallery), README (Galerija efekata), ODLUKE.md.
+- Provjera očima: galerija probnog reela (20 efekata bez predložaka, 31 s) — svi efekti i prijelazi se vide, natpis čitljiv (č ispravan), oznaka zamrznutog kadra uz lice. Prva verzija s istim kadrom u svim ponavljanjima: iris, rolete i brisanje se nisu vidjeli → uveden krupni kadar u svakom drugom ponavljanju. S predlošcima (trzaj, brojač, mobitel): brojač ispod lica, mobitel s naslovom; poznato: kod mobitela natpis galerije ode u mobitel (sitan).
+- Brzina (ovdje, 2 CPU-a): bez predložaka ~2,5 min prvi put; s predlošcima ~+18 s po predlošku.
+- Testovi: novi `tests/test_galerija.py` (7: odabir efekata (skupine, imena, aliasi, predlošci, greške); odabir komada (cijela rečenica, bez susjednih riječi, `od`, izbačena rečenica); ASS natpis; probna snimka (trajanje N × komad, parna ponavljanja ista, neparna krupna), raspored (svaki efekt jednom, prijelazi na rezovima, efekti unutar ponavljanja, brojevi po vremenu, natpisi bez preklapanja i slika unutar natpisa), glavni projekt netaknut; `--samo` prijelazi; render (txt, png, natpis gore, trzaj zumira, film toplije); pravi HyperFrames s brojačem i mobitelom).
+- PR #56.
+- Za Marka: na pravom reelu reci „pokaži sve efekte" i javi po broju što ti se ne sviđa („7 je prejak", „iris sporiji") — to je ujedno „Gotovo kad" za modul 5.
+- Sljedeće: M5.7 izdvajanje osobe (permisivni model): tekst iza osobe, zamjena pozadine, klon.
