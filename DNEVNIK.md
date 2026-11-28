@@ -439,3 +439,14 @@ Jedan unos po krugu, najnoviji na dnu.
 - PR #51.
 - Za Marka: ništa novo za isprobati osim brzine — ako si primijetio da se laptop guši na reelu s puno prijelaza, sad bi trebalo biti bolje.
 - Sljedeće: M5.2c2 prijelazi u DaVinci timelineu.
+
+## 2026-11-28 06:20 — M5.2c2 prijelazi i efekti u DaVinci timelineu
+- Živa specifikacija (rev 13) i plan efekata (rev 9) pročitani: bez promjena. Nema otvorenog PR-a agenta (#36 je Markov). Issues #7, #18, #25, #38, #44, #46 bez Markova odgovora.
+- Istraženo: DaVinci iz FCPXML-a uvozi prijelaze, ali za FCPXML pouzdano poznat (u izvozima Final Cuta) je samo uid Cross Dissolvea; geometrija iz pravog FCP izvoza (OpenTimelineIO uzorak) i Appleova DTD-a: prijelaz centriran na rezu, kadrovi zadržavaju mjesta, ručke iz snimke. Odluka i izvori u ODLUKE.md.
+- Novo: u `.fcpxml` svaki Shofeov prijelaz je **pravi prijelaz** (Cross Dissolve) na istom rezu, iste duljine, centriran, s ručkama iz originalne snimke — duljina timelinea i mjesta kadrova ostaju ista. Ako original nema dovoljno snimke uz rez, prijelaz se skrati ili ostane rez (napomena). Na rezu je oznaka „Prijelaz E2: rolete (0,6 s)" s bilješkom koji DaVincijev prijelaz daje isti izgled (iris → Oval Iris, rolete → Venetian Blind Wipe, vrata → Barn Door …) i koji zvuk ide uz njega. Ostali efekti (trzaj, zamrzni s oznakom, film, retro, samostalan zvuk) su oznake cijelom duljinom. Render ispisuje „u DaVinci timelineu prijelazi kao Cross Dissolve, ostali kao oznake". Verzija 0.37.0. SKILL.md, README (Efekti, DaVinci), ODLUKE.md.
+- Provjera očima: usporedna slika Shofeova pretapanja i pretapanja iz timelinea (izračunato iz originalne snimke po vremenima iz `.fcpxml`) na 10/30/50/70/90 % — iste sličice, isti udjeli; rolete u timelineu kao pretapanje (očekivano). Po sličicama: Shofeovo pretapanje je linearno od sličice 65 do 82, prijelaz u timelineu ima isti raspon (offset 65, 18 sličica).
+- Testovi: novi `tests/test_davinci_prijelazi.py` (5: prijelaz između pravih kadrova, centriran, isto mjesto i duljina kao u Shofeovu videu, kadrovi bez rupa, uid, bez prijelaza zvuka, ručke u snimci, oznake prijelaza i efekata sa zvukovima; DTD 1.10 + ispis `davinci.py`; slika usred pretapanja iz timelinea = Shofeov video (srednja razlika < 10/255); skraćenje i rez kad snimke uz rez nema; brzina 1,25 i bez efekata).
+- Za Marka: na reelu s prijelazom otvori `reel_vN.fcpxml` u DaVinciju i javi vidi li se pretapanje na rezu (i je li iste duljine); ako ne, Shofe će prijelaze ostaviti samo kao oznake.
+- PR #52.
+- Sljedeće: M5.3 Claude bira efekte po tekstu (pravila u SKILL.md + `efekti.py predlozi`).
+

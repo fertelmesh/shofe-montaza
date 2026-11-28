@@ -892,7 +892,7 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     fx_lines = [f"  ! {x}" for x in fx_notes + zv_notes]
     if fx:
         fx_lines.append(f"Efekti: {len(fx)} ({', '.join(x['id'] + ' ' + x['tip'] for x in fx)}); "
-                        "u DaVinci timelineu ih nema (samo rezovi), popis: python efekti.py "
+                        "u DaVinci timelineu prijelazi kao Cross Dissolve, ostali kao oznake; popis: python efekti.py "
                         f"{proj.name} popis")
     if zv:
         fx_lines.append(zvukovi.opis_linija(zv))

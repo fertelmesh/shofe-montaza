@@ -14,6 +14,11 @@ vodoravne snimke) i zumovima; zvuk i boja ostaju neobrađeni. Glazba ide na zase
 Naslov (hook), stil i zumovi upisani su i kao oznake (markeri) da se vidi što je Shofe radio.
 Ako originalna snimka više ne postoji, cijeli timeline koristi pripremljeni source.mp4.
 
+Efekti (M5.2c2): svaki prijelaz na rezu je <transition> s FCP-ovim Cross Dissolveom (jedini koji DaVinci iz FCPXML-a
+pouzdano uvozi) na istom rezu i iste duljine, centriran, s ručkama iz originalne snimke (kadrovi ne mijenjaju
+mjesto ni trajanje); oznaka na rezu kaže koji je prijelaz u Shofeovu videu i koji DaVincijev daje isti izgled.
+Ostali efekti (zumovi efekata, zamrzni, film, retro, zvukovi) su oznake cijelom duljinom efekta.
+
 Podcast (projekt iz rezija.py, M4.2b): V1 = program iz ORIGINALNIH kamera (kadar po kadar iz rezija.json, vrijeme
 iz sinkro.json, isti izrez; zvuk kamere isključen), iznad svakog kadra ostale kamere u istom trenutku, svaka na
 svojoj traci (lane = 1 + redni broj kamere) i isključene (enabled=0) — u DaVinciju se uključe za ručnu promjenu
@@ -548,6 +553,131 @@ def marker_edl(ch, fps, title, boja=EDL_BOJA):
 
 
 # ---------------------------------------------------------------- FCPXML
+# ---------------------------------------------------------------- efekti i prijelazi (M5.2c2)
+# FCP-ov ugrađeni Cross Dissolve: DaVinci ga iz FCPXML-a uvozi kao svoj Cross Dissolve (vidi ODLUKE.md).
+CROSS_DISSOLVE = {"name": "Cross Dissolve", "uid": "FxPlug:4731E73A-8DAC-4113-9A30-AE85B1761265"}
+# isti izgled u DaVinciju (Effects > Video Transitions > …): Shofeov prijelaz → DaVincijev; None = nema sličnog
+RESOLVE_PRIJELAZ = {
+    "pretapanje": None, "crno": "Dissolve > Dip To Color Dissolve (crna)",
+    "bljesak": "Dissolve > Dip To Color Dissolve (bijela)", "iris": "Iris > Oval Iris",
+    "rolete": "Wipe > Venetian Blind Wipe", "vrata": "Motion > Barn Door", "brisanje": "Wipe > Edge Wipe",
+    "klizanje": "Motion > Push", "zamah": "Motion > Push (kratko trajanje)", "prolaz": "", "pikseli": "",
+}
+
+
+def _hr(x):
+    return f"{x:.2f}".rstrip("0").rstrip(".").replace(".", ",")
+
+
+def efekti_u_timeline(edit, st, cuts, fps, total, speed, pieces, out_frames, clip_els, spine, res, assets,
+                      new_id, marker_at, notes, sp_els, spica_idx):
+    """Efekti iz edit.json u timelineu. Prijelaz → <transition> (Cross Dissolve) u spineu između dva kadra,
+    centriran na rezu: offset = rez − pola trajanja, kadrovi zadržavaju svoja mjesta i trajanja (FCPXML kao u FCP-u),
+    a drugu polovicu svaki kadar uzima iz snimke iza svog kraja / prije svog početka (ručke) — isto kao render.
+    Bez dovoljno ručke prijelaz se skrati (ili ostane samo oznaka). Na rezu ide oznaka koji je prijelaz u
+    Shofeovu videu i kako ga dobiti u DaVinciju. Ostali efekti (zum, zamrzni, film, retro, zvuk) su oznake."""
+    import efekti
+    import prijelazi as PR
+    import zvukovi as ZV
+    stat = {"prijelaza": 0, "efekata": 0}
+    if not edit.get("efekti"):
+        return stat
+    fx, _ = efekti.plan(edit, cuts, fps, total)
+    if not fx:
+        return stat
+    fd = Fraction(1, fps)
+    zvuk_on = ZV.ukljuceni(edit, st)
+
+    def zvuk_txt(x):
+        if not zvuk_on:
+            return ""
+        k, _ = ZV.za_efekt(x)
+        return f"; zvuk: {Path(k).name if ZV.je_datoteka(k) else k} (samo u Shofeovu videu)" if k else ""
+
+    eff_id = None
+    by_out = {p["out"]: i for i, p in enumerate(pieces)}
+    kids = list(spine)
+    pos_of = {id(el): j for j, el in enumerate(kids)}
+    asset_by_ref = {v["id"]: v for v in assets.values()}
+    placed, kratki, bez = [], [], []
+    for x in fx:
+        tip = x["tip"]
+        if not PR.je_prijelaz(tip):
+            f0 = round(x["s"] / float(speed) * fps)
+            nf = max(1, round((x["e"] - x["s"]) / float(speed) * fps))
+            if tip == "zvuk":
+                k, _ = ZV.za_efekt(x)
+                marker_at(f0, f"Zvuk {x['id']}: {Path(k).name if k and ZV.je_datoteka(k) else k or 'zvuk'}",
+                          "zvučni efekt u Shofeovu videu (u timelineu ga nema)", nf)
+            else:
+                opis = efekti.TIPOVI[tip]["opis"]
+                ozn = (x["p"].get("oznaka") or "").strip()
+                marker_at(f0, f"Efekt {x['id']}: {tip}" + (f" „{ozn}“" if ozn else ""),
+                          f"{opis}; u timelineu nije postavljen, samo u Shofeovu videu{zvuk_txt(x)}", nf)
+            stat["efekata"] += 1
+            continue
+        # prijelaz: kadar B počinje točno na rezu (sličica gotovog videa prije brzine)
+        i = by_out.get(round(cuts[x["rez"]]["o"] * fps))
+        resolve = RESOLVE_PRIJELAZ.get(tip)
+        kako = ("isti kao u Shofeovu videu" if resolve is None else
+                f"za isti izgled u DaVinciju: Effects > Video Transitions > {resolve}" if resolve else
+                "sličnog u DaVinciju nema")
+        d_txt = f"{_hr(x['n'] / fps / float(speed))} s"
+        ok = i is not None and i > 0 and i != spica_idx
+        el_a = el_b = None
+        if ok:
+            el_a, el_b = clip_els[i - 1][0], clip_els[i][0]
+            ja, jb = pos_of.get(id(el_a)), pos_of.get(id(el_b))
+            ok = ja is not None and jb == ja + 1
+        n1 = 0
+        if ok:
+            n1 = max(1, round(x["n"] / 2 / float(speed)))
+            # ručke: koliko snimke ima iza kraja kadra A i prije početka kadra B (vrijeme klipa u timelineu)
+            room = []
+            for el, kraj in ((el_a, True), (el_b, False)):
+                a = asset_by_ref[el.get("ref")]
+                lo = a["tc"] / speed
+                hi = (a["tc"] + on_grid(a["info"]["dur"], a["afd"])) / speed
+                s0 = parse_time(el.get("start"))
+                avail = hi - (s0 + parse_time(el.get("duration"))) if kraj else s0 - lo
+                room.append(int(avail * fps + Fraction(1, 1000)))
+            if min(room) < n1:
+                n1 = min(room)
+                (kratki if n1 >= 2 else bez).append(x["id"])
+            ok = n1 >= 2
+        if ok:
+            if eff_id is None:
+                eff_id = new_id()
+                ET.SubElement(res, "effect", id=eff_id, **CROSS_DISSOLVE)
+            o = out_frames[i][0]                         # rez u timelineu (sličice gotovog videa, bez špice)
+            t_cut = parse_time(el_b.get("offset"))
+            tr = ET.Element("transition", name=CROSS_DISSOLVE["name"], offset=ftime(t_cut - n1 * fd),
+                            duration=ftime(2 * n1 * fd))
+            ET.SubElement(tr, "filter-video", ref=eff_id, name=CROSS_DISSOLVE["name"])
+            # bez filter-audio: u Shofeovu videu zvuk na rezu ostaje čisti rez
+            spine.insert(list(spine).index(el_a) + 1, tr)
+            placed.append(x["id"])
+            stat["prijelaza"] += 1
+            u_tl = f"u timelineu Cross Dissolve {_hr(2 * n1 / fps)} s"
+        else:
+            o = out_frames[i][0] if i is not None else round(x["t"] / float(speed) * fps)
+            u_tl = "u timelineu je ovdje rez (nema snimke uz rez za prijelaz)" if i is not None and n1 < 2 \
+                else "u timelineu je ovdje rez"
+            if x["id"] not in bez:
+                bez.append(x["id"])
+        smjer = x["p"].get("smjer") if PR.TIPOVI[tip].get("smjer") else None
+        marker_at(o, f"Prijelaz {x['id']}: {tip}" + (f" {smjer}" if smjer else "") + f" ({d_txt})",
+                  f"{u_tl}; {kako}{zvuk_txt(x)}")
+    if placed:
+        notes.append(f"prijelazi: {len(placed)} kao Cross Dissolve na rezu (oznaka kaže koji je u Shofeovu videu)"
+                     + (f"; skraćeni (malo snimke uz rez): {', '.join(kratki)}" if kratki else ""))
+    if bez:
+        notes.append(f"prijelazi bez prijelaza u timelineu (samo oznaka): {', '.join(bez)}")
+    if stat["efekata"]:
+        notes.append(f"efekti: {stat['efekata']} kao oznake (u timelineu nisu postavljeni)")
+    return stat
+
+
 def build(proj, edit, use_originals=True, name=None, izvor=None, glavni=False, spica="auto"):
     """Vrati (ElementTree korijen, sažetak). Ne piše ništa na disk.
     izvor = uspravni izvor isječka podcasta (uspravno.py): timeline 9:16 iz te datoteke (slika i zvuk).
@@ -983,6 +1113,11 @@ def build(proj, edit, use_originals=True, name=None, izvor=None, glavni=False, s
                 _insert_marker(el, ET.Element("marker", **attrs))
                 return
 
+    # efekti (M5.1/M5.2): prijelazi na rezovima kao FCPXML transition (Cross Dissolve) s ručkama iz snimke,
+    # centrirani na rezu kao u Shofeovu videu; ostali efekti (zum, zamrzni, film …) kao oznake
+    fx_n = efekti_u_timeline(edit, st, cuts, fps, total, speed, pieces, out_frames, clip_els, spine, res, assets,
+                             new_id, marker_at, notes, sp_els, at_idx if uvod_n else None)
+
     grade = st.get("boja_slike", "neutralno")
     marker_at(0, f"Shofe stil: {st.get('naziv', edit.get('stil'))}",
               f"boja slike: {grade} ({GRADES.get(grade, '')}); zvuk i boja u ovom timelineu su neobrađeni")
@@ -1040,6 +1175,7 @@ def build(proj, edit, use_originals=True, name=None, izvor=None, glavni=False, s
                "originali" if use_originals else "source.mp4", "datoteke": sorted({a["name"] for a in assets.values()}), "zumova": zoomed_pieces,
                "napomene": notes, "brzina": float(speed), "pieces": pieces, "fps": fps,
                "pjesama": len(songs), "zvuk_pjesme": song_audio[0], "bend": bend_shots,
+               "prijelaza": fx_n["prijelaza"], "efekata": fx_n["efekata"],
                "poglavlja": ch, "spica": ({"r": sp_r, "uvod": uvod_n, "odjava": odjava_n, "at": at_o}
                                           if sp_els else None)}
     return root, summary
