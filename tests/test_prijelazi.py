@@ -87,13 +87,44 @@ def test_graf_ulazi_se_poklapaju():
            "p": {"smjer": "desno"}},
           {"id": "E2", "tip": "iris", "s": 3.0, "e": 3.6, "t": 3.3, "n": 18, "a_src": 5.0, "b_src": 7.0, "p": {}},
           {"id": "E3", "tip": "vrata", "s": 5.0, "e": 5.6, "t": 5.3, "n": 18, "a_src": 9.0, "b_src": 11.0, "p": {}}]
-    args = prijelazi.ulazi(px, "source.mp4", 0.0, 30)
-    assert args.count("-i") == 2 + 3 + 2
-    g = ";".join(prijelazi.graf(px, 1, "[v1]", "[v1p]", 540, 960, 30, "null", lambda x: None, lambda x: None))
-    used = sorted({int(k) for k in re.findall(r"\[(\d+):v\]", g)})
-    assert used == list(range(1, 8))
-    assert "wiperight" in g and "alphamerge" in g and g.endswith("[v1p]")
-    assert g.count("overlay=0:0:eof_action=pass") == 3
+    # jedan prijelaz = svoja mala naredba (2 komada snimke, iris i maska)
+    assert prijelazi.ulazi(px[:1], "source.mp4", 0.0, 30).count("-i") == 2
+    assert prijelazi.ulazi(px[1:2], "source.mp4", 0.0, 30).count("-i") == 3
+    one = ";".join(prijelazi._spoj(px[0], 0, 1, 2, 30, "null", None, None, 0, 540))
+    assert "wiperight" in one and one.endswith("[px0]")
+    assert "alphamerge" in ";".join(prijelazi._spoj(px[1], 0, 1, 2, 30, "null", None, None, 0, 540))
+    # glavni prolaz: svi prijelazi kao JEDAN ulaz i jedan overlay (RAM ne raste s brojem prijelaza)
+    g = ";".join(prijelazi.graf(px, 4, "[v1]", "[v1p]", 30))
+    assert re.findall(r"\[(\d+):v\]", g) == ["4"] and g.count("overlay=") == 1 and g.endswith("[v1p]")
+
+
+def _vrijeme(px, N, fps=30):
+    """Vrijednost setpts izraza za sličicu N (bez ffmpega)."""
+    expr = prijelazi.vremena_expr(px, fps)
+    expr = re.sub(r"between\(N,(\d+),(\d+)\)", lambda m: str(int(int(m[1]) <= N <= int(m[2]))), expr)
+    return eval(expr.replace("N", str(N)))  # noqa: S307 (naš izraz: brojevi, + - * /)
+
+
+@pytest.mark.parametrize("pola", [0.0, 0.5])
+def test_sličica_komada_uz_svaku_sličicu_glavne_trake(pola):
+    """Overlay uzme zadnju sličicu komada koja nije poslije sličice glavne trake. Za svaku sličicu glavne
+    trake u prozoru to mora biti prava sličica prijelaza (j = 0 … n-1, svaka jednom), i kad rez nije
+    točno na sličici; isto pravilo vrijedi za --kadar (sl_indeks)."""
+    fps = 30
+    px = [{"s": (30 + pola) / fps, "e": (30 + pola + 12) / fps, "n": 12},
+          {"s": (60 + pola) / fps, "e": (60 + pola + 18) / fps, "n": 18}]
+    ts = [_vrijeme(px, N) for N in range(30)]
+    d = prijelazi.POMAK / fps
+    for k, x in enumerate(px):
+        c = 0 if k == 0 else 12
+        mine = [m for m in range(120) if x["s"] - d <= m / fps <= x["e"] - d - 1e-4]
+        assert len(mine) == x["n"]
+        got = []
+        for m in mine:
+            j = max(i for i, t in enumerate(ts) if t <= m / fps + 1e-9) - c   # overlay: zadnja ≤ t
+            got.append(j)
+            assert j == prijelazi.sl_indeks(x, m / fps, fps)
+        assert got == list(range(x["n"]))
 
 
 # ---------------------------------------------------------------- pravi render
@@ -222,3 +253,42 @@ def test_vrata_rolete_zamah_i_izmjene(projekt):
     run("uredi.py", projekt, "vrati")
     run("efekti.py", projekt, "makni", "sve")
     assert not json.loads((projekt / "edit.json").read_text(encoding="utf-8"))["efekti"]
+
+
+def test_pripremljeni_komadi_jedan_ulaz_i_predmemorija(projekt):
+    """M5.2c: svaki prijelaz se renderira zasebno u _tmp/prijelaz_*.mp4 (točno n sličica), glavni prolaz ih
+    čita kao jedan ulaz; nepromijenjen prijelaz se ne renderira ponovno, maknut se briše."""
+    run("efekti.py", projekt, "makni", "sve", ok=False)
+    run("efekti.py", projekt, "dodaj", "iris", "R1")
+    run("efekti.py", projekt, "dodaj", "brisanje", "R2")
+    out = run("render.py", projekt, "--izlaz", "c1.mp4").stdout
+    assert "pripremljeno 2 od 2" in out
+    tmp = projekt / "_tmp"
+    komadi = sorted(tmp.glob("prijelaz_*.mp4"))
+    assert len(komadi) == 2
+    edit = json.loads((projekt / "edit.json").read_text(encoding="utf-8"))
+    import render
+    pj = json.loads((projekt / "project.json").read_text(encoding="utf-8"))
+    words = json.loads((projekt / "transcript.json").read_text(encoding="utf-8"))["words"]
+    cuts, _, total = render.build_cuts(words, edit, render.resolve_style(edit), 30, pj["duration"])
+    p, _ = efekti.plan(edit, cuts, 30, total)
+    lst = (tmp / "prijelazi.ffconcat").read_text(encoding="utf-8")
+    for x in p:  # svaki komad ima točno n sličica
+        name = re.findall(r"file '([^']+)'", lst)[p.index(x)]
+        r = subprocess.run(["ffprobe", "-v", "error", "-count_frames", "-select_streams", "v:0", "-show_entries",
+                            "stream=nb_read_frames", "-of", "csv=p=0", str(tmp / name)], capture_output=True, text=True)
+        assert int(r.stdout.strip()) == x["n"]
+    graf = (tmp / "graf.txt").read_text(encoding="utf-8")
+    assert graf.count("overlay=0:0:eof_action=pass:repeatlast=0") == 1 and "xfade" not in graf
+    assert not list(tmp.glob("maska_*.png"))                  # maske su obrisane nakon pripreme
+    mt = {k.name: k.stat().st_mtime_ns for k in komadi}
+    out = run("render.py", projekt, "--izlaz", "c2.mp4").stdout
+    assert "pripremljeno" not in out                          # ništa novo: isti komadi
+    assert {k.name: k.stat().st_mtime_ns for k in tmp.glob("prijelaz_*.mp4")} == mt
+    assert np.abs(frames(projekt / "c1.mp4").astype(int) - frames(projekt / "c2.mp4").astype(int)).max() == 0
+    run("efekti.py", projekt, "dodaj", "rolete", "R2", "--zamijeni")
+    out = run("render.py", projekt, "--izlaz", "c3.mp4").stdout
+    assert "pripremljeno 1 od 2" in out                       # samo promijenjeni
+    novi = {k.name for k in tmp.glob("prijelaz_*.mp4")}
+    assert len(novi) == 2 and len(novi & set(mt)) == 1        # stari komad brisanja je maknut
+    run("efekti.py", projekt, "makni", "sve")

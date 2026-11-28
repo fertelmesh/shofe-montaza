@@ -19,7 +19,7 @@ from common import (FONTS_DIR, GRADES, die, ffmpeg, filter_script_args, fmt_time
                     load_style, norm_word, run)
 
 ZOOM = {"nema": None, "blago": (1.08, 1.6), "jako": (1.16, 0.7)}
-MAX_PRIJELAZA = 16          # svaki prijelaz = 2–3 kratka ulaza u ffmpeg i ~0,3 GB RAM-a kod 1080×1920
+MAX_PRIJELAZA = 100         # prijelazi se pripremaju zasebno i idu kao jedan ulaz: RAM ne raste s brojem
 POS_FRAC = {"dolje": 0.24, "gore": 0.20}
 
 
@@ -754,13 +754,12 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
         inputs += ["-stream_loop", "-1", "-i", mp]
 
     vmain = "[v1]"
-    if px:  # prijelazi na rezovima: dva kratka komada snimke po prijelazu, xfade, preko glavne trake
+    if px:  # prijelazi na rezovima: svaki pripremljen zasebno (dva komada snimke + xfade), jedan ulaz, preko glavne trake
         src, off = _src_of(proj, izvor)
         prvi = sum(1 for x in inputs if str(x) == "-i")
-        inputs += prijelazi.ulazi(px, src, off, fps)
-        prijelazi.pripremi_maske(px, proj, W, H)
         za, zb = _side_zoom(zr, factor, W, H, fps)
-        g += prijelazi.graf(px, prvi, "[v1]", "[v1p]", W, H, fps, grade, za, zb)
+        inputs += prijelazi.pripremi(px, src, off, W, H, fps, grade, za, zb, proj, ispis=ispis)
+        g += prijelazi.graf(px, prvi, "[v1]", "[v1p]", fps)
         vmain = "[v1p]"
     vtail = vmain + ",".join(efekti.freeze_chain(fx, fps) + efekti.video_chain(fx, W, H, fps, cmd_dir=proj)
                              + [subs])
@@ -842,6 +841,11 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
         g += sg
         inputs += sin
 
+    # slika iz zasebnog otvaranja iste snimke (-an): zvuk (loudnorm gleda ~3 s unaprijed) tada ne tjera
+    # dekodiranje slike unaprijed, pa se ispred overlaya (zum, prijelazi) ne gomilaju sličice (~0,3 GB kod 1080×1920)
+    vi = sum(1 for x in inputs if str(x) == "-i")
+    inputs += ["-an", *src_in]
+    g = [x.replace("[0:v]", f"[{vi}:v]") for x in g]
     fg = proj / "_tmp" / "graf.txt"
     fg.parent.mkdir(exist_ok=True)
     fg.write_text(";\n".join(g), encoding="utf-8")

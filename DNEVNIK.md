@@ -424,3 +424,18 @@ Jedan unos po krugu, najnoviji na dnu.
 - Za Marka: na pravom reelu dodaj npr. „zamah na drugom rezu" i „trzaj na …" i javi jesu li zvukovi dobri, preglasni ili pretihi (`zvukovi su pretihi` = +3 dB). Ako želiš svoje snimljene zvukove, stavi .wav u mapu projekta. Poslušaj sve: „koji zvukovi postoje".
 - PR #50.
 - Sljedeće: M5.2c prijelazi dalje (manje memorije, prijelazi u DaVinci timelineu).
+
+## 2026-11-28 04:15 — M5.2c1 manje memorije za prijelaze
+- Živa specifikacija (rev 13) i plan efekata (rev 9) pročitani: bez promjena. Nema otvorenog PR-a agenta (#36 je Markov). Issues #7, #18, #25, #38, #44, #46 bez Markova odgovora.
+- M5.2c podijeljen: M5.2c1 memorija (ovaj krug), M5.2c2 prijelazi u DaVinci timelineu.
+- Izmjereno prije (reel 1080×1920, 40 s, 18 rezova): glavni ffmpeg bez prijelaza 0,44 GB, 4 prijelaza 1,13 GB, **16 prijelaza 2,72 GB**.
+- Novo: svaki prijelaz se renderira zasebno u `_tmp/prijelaz_<ključ>.mp4` (ista slika kao prije), a glavni prolaz ih čita kao **jedan ulaz** s jednim overlayem. Nepromijenjen prijelaz se pri sljedećem renderu ne radi ponovno („povećaj titlove" ne čeka prijelaze); komadi maknutih prijelaza se brišu. Ispis: „Prijelazi: pripremljeno N od M".
+- Usput nađen drugi uzrok: `loudnorm` drži ~3 s zvuka, pa je ffmpeg zbog zvuka dekodirao sliku unaprijed i gomilao je ispred overlaya (~0,3 GB). Sad se slika čita iz zasebnog otvaranja iste snimke (`-an`), zvuk iz prvog.
+- Poslije: **16 prijelaza 0,48 GB** (bez prijelaza 0,45 GB); render sa 16 prijelaza 30 s (prije 37–45 s), ponovni render 11,5 s. Najviše prijelaza po renderu: 16 → 100. Verzija 0.36.1. SKILL.md, README (Prijelazi), ODLUKE.md.
+- Točnost: komad je pomaknut ¼ sličice, pa je svaka sličica prijelaza točno jednom na ekranu i kad rez pada na pola sličice; `--kadar` usred prijelaza koristi isto pravilo (prije `round`, mogao je uzeti susjednu sličicu).
+- Provjera očima: galerija 8 prijelaza (¼, ½, ¾) iz novog rendera 1080×1920 — iris, brisanje, vrata, rolete, zamah, pretapanje, pikseli, prolaz izgledaju kao prije.
+- Testovi: `test_prijelazi.py` — graf (jedan ulaz, jedan overlay), nova simulacija overlaya za rez na sličici i na pola sličice (svaka sličica j = 0…n-1 točno jednom, isto kao `sl_indeks`), novi pravi render: komadi imaju točno n sličica, u `graf.txt` nema xfadea, maske obrisane, drugi render ne dira komade i daje identičan video, promjena jednog prijelaza renderira samo njega. Postojeći testovi prijelaza (usred brisanja/irisa, `--kadar` = video) prolaze.
+- CI: prvi put pao samo Linux (ffmpeg 8.0.1) na renderu sa zamahom, ffmpeg izašao bez poruke; lokalno (ffmpeg 6.1, i s 8 niti) i na Windowsu prolazi. Dodano: priprema prijelaza ponovi se jednom ako ffmpeg padne, a svaka greška ffmpega sad piše izlazni kod. Drugi put sve zeleno. Ako se ponovi, poruka će reći koji prijelaz i koji kod.
+- PR #51.
+- Za Marka: ništa novo za isprobati osim brzine — ako si primijetio da se laptop guši na reelu s puno prijelaza, sad bi trebalo biti bolje.
+- Sljedeće: M5.2c2 prijelazi u DaVinci timelineu.

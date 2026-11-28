@@ -115,7 +115,7 @@ def run(cmd, cwd=None, quiet=True):
     r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if r.returncode != 0:
         tail = "\n".join(r.stderr.strip().splitlines()[-25:])
-        die(f"naredba nije uspjela ({Path(cmd[0]).name}):\n{tail}")
+        die(f"naredba nije uspjela ({Path(cmd[0]).name}, izlazni kod {r.returncode}):\n{tail}")
     if not quiet:
         print(r.stdout)
     return r
