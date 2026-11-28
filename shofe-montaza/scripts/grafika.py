@@ -347,7 +347,7 @@ def plan(fx, speed, fps, sp_r=None, ukupno=None, stil=None):
     s = prva sličica (poravnata), n = broj sličica. Grafika koju bi prekinula uvodna špica završi na njoj."""
     import spica
     out, notes = [], []
-    gx = [x for x in fx if x["tip"] == "grafika"]
+    gx = [x for x in fx if x["tip"] in ("grafika", "iza")]     # iza = tekst iza osobe (osoba.py), isti prolaz
     if len(gx) > MAX_GRAFIKA:
         notes.append(f"grafika je {len(gx)}; u videu je prvih {MAX_GRAFIKA}")
         gx = gx[:MAX_GRAFIKA]
@@ -365,7 +365,8 @@ def plan(fx, speed, fps, sp_r=None, ukupno=None, stil=None):
         if n < 2:
             notes.append(f"grafika {x['id']} preskočena: prekratka")
             continue
-        out.append({"id": x["id"], "s": k0 / fps, "k0": k0, "n": n, "p": x["p"], "stil": boje_stila(stil)})
+        out.append({"id": x["id"], "tip": x["tip"], "s": k0 / fps, "k0": k0, "n": n, "p": x["p"],
+                    "stil": boje_stila(stil), "fps": float(fps)})
     return out, notes
 
 
@@ -478,14 +479,24 @@ def umetni(proj, gx, out, W, H, fps, preset="veryfast", crf=18, ispis=True):
     from common import video_info
     info = video_info(out)
     Wo, Ho = info["w"], info["h"]
-    gp, novi = [], 0
+    gp, novi, napomene = [], 0, []
     for g in gx:
-        f, nov = pripremi(proj, g, W, H, fps, video=out, ispis=ispis)
+        if g.get("tip") == "iza":          # tekst iza osobe: komad iz gotovog videa (maska osobe, bez HyperFramesa)
+            import osoba
+            try:
+                f, nov = osoba.komad(proj, g, out, W, H, fps, ispis=ispis)
+            except osoba.Greska as ex:
+                napomene.append(f"! tekst iza osobe {g['id']} nije u videu: {ex}")
+                continue
+        else:
+            f, nov = pripremi(proj, g, W, H, fps, video=out, ispis=ispis)
         k = broj_slicica(f)
         if k < g["n"]:
             raise Greska(f"grafika {g['id']}: HyperFrames dao {k} sličica, treba {g['n']}")
         gp.append((g, f))
         novi += nov
+    if not gp:
+        return napomene
     keep = {f.name for _, f in gp}
     for old in (proj / "_tmp" / "grafika").glob("grafika_*.*"):   # komadi maknutih ili promijenjenih grafika
         if old.name not in keep and not _u_manifestu(proj, old.name):
@@ -506,8 +517,8 @@ def umetni(proj, gx, out, W, H, fps, preset="veryfast", crf=18, ispis=True):
         raise Greska(f"grafika nije umetnuta (ffmpeg, izlazni kod {r.returncode}):\n{r.stderr[-1500:]}")
     tmp.replace(out)
     _zapisi_manifest(proj, out, gp, fps)
-    return [f"Grafika: {len(gp)} ({', '.join(g['id'] for g, _ in gp)}; HyperFrames renderirao {novi}, "
-            f"{len(gp) - novi} iz predmemorije)"]
+    return [f"Grafika: {len(gp)} ({', '.join(g['id'] for g, _ in gp)}; renderirao {novi}, "
+            f"{len(gp) - novi} iz predmemorije)", *napomene]
 
 
 def _manifest_path(proj):
@@ -537,6 +548,8 @@ def za_sliku(proj, gx, t, W, H, fps):
     if not g:
         return None, None
     j = max(0, min(g["n"] - 1, math.floor((t - g["s"]) * fps + POMAK + 1e-6)))
+    if g.get("tip") == "iza":           # tekst iza osobe: maska iz same slike (na_sliku)
+        return (("iza", g), j), None
     if g["p"].get("pozadina"):
         try:
             m = json.loads(_manifest_path(proj).read_text(encoding="utf-8"))
@@ -556,7 +569,13 @@ def za_sliku(proj, gx, t, W, H, fps):
 
 
 def na_sliku(png, komad, j, cwd):
-    """Sličica j komada grafike preko PNG-a (ista veličina) → isti PNG."""
+    """Sličica j komada grafike preko PNG-a (ista veličina) → isti PNG. komad ('iza', g) = tekst iza osobe."""
+    if isinstance(komad, tuple) and komad[0] == "iza":
+        import osoba
+        try:
+            return osoba.na_sliku(png, komad[1], j, komad[1].get("fps") or 30)
+        except osoba.Greska:
+            return False
     from PIL import Image
     png = Path(png)
     with Image.open(png) as im:

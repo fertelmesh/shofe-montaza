@@ -35,7 +35,8 @@ SKUPINE = {"kamera": "kamera", "zum": "kamera", "zumovi": "kamera", "boja": "boj
            "prijelaz": "prijelaz", "prijelazi": "prijelaz", "grafika": "grafika", "predlosci": "grafika",
            "predlošci": "grafika", "html": "grafika"}
 OZNAKA_ZAMRZNI = "Ovo je oznaka"
-REDOSLIJED = ["guranje", "trzaj", "pad", "vertigo", "zamrzni", "film", "retro", "zvuk"]
+REDOSLIJED = ["guranje", "trzaj", "pad", "vertigo", "zamrzni", "film", "retro", "zvuk", "iza"]
+TEKST_IZA = "SHOFE"
 
 
 class Greska(Exception):
@@ -226,6 +227,9 @@ def naredba(vrsta, ime):
         return 'dodaj zamrzni 0:12-0:14 --oznaka "Ovo je Ivan"'
     if vrsta == "zvuk":
         return "dodaj zvuk 0:12 --zvuk udarac"
+    if vrsta == "iza":
+        return f'dodaj iza 0:12-0:15 --tekst "{TEKST_IZA}"'
+
     return f"dodaj {vrsta} 0:12-0:14"
 
 
@@ -353,6 +357,8 @@ def sastavi(proj, a):
             s_src = c["a"] + min(1.0, ln / 3)
             e_src = s_src + 0.3
             par["zvuk"] = "udarac"
+        elif vrsta == "iza":
+            par = {"tekst": TEKST_IZA}
         elif vrsta == "grafika":
             m = grafika.predlosci()[ime]
             var, _ = grafika.provjeri_varijable(ime, m.get("primjer") or {})

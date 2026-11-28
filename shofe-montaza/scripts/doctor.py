@@ -87,6 +87,10 @@ def main():
     import grafika
     g_ok, g_msg = grafika.stanje()
     print(f"{OK if g_ok else '[--]'} grafika: {g_msg}" + ("" if g_ok else " — montaža radi i bez toga"))
+    # model za izdvajanje osobe (tekst iza osobe): skine se sam pri prvom efektu
+    import osoba
+    o_ok, o_msg = osoba.stanje()
+    print(f"{OK if o_ok else '[--]'} osoba: {o_msg}")
 
     if a.popravi:
         if not (checks["whisper"][0] and checks["govornici"][0] and checks["lica"][0] and checks["slike"][0]):
@@ -98,6 +102,11 @@ def main():
                 print(grafika.instaliraj())
             except grafika.Greska as ex:
                 print(f"HyperFrames nije instaliran: {ex}")
+        if not o_ok:
+            try:
+                print(f"\nModel osobe: {osoba.ensure_model()}")
+            except osoba.Greska as ex:
+                print(f"Model osobe nije skinut: {ex}")
         if not checks["ffmpeg"][0]:
             if os.name == "nt":
                 print("\nInstaliram ffmpeg preko wingeta...")

@@ -52,10 +52,16 @@ jobs:
         if: runner.os == 'Linux'
         run: python -m pip install playwright && python -m playwright install --with-deps chromium
       # modeli za prepoznavanje govornika i glazbe (~36 + 29 MB, GitHub izdanja sherpa-onnxa)
+      # i za izdvajanje osobe (MODNet, 26 MB, GitHub izdanje HivisionIDPhotos)
       - uses: actions/cache@v5
         with:
           path: ${{ runner.temp }}/shofe-modeli
-          key: shofe-modeli-v2-${{ runner.os }}
+          key: shofe-modeli-v3-${{ runner.os }}
+      - name: Model osobe
+        env:
+          PYTHONUTF8: "1"
+          SHOFE_MODELI: ${{ runner.temp }}/shofe-modeli
+        run: python shofe-montaza/scripts/osoba.py preuzmi
       # HTML grafika (M5.4): Node.js 22 + HyperFrames (zakucana verzija) + njegov Chrome, kao kod Marka
       - uses: actions/setup-node@v4
         with:
@@ -71,6 +77,7 @@ jobs:
           SHOFE_GOVORNICI_TEST: "1"
           SHOFE_MODELI: ${{ runner.temp }}/shofe-modeli
           SHOFE_GRAFIKA_TEST: "1"
+          SHOFE_OSOBA_TEST: "1"
           SHOFE_HYPERFRAMES: ${{ runner.temp }}/hyperframes
         run: python -m pytest tests -q -rs
 

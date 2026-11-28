@@ -265,6 +265,18 @@ Cards, numbers, lists, a phone, anything animated that ffmpeg cannot draw: **you
 - DaVinci timeline: the graphic is a marker (`Efekt E3: grafika`) over its length; the rendered piece is in `_tmp/grafika/` (a `.mov` with alpha can be dragged onto V2 over the marker).
 - Errors: `HyperFrames nije renderirao grafiku E3 … HTML je u _tmp/grafika/_rad_E3` → open that `index.html`, fix your HTML (usually a JS error or a missing file), render again.
 
+## Text behind the person (`efekti.py dodaj iza`, `osoba.py`)
+
+"tekst iza mene", "naslov iza glave", "da ja stojim ispred teksta", "text behind": a big word (Anton, upper case) stands **behind** the person — the head and shoulders cover the lower part of the letters, like a magazine cover. Shofe cuts the person out of each frame with MODNet (Apache-2.0, 26 MB model, downloaded once into the models folder; runs in OpenCV on the CPU, no new package, no cloud).
+
+- `python "<skill>/scripts/efekti.py" shofe_projekt dodaj iza 0:03-0:06 --tekst "SUNČANO"` (or `--na "citat"`; aliases `tekst_iza`, `iza_osobe`). `--tekst "SUNČANI|PUT"` = two lines (a longer text with a space is split into two balanced lines by itself). Max 40 characters — one to three words; the user's word, spelled with č ć š ž đ, never invented. `--boja #FFC21A` (default white with a soft shadow; use the style's accent for a branded look), `--polozaj auto|gore|sredina|dolje`.
+- `auto` (default): from the person mask of the middle frame Shofe finds the top of the head and puts the text so ~40 % of its height is behind the head, inside the reel safe zone (not in the top ~11.5 %, above the subtitles). If the person would cover more than 45 % of the letters (a tight close-up), it moves the text / makes it smaller (down to half) until it reads; with no room at all it takes the least covered place — then tell the user this shot is too close and suggest a wider shot or `--polozaj gore`.
+- Timing: the text rises in from below in 0.35 s and fades out in the last 0.25 s; 0.5–15 s; best on the hook or a title moment (first 1–3 s of a reel, or a topic change), 1 per reel, 2–4 s, on a shot where the person is still and has space above the head. Not under the hook title (both sit at the top).
+- Render: the same extra pass as HTML graphics (`Grafika: 1 (E3; renderirao 1, …)`), **no HyperFrames needed**: that part of the finished video is read, masked (`maska osobe za N sličica`) and composited; masks and the finished piece are cached in `_tmp/grafika/`, so a re-render without changes there costs <1 s. Cost: ~15 s per 3 s of 1080×1920 on 2 CPU cores (first time). If the model cannot be downloaded the video is rendered without it and says `tekst iza osobe E3 nije u videu: …`.
+- `efekti.py pokazi E3` / `render.py --kadar 0:04` show it exactly (mask computed from that frame). `python "<skill>/scripts/osoba.py" pokazi slika.png|video.mp4 [--t 0:03] [--tekst …]` → `*_osoba.png`: left the mask (green = background), right the text behind the person — **Read it** when the user asks whether the effect will work on a clip. `osoba.py provjera` / `preuzmi`; `doctor.py` shows `[--] osoba` until the model is downloaded.
+- Limits: the mask is per frame (neighbouring masks are blended where they barely differ, against flicker); fast motion or a busy background with similar colours can make edges shimmer — Read `pokazi` frames. A mask finds people, not objects. DaVinci: a marker (`Efekt E3: iza`).
+- In the effect gallery as `iza` (text „SHOFE“).
+
 ## Versions (`verzije.py`)
 
 Every full or `--brzo` render is a version (`reel_vN.mp4` + `verzije/edit_vN.json` + date/length in `verzije/verzije.json`); `--izlaz` renders are not. Nothing is ever deleted.
@@ -336,6 +348,7 @@ Change `edit.json`, then run `render.py` again. Only rerun `prepare.py` + `trans
 | dodaj efekte, dinamičnije, više/manje efekata, efekti po tekstu | `efekti.py predlozi [--gustoca …]`, review, `predlozi primijeni` (see "Effects") |
 | zumiraj na 0:12, zamrzni kadar, filmski efekt, makni efekt | `efekti.py` (see "Effects"), never by hand |
 | kartica / natpis / brojka / popis / graf / prije-poslije / komentar / citat / mobitel / „zaprati" na 0:12, grafika | template: `efekti.py dodaj brojac 0:12-0:15 --varijable '{…}'` (`grafika.py predlosci`); otherwise your HTML with `--html` (see "HTML graphics") |
+| tekst iza mene / iza glave, naslov iza osobe | `efekti.py dodaj iza 0:01-0:04 --tekst "RIJEČ"` (see "Text behind the person") |
 | pokaži sve efekte, galerija efekata, kako izgleda iris / brojač | `efekti.py galerija [--samo …]`, Read `galerija.png` (see "Effect gallery") |
 | prijelaz na 0:12, iris, rolete, kroz crno, gdje su rezovi | `efekti.py rezovi` + `efekti.py dodaj TIP R2` (see "Effects") |
 | zvuk uz prijelaz, bez zvuka, udarac na 0:12, zvukovi preglasni | `efekti.py zvuk E2 …`, `dodaj zvuk 0:12 --zvuk …`, `zvucni_efekti_glasnoca` (see "Effects") |

@@ -896,9 +896,11 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     g_lines = []
     if gx:
         ok, msg = grafika.stanje()
-        if not ok:
-            fx_notes.append(f"grafika nije u videu ({len(gx)}): {msg}")
-        else:
+        if not ok and any(g.get("tip") != "iza" for g in gx):   # tekst iza osobe ne treba HyperFrames
+            bez = [g for g in gx if g.get("tip") != "iza"]
+            fx_notes.append(f"grafika nije u videu ({len(bez)}): {msg}")
+            gx = [g for g in gx if g.get("tip") == "iza"]
+        if gx:
             try:
                 g_lines = grafika.umetni(proj, gx, out, W, H, fps, preset=preset, crf=crf, ispis=ispis)
             except (grafika.Greska, subprocess.TimeoutExpired) as ex:
