@@ -464,3 +464,18 @@ Jedan unos po krugu, najnoviji na dnu.
 - Za Marka: na pravom reelu reci „dodaj efekte“ i javi koji ti efekti smetaju ili fale — po tome ću podesiti pravila i gustoću („više efekata“/„manje efekata“ već radi).
 - PR #53.
 - Sljedeće: M5.4 HyperFrames integracija (render odsječka s pozadinskim videom i umetanje natrag).
+
+## 2026-11-28 10:30 — M5.4 HTML grafika (HyperFrames)
+- Živa specifikacija (rev 13) i plan efekata (rev 9) pročitani: bez promjena. Nema otvorenog PR-a agenta (#36 je Markov). Issues #7, #18, #25, #38, #44, #46 bez Markova odgovora.
+- Istraženo: HyperFrames 0.9.104 (npm, Apache-2.0) — CLI `render` s prozirnim izlazom (`--format mov` = ProRes 4444), `<video>` u kompoziciji, CSS animacije se vrte po sličicama; telemetrija i provjere se gase varijablama okruženja. Isprobano ovdje: pozadinski video kroz Chrome gubi boju (V ~29–31 dB), prozirni komad preko videa ne (52 dB). Stablo ovisnosti bez opcionalnog sharpa (LGPL libvips) je sve permisivno. Odluka i izvori u ODLUKE.md.
+- Novo: `grafika.py` + efekt `grafika`: `efekti.py projekt dodaj grafika 0:12-0:15 --html grafika/kartica.html [--varijable '{"broj": "200"}'] [--pozadina]`.
+  - Claude napiše HTML komad; Shofe ga umota u kompoziciju veličine videa (fontovi Montserrat/Anton s č ć š ž đ, `window.SHOFE` s trajanjem i varijablama), HyperFrames renderira točno n sličica, ffmpeg ga položi na te sličice gotovog videa; zvuk se samo kopira.
+  - Zadano proziran komad preko videa (s predmemorijom: nepromijenjena grafika se ne renderira ponovno); `--pozadina`: HTML dobije taj dio gotovog videa kao `<video id="pozadina">` i smije ga mijenjati (mobitel, zamućenje), rezultat zamijeni taj dio.
+  - `pokazi E3` i `--kadar` pokazuju grafiku kao u videu. DaVinci: oznaka. Bez Node.js/HyperFramesa render ne pada (video bez grafike + poruka).
+  - `grafika.py instaliraj | provjera | proba`; instalacija u `%LOCALAPPDATA%\Shofe\hyperframes` (zakucana verzija), `install.ps1` sada instalira Node.js LTS i HyperFrames (+ Chrome ~150 MB), `doctor.py` pokazuje `[--] grafika` (nije nužno za montažu) i `--popravi` ga instalira.
+  - Verzija 0.39.0. SKILL.md (HTML graphics: pravila za HTML, sigurne zone, animacije bez GSAP-a, oba načina), README (Grafika), ODLUKE.md.
+- Provjera očima: probna kartica (Čćšžđ 350 eura) ulazi u 0,45 s, Montserrat Black, slova ispravna; „mobitel" s pozadinom: video se smanji na narančastu podlogu. Po sličicama: grafika točno na sličicama 30–89 i 135–194 (1–3 s, 4,5–6,5 s), izvan njih razlika 0,2/255 naspram videa bez grafike; zvuk bit-isti.
+- Brzina (ovdje, 2 CPU-a, bez GPU-a): kartica od 3 s u 1080×1920 = 17,8 s; reel s dvije grafike +31 s prvi put, +4 s drugi put (predmemorija).
+- Testovi: novi `tests/test_grafika.py` (9: omotač i window.SHOFE (i `</script>` u varijabli), HTML iz datoteke/teksta, vrijeme uz brzinu i špicu, graf, stanje bez instalacije, `efekti.py dodaj grafika` (greške, relativna putanja, preklapanje grafika, popis), umetanje lažnog prozirnog komada na točne sličice bez HyperFramesa, render bez HyperFramesa ne pada, pravi HyperFrames render oba načina + predmemorija + `--kadar` = video). CI: Node 22 + `grafika.py instaliraj` + `proba` na Linuxu i Windowsu, `SHOFE_GRAFIKA_TEST=1` (pravi test se ne smije preskočiti).
+- Za Marka: ništa odmah; isprobat ćeš u Pregledu M5. Ako `INSTALIRAJ.bat` javi da HTML grafika nije spremna, javi mi ispis.
+- Sljedeće: M5.5 deset HTML predložaka (kartica, ključna rečenica, brojač, graf, popis, prije/poslije, komentar, mobitel, citat, poziv na akciju).

@@ -17,6 +17,8 @@ prijelazi.py) — upisuju se u edit.json `efekti`, render.py ih slaže ffmpegom 
   python efekti.py projekt zvuk E2 fijuk | ne | auto            drugi zvuk uz efekt E2 / bez zvuka / zadani
   python efekti.py projekt predlozi [--gustoca malo|puno]        Shofe predloži efekte po tekstu (predlozi.py)
   python efekti.py projekt predlozi primijeni [P1,P3]            upiše pregledane prijedloge u edit.json
+  python efekti.py projekt dodaj grafika 0:12-0:15 --html grafika/kartica.html [--varijable '{"broj": "200"}']
+  python efekti.py projekt dodaj grafika 0:20-0:24 --html mobitel.html --pozadina   HTML dobije taj dio videa
 
 Parametri: --zum 1.3 (koliko zumira), --jacina 0.35 (vertigo), --oznaka "tekst" (zamrzni);
 prijelazi: --trajanje 0.5, --smjer lijevo|desno|gore|dolje (brisanje, klizanje). Prijelaz ne mijenja trajanje.
@@ -51,13 +53,15 @@ TIPOVI = {
               "opis": "VHS kaseta: razmaknute boje, jače boje, linije ekrana, šum"},
     "zvuk": {"skupina": "zvuk", "min": 0.02, "max": 30.0, "zadano": {"zvuk": "udarac"},
              "opis": "samo zvučni efekt na tom mjestu, bez slike (--zvuk ime ili --zvuk moj.wav)"},
+    "grafika": {"skupina": "grafika", "min": 0.3, "max": 30.0, "zadano": {"pozadina": False},
+                "opis": "HTML grafika preko videa (HyperFrames): kartica, brojka, popis … (--html, --pozadina)"},
 }
 # prijelazi na rezovima (prijelazi.py): skupina "prijelaz", min/max = trajanje prijelaza
 for _k, _v in prijelazi.TIPOVI.items():
     TIPOVI[_k] = {"skupina": "prijelaz", "min": prijelazi.MIN_T, "max": prijelazi.MAX_T,
                   "zadano": {"trajanje": _v["zadano"]}, "opis": _v["opis"]}
 ALIASI = dict(prijelazi.ALIASI)
-ALIASI.update({"zum": "trzaj", "punch": "trzaj", "push": "guranje", "zamrzni_kadar": "zamrzni", "freeze": "zamrzni",
+ALIASI.update({"html": "grafika", "kartica": "grafika", "zum": "trzaj", "punch": "trzaj", "push": "guranje", "zamrzni_kadar": "zamrzni", "freeze": "zamrzni",
                "vhs": "retro", "zvucni_efekt": "zvuk", "sfx": "zvuk", "stari_film": "film", "zoom": "trzaj", "dolly": "vertigo", "pad_zuma": "pad"})
 SREDINA = (0.5, 0.38)      # bez lica: zum prema gornjoj trećini (tamo su lica u reelu)
 TRZAJ_T = 0.10             # s do punog zuma (trzaj)
@@ -427,6 +431,11 @@ def cmd_popis(proj, words, edit, pj):
             extra.append(f"zum {x['p']['zum']:g}")
         if x["p"].get("lice"):
             extra.append("oko lica" if x["tip"] == "iris" else "prema licu")
+        if x["tip"] == "grafika":
+            h = str(x["p"].get("html") or "")
+            extra.append("HTML u edit.json" if "<" in h else h)
+            if x["p"].get("pozadina"):
+                extra.append("s pozadinom")
         z, _ = zvukovi.za_efekt(x)
         if z and zvukovi.ukljuceni(edit, resolve_style(edit)):
             extra.append(f"zvuk: {Path(str(z)).name}")
@@ -459,6 +468,8 @@ def cmd_dodaj(proj, words, edit, pj, a):
         return dodaj_prijelaz(proj, words, edit, ref, label, pj, tip, a)
     if a.trajanje is not None or a.smjer is not None:
         die("--trajanje i --smjer idu uz prijelaze (python efekti.py projekt tipovi)")
+    if tip != "grafika" and (a.html is not None or a.pozadina or a.varijable is not None):
+        die("--html, --pozadina i --varijable idu uz grafika")
     if a.na:
         import sadrzaj
         try:
@@ -503,6 +514,8 @@ def cmd_dodaj(proj, words, edit, pj, a):
         params["oznaka"] = a.oznaka.strip()
     if zv:
         params["zvuk"] = zv
+    if tip == "grafika":
+        params.update(grafika_parametri(proj, a))
     if T["skupina"] == "kamera":
         lice = None if a.bez_lica else find_face(proj, so + 0.05)
         if lice:
@@ -525,7 +538,9 @@ def cmd_dodaj(proj, words, edit, pj, a):
     if d > T["max"] + 1e-3:
         die(f"{tip} može najviše {T['max']:g} s (dio je {d:.1f} s)")
     cur, _ = plan(edit2, cuts, pj["fps"], total)
-    clash = [y for y in cur if TIPOVI[y["tip"]]["skupina"] == T["skupina"] and overlap((x["s"], x["e"]), (y["s"], y["e"]))]
+    # grafike smiju jedna preko druge (kartica + strelica), ostali efekti iste vrste ne
+    clash = [y for y in cur if TIPOVI[y["tip"]]["skupina"] == T["skupina"] != "grafika"
+             and overlap((x["s"], x["e"]), (y["s"], y["e"]))]
     if clash and not a.zamijeni:
         y = clash[0]
         die(f"u tom dijelu već je {y['id']} ({y['tip']}); dva efekta iste vrste ne idu jedan preko drugog. "
@@ -546,6 +561,36 @@ def cmd_dodaj(proj, words, edit, pj, a):
     lice_txt = " prema licu" if params.get("lice") else ""
     print(f"Dodan {new['id']}: {tip}{lice_txt}, {fmt_time(fa)}-{fmt_time(fb)} ({d:.1f} s) u sljedećem renderu.")
     print(f"Provjeri slike: python efekti.py {proj.name} pokazi {new['id']}")
+
+
+def grafika_parametri(proj, a):
+    """--html (datoteka u projektu ili sam HTML), --varijable (JSON), --pozadina → parametri grafike."""
+    import json
+    if not a.html:
+        die("koja grafika? --html grafika/kartica.html (HTML datoteka u mapi projekta) ili --html '<div>…</div>'")
+    h = a.html.strip()
+    if "<" not in h:
+        p = Path(h)
+        if not p.is_absolute():
+            p = proj / p
+        if not p.exists():
+            die(f"HTML grafike ne postoji: {h}")
+        try:   # u edit.json relativno na projekt, kad je unutra (projekt se smije premjestiti)
+            h = p.resolve().relative_to(proj).as_posix()
+        except ValueError:
+            h = str(p.resolve())
+    out = {"html": h}
+    if a.varijable is not None:
+        try:
+            v = json.loads(a.varijable)
+        except ValueError as ex:
+            die(f"--varijable nije JSON ({ex}); npr. --varijable '{{\"broj\": \"200\"}}'")
+        if not isinstance(v, dict):
+            die("--varijable mora biti JSON objekt, npr. {\"broj\": \"200\"}")
+        out["varijable"] = v
+    if a.pozadina:
+        out["pozadina"] = True
+    return out
 
 
 # ---------------------------------------------------------------- prijelazi
@@ -790,6 +835,9 @@ def main():
     ap.add_argument("--trajanje", type=float, default=None, help="prijelaz: trajanje u s (0.2–1.5)")
     ap.add_argument("--smjer", default=None, help="brisanje/klizanje: lijevo, desno, gore, dolje")
     ap.add_argument("--zvuk", default=None, help="zvuk uz efekt: ime (fijuk, udarac, …), ne, ili moj.wav")
+    ap.add_argument("--html", default=None, help="grafika: HTML datoteka (u mapi projekta) ili sam HTML")
+    ap.add_argument("--varijable", default=None, help="grafika: JSON s podacima za HTML (window.SHOFE.varijable)")
+    ap.add_argument("--pozadina", action="store_true", help="grafika: HTML dobije taj dio videa kao <video>")
     ap.add_argument("--bez-lica", action="store_true", help="zum prema sredini, ne prema licu")
     ap.add_argument("--zamijeni", action="store_true", help="zamijeni efekt iste vrste na tom mjestu")
     ap.add_argument("--verzija", type=int, default=None, help="vremena iz reel_vN (zadano: zadnji render)")

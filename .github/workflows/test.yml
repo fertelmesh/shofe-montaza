@@ -56,11 +56,22 @@ jobs:
         with:
           path: ${{ runner.temp }}/shofe-modeli
           key: shofe-modeli-v2-${{ runner.os }}
+      # HTML grafika (M5.4): Node.js 22 + HyperFrames (zakucana verzija) + njegov Chrome, kao kod Marka
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: HyperFrames
+        env:
+          PYTHONUTF8: "1"
+          SHOFE_HYPERFRAMES: ${{ runner.temp }}/hyperframes
+        run: python shofe-montaza/scripts/grafika.py instaliraj && python shofe-montaza/scripts/grafika.py proba ${{ runner.temp }}/grafika-proba
       - name: Testovi
         env:
           PYTHONUTF8: "1"
           SHOFE_GOVORNICI_TEST: "1"
           SHOFE_MODELI: ${{ runner.temp }}/shofe-modeli
+          SHOFE_GRAFIKA_TEST: "1"
+          SHOFE_HYPERFRAMES: ${{ runner.temp }}/hyperframes
         run: python -m pytest tests -q -rs
 
   transkripcija:

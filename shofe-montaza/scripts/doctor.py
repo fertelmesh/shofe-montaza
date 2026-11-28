@@ -83,11 +83,21 @@ def main():
     }
     for k, (ok, msg) in checks.items():
         print(f"{OK if ok else BAD} {k}: {msg}")
+    # HTML grafika (HyperFrames + Node.js) nije nužna za montažu: bez nje video izađe bez grafike
+    import grafika
+    g_ok, g_msg = grafika.stanje()
+    print(f"{OK if g_ok else '[--]'} grafika: {g_msg}" + ("" if g_ok else " — montaža radi i bez toga"))
 
     if a.popravi:
         if not (checks["whisper"][0] and checks["govornici"][0] and checks["lica"][0] and checks["slike"][0]):
             print("\nInstaliram Python pakete...")
             subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "-r", str(REQUIREMENTS)])
+        if not g_ok and grafika.node()[1] and grafika.node()[1] >= grafika.NODE_MIN:
+            print("\nInstaliram HyperFrames (HTML grafika)...")
+            try:
+                print(grafika.instaliraj())
+            except grafika.Greska as ex:
+                print(f"HyperFrames nije instaliran: {ex}")
         if not checks["ffmpeg"][0]:
             if os.name == "nt":
                 print("\nInstaliram ffmpeg preko wingeta...")
