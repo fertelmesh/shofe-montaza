@@ -10,6 +10,7 @@ import shutil
 from pathlib import Path
 
 import efekti
+import zvukovi
 import prijelazi
 import spica
 import titlovi
@@ -816,6 +817,19 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     else:
         ga, last = audio_graph(cuts, st, edit, total, parts, None, bool(music))
     g += ga
+    # zvučni efekti (M5.2b): uz prijelaze, trzaj, zamrzni … ispod glasa; razina naspram izmjerenog govora
+    songs = [(s, e) for s, e, _ in parts]
+    zv, zv_notes = zvukovi.plan(fx, edit, st, songs, total) if fx else ([], [])
+    if zv:
+        try:
+            zvukovi.pripremi(proj, zv)
+        except FileNotFoundError as ex:
+            die(str(ex))
+        gv, lv = audio_graph(cuts, st, edit, total, parts, None, False)   # samo govor (bez glazbe)
+        zvukovi.razine(zv, measure(gv, lv, "zvukovi"), edit, songs)
+        g += zvukovi.graf(zv, sum(1 for x in inputs if str(x) == "-i"), last, "[zmix]")
+        inputs += zvukovi.ulazi(zv)
+        last = "[zmix]"
     atail = f"{last}"
     atail += f"atempo={speed}," if speed != 1.0 else ""
     fades = audio_fades(edit, total / speed)
@@ -871,13 +885,16 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     if verzija and v is not None:  # nova verzija: točno ovaj edit.json, datum, trajanje; korisnik sada gleda nju
         verzije.record_render(proj, v, edit_raw, out.name, final, brzo, kvaliteta)
         learn_vocabulary(proj, edit_raw, words)
-    fx_lines = [f"  ! {x}" for x in fx_notes]
+    fx_lines = [f"  ! {x}" for x in fx_notes + zv_notes]
     if fx:
         fx_lines.append(f"Efekti: {len(fx)} ({', '.join(x['id'] + ' ' + x['tip'] for x in fx)}); "
                         "u DaVinci timelineu ih nema (samo rezovi), popis: python efekti.py "
                         f"{proj.name} popis")
+    if zv:
+        fx_lines.append(zvukovi.opis_linija(zv))
     res = {"video": out, "srt": srt, "trajanje": final, "kadrova": n, "zumova": len(zr), "glasnoca": glasnoca,
-           "efekti": [x["id"] for x in fx], "ispis": translated + resolve_lines + fx_lines}
+           "efekti": [x["id"] for x in fx],
+           "zvukovi": [{k: (str(v) if k == "datoteka" else v) for k, v in z.items()} for z in zv], "ispis": translated + resolve_lines + fx_lines}
     if not ispis:
         return res
     removed = [s["id"] for s in edit["odsjecci"] if not s.get("zadrzi", True)]

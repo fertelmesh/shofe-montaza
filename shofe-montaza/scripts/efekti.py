@@ -12,10 +12,14 @@ prijelazi.py) — upisuju se u edit.json `efekti`, render.py ih slaže ffmpegom 
   python efekti.py projekt popis                                efekti s vremenima gotovog videa
   python efekti.py projekt makni E2   |   makni sve
   python efekti.py projekt pokazi E2                            slike efekta (početak, sredina, kraj) → efekt_E2.png
+  python efekti.py projekt zvukovi                              zvučni efekti (biblioteka) → zvukovi_pregled.wav
+  python efekti.py projekt dodaj zvuk 0:12 --zvuk udarac        samo zvuk na tom mjestu (ili --zvuk moj.wav)
+  python efekti.py projekt zvuk E2 fijuk | ne | auto            drugi zvuk uz efekt E2 / bez zvuka / zadani
 
 Parametri: --zum 1.3 (koliko zumira), --jacina 0.35 (vertigo), --oznaka "tekst" (zamrzni);
 prijelazi: --trajanje 0.5, --smjer lijevo|desno|gore|dolje (brisanje, klizanje). Prijelaz ne mijenja trajanje.
-Vremena se spremaju kao vremena izvornog videa (kao `izrezi`), pa efekt ostaje na istim riječima kad se
+Zvuk: uz prijelaze, trzaj, pad, zamrzni, vertigo i film ide zadani zvuk (zvukovi.py), uvijek tiši od glasa;
+--zvuk IME|ne kod dodaj. Vremena se spremaju kao vremena izvornog videa (kao `izrezi`), pa efekt ostaje na istim riječima kad se
 kasnije nešto izreže. Zum ide prema licu (YuNet na prvoj sličici efekta), lice ostaje na istom mjestu u kadru.
 `python uredi.py projekt vrati` poništi i zadnju naredbu efekata.
 """
@@ -24,6 +28,7 @@ import copy
 from pathlib import Path
 
 import prijelazi
+import zvukovi
 from common import die, ffmpeg, fmt_time, load_json, run, save_json
 
 # skupina "kamera": najviše jedan u isto vrijeme (zum na zum ne izgleda kao rez kamere)
@@ -42,6 +47,8 @@ TIPOVI = {
              "opis": "stari film: toplo izblijeđeno, zrno, treperenje, titranje slike, tamni rub"},
     "retro": {"skupina": "boja", "min": 0.5, "max": 600.0, "zadano": {},
               "opis": "VHS kaseta: razmaknute boje, jače boje, linije ekrana, šum"},
+    "zvuk": {"skupina": "zvuk", "min": 0.02, "max": 30.0, "zadano": {"zvuk": "udarac"},
+             "opis": "samo zvučni efekt na tom mjestu, bez slike (--zvuk ime ili --zvuk moj.wav)"},
 }
 # prijelazi na rezovima (prijelazi.py): skupina "prijelaz", min/max = trajanje prijelaza
 for _k, _v in prijelazi.TIPOVI.items():
@@ -49,7 +56,7 @@ for _k, _v in prijelazi.TIPOVI.items():
                   "zadano": {"trajanje": _v["zadano"]}, "opis": _v["opis"]}
 ALIASI = dict(prijelazi.ALIASI)
 ALIASI.update({"zum": "trzaj", "punch": "trzaj", "push": "guranje", "zamrzni_kadar": "zamrzni", "freeze": "zamrzni",
-               "vhs": "retro", "stari_film": "film", "zoom": "trzaj", "dolly": "vertigo", "pad_zuma": "pad"})
+               "vhs": "retro", "zvucni_efekt": "zvuk", "sfx": "zvuk", "stari_film": "film", "zoom": "trzaj", "dolly": "vertigo", "pad_zuma": "pad"})
 SREDINA = (0.5, 0.38)      # bez lica: zum prema gornjoj trećini (tamo su lica u reelu)
 TRZAJ_T = 0.10             # s do punog zuma (trzaj)
 PAD_T = 0.45               # s od zuma do kadra (pad)
@@ -353,6 +360,11 @@ def find_face(proj, src_t, info=None):
 
 
 # ---------------------------------------------------------------- naredbe
+def resolve_style(edit):
+    from render import resolve_style as rs
+    return rs(edit)
+
+
 def _ref_cuts(words, ref, pj):
     from render import build_cuts, resolve_style
     cuts, kept, total = build_cuts(words, ref, resolve_style(ref), pj["fps"], pj["duration"])
@@ -413,6 +425,9 @@ def cmd_popis(proj, words, edit, pj):
             extra.append(f"zum {x['p']['zum']:g}")
         if x["p"].get("lice"):
             extra.append("oko lica" if x["tip"] == "iris" else "prema licu")
+        z, _ = zvukovi.za_efekt(x)
+        if z and zvukovi.ukljuceni(edit, resolve_style(edit)):
+            extra.append(f"zvuk: {Path(str(z)).name}")
         print(f"  {x['id']:<4} {fmt_time(a)}-{fmt_time(b)}  {x['tip']:<8} {', '.join(extra)}")
     for n in notes:
         print(f"  ! {n}")
@@ -429,6 +444,15 @@ def cmd_dodaj(proj, words, edit, pj, a):
     except ValueError as ex:
         die(str(ex))
     ref, label = uredi.reference_edit(proj, edit, a)
+    zv = None
+    if a.zvuk is not None:
+        try:
+            zv = zvukovi.provjeri(a.zvuk, proj)
+        except ValueError as ex:
+            die(str(ex))
+        if tip == "zvuk" and zv == "ne":
+            die("zvuk bez zvuka? (--zvuk udarac, fijuk, … popis: python efekti.py projekt zvukovi)")
+    a.zvuk_ok = zv
     if TIPOVI[tip]["skupina"] == "prijelaz":
         return dodaj_prijelaz(proj, words, edit, ref, label, pj, tip, a)
     if a.trajanje is not None or a.smjer is not None:
@@ -445,8 +469,15 @@ def cmd_dodaj(proj, words, edit, pj, a):
     else:
         if not a.vremena:
             die("gdje? vrijeme iz gotovog videa (0:12-0:14) ili --na \"citat iz transkripta\"")
+        vr = list(a.vremena)
+        if tip == "zvuk" and len(vr) == 1 and "-" not in vr[0]:   # zvuk na jednom mjestu: 0:12
+            try:
+                t0 = uredi.parse_time(vr[0])
+            except ValueError as ex:
+                die(str(ex))
+            vr = [f"{t0:.3f}-{t0 + 0.3:.3f}"]
         try:
-            ranges = uredi.parse_ranges(a.vremena)
+            ranges = uredi.parse_ranges(vr)
         except ValueError as ex:
             die(str(ex))
         if len(ranges) != 1:
@@ -454,6 +485,8 @@ def cmd_dodaj(proj, words, edit, pj, a):
         lo, hi = ranges[0]
         so, sd = src_range_from_times(proj, words, ref, pj, lo, hi)
         opis = f"{fmt_time(lo)}-{fmt_time(hi)} ({label})"
+    if tip == "zvuk" and not a.na and len(ranges) == 1 and ranges[0][1] - ranges[0][0] > 30:
+        die("zvuk ide na jedno mjesto (0:12), ne na dulji dio")
     T = TIPOVI[tip]
     params = {}
     if a.zum is not None:
@@ -466,6 +499,8 @@ def cmd_dodaj(proj, words, edit, pj, a):
         if tip != "zamrzni":
             die("--oznaka ide uz zamrzni")
         params["oznaka"] = a.oznaka.strip()
+    if zv:
+        params["zvuk"] = zv
     if T["skupina"] == "kamera":
         lice = None if a.bez_lica else find_face(proj, so + 0.05)
         if lice:
@@ -601,6 +636,8 @@ def dodaj_prijelaz(proj, words, edit, ref, label, pj, tip, a):
         if sm not in prijelazi.SMJEROVI:
             die(f"smjer: {', '.join(prijelazi.SMJEROVI)}")
         params["smjer"] = sm
+    if getattr(a, "zvuk_ok", None):
+        params["zvuk"] = a.zvuk_ok
     if tip == "iris" and not a.bez_lica:   # krug se otvara oko lica u novom kadru
         lice = find_face(proj, cuts[k]["a"] + 0.05)
         if lice:
@@ -640,6 +677,53 @@ def dodaj_prijelaz(proj, words, edit, ref, label, pj, tip, a):
     print(f"Dodan {new['id']}: prijelaz {tip}{lice_txt} na rezu {fmt_time((fa + fb) / 2)} "
           f"({x['p']['trajanje']:.2f} s, {fmt_time(fa)}-{fmt_time(fb)}) u sljedećem renderu.")
     print(f"Provjeri slike: python efekti.py {proj.name} pokazi {new['id']}")
+
+
+def cmd_zvukovi(proj):
+    """Popis zvukova biblioteke + uz koji efekt idu; svi jedan za drugim u zvukovi_pregled.wav."""
+    uz = {}
+    for tip, (z, _) in zvukovi.PAROVI.items():
+        if z and tip != "zvuk":
+            uz.setdefault(z, []).append(tip)
+    out = proj / "zvukovi_pregled.wav"
+    marks = dict(zvukovi.pregled(out))
+    print("Zvučni efekti (naši, sintetizirani, CC0; uvijek tiši od glasa):")
+    for k, Z in zvukovi.ZVUKOVI.items():
+        tips = f"  [uz: {', '.join(uz[k])}]" if k in uz else ""
+        print(f"  {k:<13} {Z['opis']} ({Z['razina']:+.0f} LU naspram glasa){tips}  @{marks[k]:.1f}s")
+    print(f"Poslušaj sve: {out}")
+    print("Promijeni: python efekti.py projekt zvuk E2 fijuk | ne | auto; samo zvuk: dodaj zvuk 0:12 --zvuk udarac; "
+          "vlastiti: --zvuk moj.wav; glasnije/tiše sve: edit.json \"zvucni_efekti_glasnoca\": 3 (dB); "
+          "isključi: \"zvucni_efekti\": false")
+
+
+def cmd_zvuk(proj, edit, eid, want):
+    import uredi
+    fxs = edit.get("efekti") or []
+    e = next((e for e in fxs if str(e.get("id", "")).upper() == eid.upper()), None)
+    if e is None:
+        die(f"nema efekta {eid} (popis: python efekti.py {proj.name} popis)")
+    if not want:
+        die("koji zvuk? npr. zvuk E2 fijuk | ne | auto (popis: python efekti.py projekt zvukovi)")
+    w = want.strip().lower()
+    if w in ("auto", "zadano"):
+        val = None
+    else:
+        try:
+            val = zvukovi.provjeri(want, proj)
+        except ValueError as ex:
+            die(str(ex))
+    if e.get("tip") == "zvuk" and val in (None, "ne"):
+        die(f"{e['id']} je samo zvuk; makni ga: python efekti.py {proj.name} makni {e['id']}")
+    uredi.save_history(proj, f"zvuk {e['id']} {want}")
+    par = e.setdefault("parametri", {})
+    if val is None:
+        par.pop("zvuk", None)
+    else:
+        par["zvuk"] = val
+    save_json(proj / "edit.json", edit)
+    z, _ = zvukovi.za_efekt({"tip": tip_of(e["tip"]), "p": par})
+    print(f"{e['id']} ({e['tip']}): " + (f"zvuk {Path(str(z)).name}" if z else "bez zvuka") + " u sljedećem renderu.")
 
 
 def cmd_makni(proj, edit, ids):
@@ -691,7 +775,7 @@ def cmd_pokazi(proj, words, edit, pj, eid):
 def main():
     ap = argparse.ArgumentParser(description="Efekti: zumovi, zamrzni + oznaka, film, retro, prijelazi")
     ap.add_argument("projekt")
-    ap.add_argument("naredba", help="tipovi | dodaj | popis | rezovi | makni | pokazi")
+    ap.add_argument("naredba", help="tipovi | dodaj | popis | rezovi | makni | pokazi | zvuk | zvukovi")
     ap.add_argument("tip", nargs="?", help="za dodaj: guranje, trzaj, pad, vertigo, zamrzni, film, retro ili "
                                            "prijelaz (iris, rolete, vrata, …); za makni/pokazi: E1 (ili 'sve')")
     ap.add_argument("vremena", nargs="*", help="dio gotovog videa, npr. 0:12-0:14; prijelaz: R3 ili 0:12")
@@ -703,6 +787,7 @@ def main():
     ap.add_argument("--oznaka", default=None, help="zamrzni: tekst oznake")
     ap.add_argument("--trajanje", type=float, default=None, help="prijelaz: trajanje u s (0.2–1.5)")
     ap.add_argument("--smjer", default=None, help="brisanje/klizanje: lijevo, desno, gore, dolje")
+    ap.add_argument("--zvuk", default=None, help="zvuk uz efekt: ime (fijuk, udarac, …), ne, ili moj.wav")
     ap.add_argument("--bez-lica", action="store_true", help="zum prema sredini, ne prema licu")
     ap.add_argument("--zamijeni", action="store_true", help="zamijeni efekt iste vrste na tom mjestu")
     ap.add_argument("--verzija", type=int, default=None, help="vremena iz reel_vN (zadano: zadnji render)")
@@ -713,6 +798,9 @@ def main():
     nar = a.naredba.lower()
     if nar == "tipovi":
         cmd_tipovi()
+        return
+    if nar in ("zvukovi", "zvucni"):
+        cmd_zvukovi(proj if proj.is_dir() else Path.cwd())
         return
     for f in ("project.json", "transcript.json", "edit.json"):
         if not (proj / f).exists():
@@ -728,6 +816,10 @@ def main():
         if not a.tip:
             die("koji efekt? (python efekti.py projekt tipovi)")
         cmd_dodaj(proj, words, edit, pj, a)
+    elif nar == "zvuk":
+        if not a.tip:
+            die("uz koji efekt? npr. zvuk E2 fijuk")
+        cmd_zvuk(proj, edit, a.tip, " ".join(a.vremena))
     elif nar in ("makni", "obrisi", "obriši"):
         if not a.tip:
             die("koji? npr. makni E2 ili makni sve")
@@ -737,7 +829,7 @@ def main():
             die("koji? npr. pokazi E2")
         cmd_pokazi(proj, words, edit, pj, a.tip)
     else:
-        die(f"nepoznata naredba '{a.naredba}' (tipovi, dodaj, popis, rezovi, makni, pokazi)")
+        die(f"nepoznata naredba '{a.naredba}' (tipovi, dodaj, popis, rezovi, makni, pokazi, zvuk, zvukovi)")
 
 
 if __name__ == "__main__":

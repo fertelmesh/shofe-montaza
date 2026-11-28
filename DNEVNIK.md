@@ -411,3 +411,16 @@ Jedan unos po krugu, najnoviji na dnu.
 - Za Marka: probaj na pravom reelu „gdje su rezovi?", pa npr. „iris na drugom rezu" ili „kroz crno prije zadnje rečenice" i javi koji prijelazi ti se sviđaju, a koji su prebrzi/prespori. Zvuk uz prijelaze dolazi u sljedećem krugu.
 - PR #49.
 - Sljedeće: M5.2b CC0 zvučni efekti s pravilima glasnoće.
+
+## 2026-11-28 03:00 — M5.2b zvučni efekti s pravilima glasnoće
+- Živa specifikacija (rev 13) i plan efekata (rev 9) pročitani: bez promjena. Nema otvorenog PR-a agenta (#36 je Markov). Issues #7, #18, #25, #38, #44, #46 bez Markova odgovora.
+- Novo: `zvukovi.py` — vlastita biblioteka od 11 zvukova, sintetiziranih u numpyju (naši, CC0; ništa se ne skida): fijuk, kratki fijuk, udarac, okidač, pop, klik, zvonce, uspon, rolete, digitalno, projektor.
+  - Sami idu uz efekte: zamah/prolaz → fijuk (vrh točno na rezu), klizanje/brisanje/vrata → kratki fijuk, iris → pop, rolete → klikovi, pikseli → digitalno, bljesak i zamrzni → okidač, trzaj i pad → udarac, vertigo → uspon do kraja, film → tihi projektor. Pretapanje, crno, guranje i retro bez zvuka.
+  - `efekti.py zvukovi` (popis + `zvukovi_pregled.wav` za slušanje), `efekti.py zvuk E2 fijuk|ne|auto`, `dodaj … --zvuk`, samostalan zvuk `dodaj zvuk 0:12 --zvuk zvonce`, Markova datoteka `--zvuk "moj zvuk.wav"`, `zvucni_efekti: false`, `zvucni_efekti_glasnoca: ±dB`.
+  - Glasnoća: render izmjeri govor (EBU R128, blokovi 400 ms) i svaki zvuk; zvuk ide na svoju razinu ispod glasa (fijuk −9 LU … projektor −20), prema tišem lokalnom govoru ako ga ima, i **uvijek najmanje 3 dB ispod glasa**, i kad se traži glasnije. Nema zvukova u pjesmi benda; dva zvuka bliže od 0,3 s → drugi otpada.
+  - Verzija 0.36.0. SKILL.md (parovi, pravila, naredbe), README (odjeljak Efekti), ODLUKE.md.
+- Provjera: spektrogrami biblioteke (oblik fijuka, udarac ima i srednje frekvencije za mobitel — prvi pokušaj bio je gotovo sav bas, pa ga na mobitelu ne bi bilo; dodano „tijelo" i „krak"), spektrogram gotovog videa sa i bez zvukova (udarac na 1,00 s, fijuk s vrhom na rezu 2,47 s, uspon kroz vertigo, okidač na 6,00 s — izmjereno iz razlike: početak udarca 1,0005 s, okidača 6,0004 s). Render s 4 zvuka: +0,7 s.
+- Testovi: novi `tests/test_zvukovi.py` (9: biblioteka deterministička i bez pucketanja, imena/aliasi/datoteke, parovi i sidra, pjesma i preblizu, pravila razine (lokalno tiši govor, tišina, granica i kod +20 dB), graf; pravi render: razlika videa sa/bez zvukova — svaki zvuk na mjestu, čuje se i ≤ glas − 3 dB, vrh fijuka na rezu, `zvuk E1 ne/auto`, greške; vlastita datoteka preglasna + „puno glasnije" ostaje 3 dB ispod glasa; `zvukovi`). `test_efekti.py` i `test_prijelazi.py` prolaze.
+- Za Marka: na pravom reelu dodaj npr. „zamah na drugom rezu" i „trzaj na …" i javi jesu li zvukovi dobri, preglasni ili pretihi (`zvukovi su pretihi` = +3 dB). Ako želiš svoje snimljene zvukove, stavi .wav u mapu projekta. Poslušaj sve: „koji zvukovi postoje".
+- PR #50.
+- Sljedeće: M5.2c prijelazi dalje (manje memorije, prijelazi u DaVinci timelineu).

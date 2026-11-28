@@ -74,9 +74,18 @@ Efekti se traže riječima, kao i sve ostalo — Claude ih stavi na pravo mjesto
 - `pretapanje`, `crno` (kroz crno), `bljesak` (kroz bijelo), `prolaz` (zum kroz rez), `pikseli`
 - trajanje po želji: `iris na 0:12, sporije` (0,2–1,5 s)
 
-Prijelaz ne produljuje i ne skraćuje video: pola je na kraju jednog kadra, pola na početku drugog, a sličice koje fale uzme iz snimke odmah uz rez (kao DaVinci). Zato titlovi, glazba i zvuk ostaju na istim mjestima, a zvuk na rezu ostaje čisti rez (zvukovi za prijelaze dolaze uskoro). Jedan do tri prijelaza po reelu su dovoljni — na svakom rezu izgledaju jeftino.
+Prijelaz ne produljuje i ne skraćuje video: pola je na kraju jednog kadra, pola na početku drugog, a sličice koje fale uzme iz snimke odmah uz rez (kao DaVinci). Zato titlovi, glazba i zvuk ostaju na istim mjestima, a govor na rezu ostaje čisti rez. Jedan do tri prijelaza po reelu su dovoljni — na svakom rezu izgledaju jeftino.
 
-Zumovi idu prema licu i lice ostaje na istom mjestu u kadru, pa titlovi i oznake ne skaču. Efekt je vezan za riječi, a ne za sekundu: kad kasnije nešto izrežeš, efekt ostaje na istoj rečenici. Dva zuma ne idu jedan preko drugog; stari film i retro mogu ići preko zuma. Render s efektima traje malo dulje (reel od 15 s sa sedam efekata otprilike dvostruko). U DaVinci timeline efekti ne idu (samo rezovi) — ako montiraš u DaVinciju, efekte tamo dodaj sam.
+**Zvučni efekti** idu sami uz efekte: fijuk uz zamah (najglasniji točno na rezu), kratki fijuk uz klizanje, brisanje i vrata, „pop" uz iris, klikovi uz rolete, udarac uz trzaj i pad, okidač fotoaparata uz zamrzni i bljesak, zvuk koji raste uz vertigo i tiho kloparanje projektora uz stari film. Pretapanje, kroz crno, polagani zum i retro idu bez zvuka.
+
+- `koji zvukovi postoje` — popis i datoteka `zvukovi_pregled.wav` sa svim zvukovima jedan za drugim (poslušaj)
+- `bez zvuka na prijelazu E2`, `uz E3 stavi fijuk`, `udarac na 0:12`, `ding na „točno tako"`
+- `zvukovi su preglasni` / `pretihi`, `bez zvučnih efekata`
+- svoj zvuk: stavi datoteku u mapu projekta i reci `na 0:12 stavi moj zvuk.wav`
+
+Zvuk efekta je uvijek tiši od glasa: Shofe prvo izmjeri koliko glasno govoriš (i oko samog efekta, ako tamo govoriš tiše) i stavi zvuk ispod toga — fijuk otprilike 9 dB tiše, projektor 20 dB. I kad tražiš „glasnije", zvuk ostaje barem 3 dB ispod glasa. Za vrijeme pjesme benda nema zvučnih efekata. Zvukove smo napravili sami (sintetizirani u Shofeu), pa ih smiješ koristiti bilo gdje, i u plaćenim objavama.
+
+Zumovi idu prema licu i lice ostaje na istom mjestu u kadru, pa titlovi i oznake ne skaču. Efekt je vezan za riječi, a ne za sekundu: kad kasnije nešto izrežeš, efekt ostaje na istoj rečenici. Dva zuma ne idu jedan preko drugog; stari film i retro mogu ići preko zuma. Render s efektima traje malo dulje (reel od 15 s sa sedam efekata otprilike dvostruko). U DaVinci timeline efekti i zvučni efekti ne idu (samo rezovi) — ako montiraš u DaVinciju, efekte tamo dodaj sam.
 
 ## Isječci za mreže
 
