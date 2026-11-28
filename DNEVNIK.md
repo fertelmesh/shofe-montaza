@@ -522,6 +522,6 @@ Jedan unos po krugu, najnoviji na dnu.
 - Provjera očima: 5 pravih portreta (javni primjeri, nisu u repou) + probni reel 1080×1920 s pomakom kamere kroz cijeli render: glava i kosa ispred slova, rub čist, Č ispravan, tekst ulazi i izlazi. Kod jako krupnih portreta (glava od vrha kadra) tekst ostaje većim dijelom iza glave — za takav kadar efekt nije dobar (SKILL.md: predložiti širi kadar ili `gore`).
 - Brzina (ovdje, 2 CPU-a): 3 s efekta u 1080×1920 ~15 s prvi put, drugi put <1 s; reel od 8 s s efektom 31 s ukupno.
 - Testovi: novi `tests/test_osoba.py` (7: retci i sloj teksta (č ć š ž đ, boja, veličina), mjesto iza glave/bez osobe/ručno/krupni kadar, animacija i slaganje (osoba ispred teksta), veličina modela i stanje, `efekti.py dodaj iza` (greške, alias, popis), umetanje na točne sličice s lažnim maskirom (izvan efekta isto, lice netaknuto, zvuk isti, predmemorija, bez teksta napomena), pravi MODNet: render bez HyperFramesa + `--kadar`). Galerija: `iza` u skupini grafika (11). Lokalno svi zeleni.
-- PR #PR.
+- PR #57.
 - Za Marka: kad stigneš, probaj „na početku napiši SUNČANO iza mene" na reelu gdje imaš malo prostora iznad glave i javi treperi li rub kose.
 - Sljedeće: M5.7b zamjena pozadine (boja, slika, video, zamućenje) i HTML predlošci iza osobe.
