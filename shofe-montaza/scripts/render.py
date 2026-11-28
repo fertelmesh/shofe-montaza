@@ -7,10 +7,12 @@
 import argparse
 import bisect
 import shutil
+import subprocess
 from pathlib import Path
 
 import efekti
 import zvukovi
+import grafika
 import prijelazi
 import spica
 import titlovi
@@ -731,8 +733,20 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
                 pairs.append((t, ("file", sp_files[dio], max(0.0, off))))
             else:
                 pairs.append((t, ("main", m)))
-        return {"slike": stills_mode(pairs, proj, cuts, zr, factor, grade, subs, speed, W, H, total, izvor,
-                                     fx=fx, fps=fps)}
+        gx, _ = grafika.plan(fx, speed, fps, sp_r)
+        g_notes = []
+
+        def na_grafiku(png, t):  # HTML grafika preko slike (ista sličica kao u videu)
+            hit, note = grafika.za_sliku(proj, gx, t, W, H, fps)
+            if hit:
+                grafika.na_sliku(png, hit[0], hit[1], proj)
+            elif note:
+                g_notes.append(note)
+        slike = stills_mode(pairs, proj, cuts, zr, factor, grade, subs, speed, W, H, total, izvor,
+                            fx=fx, fps=fps, graf=na_grafiku if gx else None)
+        for note in g_notes:
+            print(f"  ! {note}")
+        return {"slike": slike}
 
     eps = 0.5 / fps
     sel = "+".join(f"between(t,{c['a'] - eps:.4f},{c['b'] - eps:.4f})" for c in cuts)
@@ -871,6 +885,19 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     final = total / speed
     if sp_r:
         final = sp_r["ukupno"]
+    # HTML grafika (HyperFrames): komadi preko gotovog videa u jednom dodatnom prolazu (zvuk se kopira)
+    gx, g_notes = grafika.plan(fx, speed, fps, sp_r, final)
+    fx_notes += g_notes
+    g_lines = []
+    if gx:
+        ok, msg = grafika.stanje()
+        if not ok:
+            fx_notes.append(f"grafika nije u videu ({len(gx)}): {msg}")
+        else:
+            try:
+                g_lines = grafika.umetni(proj, gx, out, W, H, fps, preset=preset, crf=crf, ispis=ispis)
+            except (grafika.Greska, subprocess.TimeoutExpired) as ex:
+                fx_notes.append(f"grafika nije u videu: {ex}")
     # titlovi kao datoteka uz video (isto ime → YouTube, VLC i DaVinci ih nađu)
     srt = out.with_suffix(".srt")
     cues = titlovi.make_cues([dict(w, s=w["s"] / speed, e=w["e"] / speed) for w in ws], total / speed, fps)
@@ -889,7 +916,7 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     if verzija and v is not None:  # nova verzija: točno ovaj edit.json, datum, trajanje; korisnik sada gleda nju
         verzije.record_render(proj, v, edit_raw, out.name, final, brzo, kvaliteta)
         learn_vocabulary(proj, edit_raw, words)
-    fx_lines = [f"  ! {x}" for x in fx_notes + zv_notes]
+    fx_lines = g_lines + [f"  ! {x}" for x in fx_notes + zv_notes]
     if fx:
         fx_lines.append(f"Efekti: {len(fx)} ({', '.join(x['id'] + ' ' + x['tip'] for x in fx)}); "
                         "u DaVinci timelineu prijelazi kao Cross Dissolve, ostali kao oznake; popis: python efekti.py "
@@ -977,8 +1004,10 @@ def audio_graph(cuts, st, edit, total, parts, gains, music):
     return g, "[mix]"
 
 
-def stills_mode(kadar, proj, cuts, zr, factor, grade, subs, speed, W, H, total, izvor=None, fx=(), fps=30):
-    """kadar = "1,4.5" (sekunde gotovog videa) ili [(oznaka, ("main", t) | ("file", datoteka, t))] (špica)."""
+def stills_mode(kadar, proj, cuts, zr, factor, grade, subs, speed, W, H, total, izvor=None, fx=(), fps=30,
+                graf=None):
+    """kadar = "1,4.5" (sekunde gotovog videa) ili [(oznaka, ("main", t) | ("file", datoteka, t))] (špica).
+    graf(png, t) = HTML grafika preko slike (grafika.py)."""
     if isinstance(kadar, list):
         pairs = kadar
     else:
@@ -1000,6 +1029,8 @@ def stills_mode(kadar, proj, cuts, zr, factor, grade, subs, speed, W, H, total, 
             rep = efekti.video_chain(fx, W, H, fps, T=f"{pre:.4f}", cmd_dir=proj) + [subs]
             run(prijelazi.slika(px, pre_src, src, off, W, H, fps, grade, za(px), zb(px), rep, png.name, proj),
                 cwd=proj)
+            if graf:
+                graf(png, t)
             pngs.append(png)
             continue
         c = next((c for c in cuts if c["o"] <= pre_src < c["o"] + (c["b"] - c["a"])), cuts[-1])
@@ -1013,6 +1044,8 @@ def stills_mode(kadar, proj, cuts, zr, factor, grade, subs, speed, W, H, total, 
         src, off = (Path(izvor["datoteka"]).resolve(), float(izvor["pomak"])) if izvor else ("source.mp4", 0.0)
         run([ffmpeg(), "-y", "-v", "error", "-ss", f"{max(0.0, src_t - off):.3f}", "-i", src, "-frames:v", "1",
              "-vf", ",".join(chain), png.name], cwd=proj)
+        if graf:
+            graf(png, t)
         pngs.append(png)
     if len(pngs) > 1:
         tw = 360
