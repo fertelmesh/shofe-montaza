@@ -1,0 +1,37 @@
+<!-- Komentar: oblačić komentara gledatelja (odgovor na komentar). Varijable: tekst*, ime, oznaka, svidanja, polozaj, boja -->
+<style>
+.km{width:min(86%,calc(var(--s)*.95));padding:calc(var(--s)*.035) calc(var(--s)*.04)}
+.km .gl{display:flex;align-items:center;gap:calc(var(--s)*.025)}
+.km .av{flex:none;width:calc(var(--s)*.085);height:calc(var(--s)*.085);border-radius:50%;background:var(--boja);
+ color:var(--na-boji);font-weight:900;font-size:calc(var(--s)*.042);display:flex;align-items:center;justify-content:center}
+.km .im{font-weight:800;font-size:calc(var(--s)*.036);color:#222;min-width:0;white-space:nowrap;overflow:hidden}
+.km .od{font-weight:600;font-size:calc(var(--s)*.028);color:#8A8F98;margin-top:2px}
+.km .tx{font-weight:600;font-size:calc(var(--s)*.05);line-height:1.25;color:#111;margin-top:calc(var(--s)*.022);
+ overflow-wrap:break-word}
+.km .dn{display:flex;align-items:center;gap:calc(var(--s)*.012);margin-top:calc(var(--s)*.02);font-weight:700;
+ font-size:calc(var(--s)*.03);color:#8A8F98}
+.km .dn svg{width:calc(var(--s)*.036);height:calc(var(--s)*.036)}
+.km .rep{position:absolute;left:calc(var(--s)*.08);bottom:calc(var(--s)*-.028);width:calc(var(--s)*.06);
+ height:calc(var(--s)*.06);background:inherit;transform:rotate(45deg);border-radius:4px}
+.km .pill{position:absolute;top:calc(var(--s)*-.03);right:calc(var(--s)*.04)}
+</style>
+<script>
+SF.gradi(function () {
+  var b = SF.el("div", "sf-blok sf-kartica sf-anim km");
+  SF.el("div", "rep", null, b);
+  var ime = String(SF.v("ime", "gledatelj"));
+  var gl = SF.el("div", "gl", null, b);
+  SF.el("div", "av", (ime.replace(/^@/, "")[0] || "?").toUpperCase(), gl);
+  var d = SF.el("div", null, null, gl);
+  d.style.minWidth = "0";
+  SF.el("div", "im", ime, d);
+  SF.el("div", "od", SF.v("oznaka", "Odgovor na komentar"), d);
+  SF.stane(SF.el("div", "tx", SF.v("tekst", "Komentar gledatelja?"), b), 4);
+  if (SF.v("svidanja")) {
+    var dn = SF.el("div", "dn", null, b);
+    dn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.1 0 3.6 1.1 5.3 3 1.7-1.9 3.2-3 5.3-3 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z" fill="#E5484D"/></svg>';
+    SF.el("span", null, SF.v("svidanja"), dn);
+  }
+  SF.smjesti(b, "dolje");
+});
+</script>

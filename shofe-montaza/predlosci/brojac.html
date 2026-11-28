@@ -1,0 +1,36 @@
+<!-- Brojač: broj se odbroji do vrijednosti. Varijable: broj*, od, jedinica, opis, predznak, polozaj, boja -->
+<style>
+.bc{width:min(80%,calc(var(--s)*.85));text-align:center}
+.bc .br{font-family:'Anton',sans-serif;font-size:calc(var(--s)*.21);line-height:1;color:#111;
+ font-variant-numeric:tabular-nums;white-space:nowrap}
+.bc .br .pr{font-family:'Montserrat',sans-serif;font-weight:900;font-size:.7em;margin-right:.08em;vertical-align:.12em}
+.bc .jed{font-weight:900;font-size:calc(var(--s)*.07);text-transform:uppercase;margin-top:calc(var(--s)*.01);
+ white-space:nowrap}
+.bc .op{font-weight:600;font-size:calc(var(--s)*.042);color:#444;margin-top:calc(var(--s)*.018)}
+.bc .traka{height:calc(var(--s)*.016);background:#eee;border-radius:99px;margin-top:calc(var(--s)*.03);overflow:hidden}
+.bc .traka i{display:block;height:100%;width:100%;background:var(--boja);transform-origin:0 50%;transform:scaleX(0)}
+</style>
+<script>
+SF.gradi(function () {
+  var b = SF.el("div", "sf-blok sf-kartica sf-anim bc");
+  b.style.setProperty("--ul", "sf-pop");
+  var cilj = SF.citajBroj(SF.v("broj", "100")), od = SF.citajBroj(SF.v("od", 0)).vrijednost;
+  var dec = cilj.decimala, pr = String(SF.v("predznak", ""));
+  var br = SF.el("div", "br", null, b);
+  var prz = pr ? SF.el("span", "pr", pr, br) : null;
+  var bs = SF.el("span", "bs", SF.broj(cilj.vrijednost, dec), br);
+  if (SF.v("jedinica")) SF.stane(SF.el("div", "jed", SF.v("jedinica"), b), 1);
+  if (SF.v("opis")) SF.stane(SF.el("div", "op", SF.v("opis"), b), 2);
+  var tr = SF.el("i", null, null, SF.el("div", "traka", null, b));
+  SF.stane(br, 1);
+  // širina mjerena na konačnom broju; tijekom brojanja ne skače
+  br.style.minHeight = br.offsetHeight + "px";
+  SF.smjesti(b, "sredina");
+  var t0 = 0.25, t1 = Math.max(t0 + 0.4, Math.min(SF.T * 0.6, SF.T - 0.5));
+  SF.uVremenu(function (t) {
+    var k = SF.glatko((t - t0) / (t1 - t0));
+    bs.textContent = SF.broj(od + (cilj.vrijednost - od) * k, dec);
+    tr.style.transform = "scaleX(" + k.toFixed(4) + ")";
+  });
+});
+</script>

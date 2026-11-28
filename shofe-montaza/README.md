@@ -107,7 +107,24 @@ Grafiku koju ffmpeg ne zna nacrtati (animirana kartica s cijenom, popis koraka, 
 - Claude ti prije gotovog videa pokaže sliku grafike (`pokaži efekt E3`) da provjeriš tekst, slova č ć š ž đ i da ne prekriva lice ni titlove
 - grafika koja se nije mijenjala ne renderira se ponovno (npr. nakon „povećaj titlove")
 
-Jednom treba instalirati Node.js i HyperFrames — `INSTALIRAJ.bat` to sada radi sam (prvi put skine i Chrome za render, ~150 MB). Ako nešto fali, Shofe i dalje montira, samo javi „grafika nije u videu". Provjera: `python scripts\grafika.py provjera`, probna kartica: `python scripts\grafika.py proba`. Kartica od 3 sekunde u 1080×1920 renderira se otprilike 15–20 s. Prvih 10 gotovih predložaka (kartica, brojač, graf, popis, prije/poslije, komentar, mobitel, citat, poziv na akciju) stiže u sljedećem koraku.
+Jednom treba instalirati Node.js i HyperFrames — `INSTALIRAJ.bat` to sada radi sam (prvi put skine i Chrome za render, ~150 MB). Ako nešto fali, Shofe i dalje montira, samo javi „grafika nije u videu". Provjera: `python scripts\grafika.py provjera`, probna kartica: `python scripts\grafika.py proba`. Kartica od 3 sekunde u 1080×1920 renderira se otprilike 15–20 s.
+
+**Gotovi predlošci** (dovoljno je reći što želiš, Claude bira predložak i upiše tekst):
+
+| predložak | za što | primjer naredbe |
+|---|---|---|
+| kartica | tema, savjet, naziv | „na 0:05 kartica *Očisti filter svaka 3 mjeseca*" |
+| ključna rečenica | glavna rečenica riječ po riječ | „istakni rečenicu o čišćenju" |
+| brojač | cijena, ušteda, postotak | „kad kažem 350 eura, neka se odbroji" |
+| graf | usporedba 2–6 vrijednosti | „graf: peć 180, stara klima 120, nova 65" |
+| popis | koraci, kvačice | „popis tri stvari koje provjeriti" |
+| prije/poslije | stari i novi račun | „prije 180 €, poslije 65 €" |
+| komentar | odgovor na komentar gledatelja | „stavi komentar od ane_kutina: …" |
+| mobitel | video se smanji u mobitel | „od 0:20 pokaži to na mobitelu" |
+| citat | rečenica gosta s imenom | „citat Ivana iz benda" |
+| poziv na akciju | „zaprati", „spremi" na kraju | „na kraju gumb Zaprati" |
+
+Boja grafike je boja tvog stila (žuta u Sunčanom, zelena u Udarnom…), a može i druga („kartica u narančastoj"). Grafika sama sjedne tamo gdje ne prekriva lice ni titlove (gore/dolje; na YouTube videu sa strane), a možeš reći i „kartica gore". Slova č ć š ž đ i brojevi na hrvatski način (1.200 eura, 2,5 %). Sliku predloška bez projekta: `python scripts\grafika.py pokazi brojac`.
 
 ## Isječci za mreže
 

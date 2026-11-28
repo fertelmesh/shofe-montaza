@@ -1,0 +1,44 @@
+<!-- Mobitel (s pozadinom): video se smanji u okvir mobitela na podlozi boje stila, na kraju se vrati. Varijable: naslov, boja -->
+<style>
+#shofe{--k:.62;--cy:.565}
+.mb-podloga{position:absolute;inset:0;z-index:0;
+ background:radial-gradient(120% 80% at 50% 38%,color-mix(in srgb,var(--boja) 70%,#000) 0%,#101012 75%)}
+#pozadina{z-index:1;transform-origin:50% 50%;
+ animation:mb-u .55s cubic-bezier(.3,.8,.25,1) both,mb-van .45s cubic-bezier(.5,0,.6,1) calc(var(--trajanje) - .45s) forwards}
+@keyframes mb-u{from{transform:none;border-radius:0}
+ to{transform:translateY(calc((var(--cy) - .5) * var(--visina))) scale(var(--k));border-radius:calc(var(--s)*.07)}}
+@keyframes mb-van{from{transform:translateY(calc((var(--cy) - .5) * var(--visina))) scale(var(--k));border-radius:calc(var(--s)*.07)}
+ to{transform:none;border-radius:0}}
+.mb-okvir{position:absolute;z-index:2;box-sizing:content-box;border:calc(var(--s)*.022) solid #0B0B0C;
+ border-radius:calc(var(--s)*.065);box-shadow:0 0 0 calc(var(--s)*.004) #3a3a3e,0 calc(var(--s)*.03) calc(var(--s)*.09) rgba(0,0,0,.55);
+ width:calc(var(--sirina) * var(--k));height:calc(var(--visina) * var(--k));
+ left:calc(var(--sirina) * (1 - var(--k)) / 2 - var(--s)*.022);
+ top:calc(var(--visina) * (var(--cy) - var(--k) / 2) - var(--s)*.022);
+ animation:mb-ok .3s ease-out .4s both,mb-ok-van .2s ease-in calc(var(--trajanje) - .45s) forwards}
+.mb-okvir:before{content:"";position:absolute;top:calc(var(--s)*.018);left:50%;width:calc(var(--s)*.12);
+ height:calc(var(--s)*.03);margin-left:calc(var(--s)*-.06);background:#0B0B0C;border-radius:99px}
+@keyframes mb-ok{from{opacity:0;transform:scale(1.04)}to{opacity:1;transform:none}}
+@keyframes mb-ok-van{to{opacity:0}}
+.mb-naslov{position:absolute;z-index:3;left:6%;right:6%;text-align:center;color:#fff;font-weight:900;
+ line-height:1.08;font-size:calc(var(--s)*.075);text-shadow:0 4px 18px rgba(0,0,0,.5);
+ animation:sf-gore .45s cubic-bezier(.2,.9,.3,1.15) .35s both,sf-van .25s ease-in calc(var(--trajanje) - .7s) forwards}
+</style>
+<script>
+SF.gradi(function () {
+  var usp = SF.H > SF.W;
+  if (!usp) { SF.root.style.setProperty("--k", ".7"); SF.root.style.setProperty("--cy", ".58"); }
+  var p = SF.el("div", "mb-podloga");
+  SF.root.insertBefore(p, SF.root.firstChild);
+  SF.el("div", "mb-okvir");
+  if (SF.v("naslov")) {
+    var n = SF.el("div", "mb-naslov", SF.v("naslov"));
+    var k = usp ? 0.62 : 0.7, cy = usp ? 0.565 : 0.58, vrh = SF.H * (cy - k / 2) - SF.S.sirina * 0.03;
+    var gornja = SF.H * (usp ? 0.1 : 0.03), prostor = Math.max(10, vrh - gornja);
+    SF.stane(n, 2);
+    while (n.offsetHeight > prostor && parseFloat(n.style.fontSize || getComputedStyle(n).fontSize) > 20) {
+      n.style.fontSize = parseFloat(getComputedStyle(n).fontSize) * 0.93 + "px";
+    }
+    n.style.top = (gornja + Math.max(0, (prostor - n.offsetHeight) / 2)) + "px";
+  }
+});
+</script>

@@ -3,10 +3,18 @@
   python grafika.py instaliraj      Node.js mora postojati (22+); instalira HyperFrames (Apache-2.0) i Chrome za render
   python grafika.py provjera        je li sve spremno (verzije, putanje)
   python grafika.py proba [mapa]    probni render jedne kartice (2 s) → grafika_proba.mp4
+  python grafika.py predlosci       10 gotovih predložaka (kartica, recenica, brojac, graf, popis, prije_poslije,
+                                    komentar, mobitel, citat, poziv) s varijablama
+  python grafika.py pokazi brojac [mapa] [--varijable JSON] [--velicina 1080x1920] [--trajanje 3]
+                                    predložak na probnoj podlozi → predlozak_brojac.png (4 trenutka)
 
 U edit.json je grafika efekt kao i ostali (efekti.py dodaj grafika 0:12-0:15 --html kartica.html):
   {"tip": "grafika", "od", "do", "parametri": {"html": "grafika/kartica.html" ili "<div>…</div>",
    "varijable": {"naslov": "200 eura"}, "pozadina": false}}
+ili gotov predložak (efekti.py dodaj brojac 0:12-0:15 --varijable '{"broj": "350", "jedinica": "eura"}'):
+  {"tip": "grafika", "parametri": {"predlozak": "brojac", "varijable": {…}, "lice": {x, y, h}}}
+Predlošci su u <skill>/predlosci/ (_osnova.html = zajednički CSS/JS, predlosci.json = varijable); boja dolazi
+iz stila (boja_isticanja), položaj bira mjesto bez lica unutar sigurnih zona reela.
 
 Dva načina:
   * preko (zadano): HTML se renderira **proziran** (ProRes 4444 s alfom) i ffmpeg ga položi preko gotovog videa.
@@ -32,7 +40,7 @@ import sys
 from fractions import Fraction
 from pathlib import Path
 
-from common import FONTS_DIR, data_dir, die, ffmpeg, ffprobe, find_tool
+from common import FONTS_DIR, SKILL_DIR, data_dir, die, ffmpeg, ffprobe, find_tool
 
 HF_VERZIJA = "0.9.104"        # zakucana verzija (isti izgled na svakom računalu); nova = provjera u CI-ju
 VERZIJA_KOMADA = 1            # povećaj kad se promijeni omotač → stari komadi u predmemoriji ne vrijede
@@ -41,6 +49,10 @@ NODE_MIN = 22
 POMAK = 0.25                  # sličice: komad ide ¼ sličice ranije, overlay uzme točno pravu sličicu
 FONTOVI = [("Montserrat", 600, "Montserrat-SemiBold.ttf"), ("Montserrat", 800, "Montserrat-ExtraBold.ttf"),
            ("Montserrat", 900, "Montserrat-Black.ttf"), ("Anton", 400, "Anton-Regular.ttf")]
+PREDLOSCI_DIR = SKILL_DIR / "predlosci"
+ZAJEDNICKE = {"polozaj": {"opis": "gore | sredina | dolje | auto (zadano: mjesto bez lica)"},
+              "boja": {"opis": "boja isticanja (#RRGGBB; zadano iz stila)"}}
+POLOZAJI = ("gore", "sredina", "dolje", "auto")
 DATOTEKE = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".css", ".js", ".mjs", ".json", ".ttf", ".otf",
             ".woff", ".woff2", ".mp4", ".webm", ".mov", ".wav", ".mp3"}
 
@@ -202,6 +214,69 @@ def ucitaj_html(spec, proj):
     return p.read_text(encoding="utf-8"), p.parent
 
 
+# ---------------------------------------------------------------- gotovi predlošci (M5.5)
+def predlosci():
+    """{ime: {naziv, opis, trajanje, varijable, primjer, pozadina?}} iz predlosci/predlosci.json."""
+    return json.loads((PREDLOSCI_DIR / "predlosci.json").read_text(encoding="utf-8"))
+
+
+def ime_predloska(ime):
+    """'Prije/poslije', 'prije-poslije', 'brojač' → ključ predloška ili None."""
+    k = str(ime or "").strip().lower().replace("-", "_").replace("/", "_").replace(" ", "_")
+    k = k.translate(str.maketrans("čćšžđ", "ccszd"))
+    k = {"kljucna_recenica": "recenica", "cta": "poziv", "poziv_na_akciju": "poziv", "lista": "popis",
+         "brojka": "brojac", "telefon": "mobitel", "usporedba": "prije_poslije", "prijeposlije": "prije_poslije"
+         }.get(k, k)
+    return k if k in predlosci() else None
+
+
+def html_predloska(ime):
+    k = ime_predloska(ime)
+    if not k:
+        raise Greska(f"nema predloška '{ime}' (postoje: {', '.join(predlosci())})")
+    return ((PREDLOSCI_DIR / "_osnova.html").read_text(encoding="utf-8") + "\n" +
+            (PREDLOSCI_DIR / f"{k}.html").read_text(encoding="utf-8"))
+
+
+def provjeri_varijable(ime, var):
+    """→ (varijable, [greške]); popise iz teksta 'a|b|c' ostavlja kao tekst (predložak ih sam dijeli)."""
+    k = ime_predloska(ime)
+    if not k:
+        return var, [f"nema predloška '{ime}' (postoje: {', '.join(predlosci())})"]
+    meta = predlosci()[k]["varijable"]
+    var = dict(var or {})
+    gr = []
+    for n, m in meta.items():
+        if m.get("obavezno") and (var.get(n) in (None, "", [])):
+            gr.append(f"predložak {k} treba \"{n}\" ({m.get('opis', '')})")
+        if m.get("vrsta") == "popis" and n in var and not isinstance(var[n], (list, str)):
+            gr.append(f"\"{n}\" mora biti popis, npr. {m.get('opis', '')}")
+    nepoznate = [n for n in var if n not in meta and n not in ZAJEDNICKE]
+    if nepoznate:
+        gr.append(f"predložak {k} nema varijablu {', '.join(nepoznate)} (ima: {', '.join([*meta, *ZAJEDNICKE])})")
+    if "polozaj" in var and str(var["polozaj"]).lower() not in POLOZAJI:
+        gr.append(f"polozaj: {', '.join(POLOZAJI)}")
+    if "boja" in var and not re.fullmatch(r"#[0-9A-Fa-f]{6}", str(var["boja"])):
+        gr.append("boja: #RRGGBB, npr. #FF7A00")
+    return var, gr
+
+
+def boje_stila(st):
+    """Iz stila za predloške: boja isticanja (ili hook podloga), font."""
+    st = st or {}
+    b = st.get("boja_isticanja") or st.get("hook_pozadina") or "#FFC21A"
+    if not re.fullmatch(r"#[0-9A-Fa-f]{6}", str(b)):
+        b = "#FFC21A"
+    return {"isticanje": b, "naziv": st.get("naziv", "")}
+
+
+def izvor(p, proj):
+    """Parametri grafike → (HTML tekst, mapa s datotekama ili None): predložak ili Claudeov HTML."""
+    if p.get("predlozak"):
+        return html_predloska(p["predlozak"]), None
+    return ucitaj_html(p.get("html"), proj)
+
+
 def je_cijela(tekst):
     return "data-composition-id" in tekst
 
@@ -212,12 +287,13 @@ def _js_json(obj):
             .replace("\u2029", "\\u2029"))
 
 
-def omotaj(fragment, W, H, fps, n, pozadina, varijable):
-    """Komad HTML-a → cijela HyperFrames kompozicija veličine videa, trajanja n sličica."""
+def omotaj(fragment, W, H, fps, n, pozadina, varijable, dodatno=None):
+    """Komad HTML-a → cijela HyperFrames kompozicija veličine videa, trajanja n sličica.
+    dodatno: {stil: {isticanje}, lice: {x, y, h}} → window.SHOFE (predlošci po tome biraju boju i mjesto)."""
     d = n / float(fps)
     ff = "\n".join(f"@font-face{{font-family:'{a}';font-weight:{w};src:url('fonts/{f}')}}" for a, w, f in FONTOVI)
     shofe = {"sirina": W, "visina": H, "trajanje": round(d, 4), "fps": float(fps), "varijable": varijable or {},
-             "pozadina": bool(pozadina)}
+             "pozadina": bool(pozadina), **(dodatno or {})}
     vid = (f'  <video id="pozadina" class="clip" src="pozadina.mp4" data-start="0" data-duration="{_f(d)}" '
            f'muted playsinline></video>\n') if pozadina else ""
     return f"""<!doctype html>
@@ -266,7 +342,7 @@ def _sha_file(p):
 
 
 # ---------------------------------------------------------------- vrijeme gotovog videa
-def plan(fx, speed, fps, sp_r=None, ukupno=None):
+def plan(fx, speed, fps, sp_r=None, ukupno=None, stil=None):
     """Grafike iz efekti.plan (vrijeme prije brzine, bez špice) → [{id, s, n, p}] u vremenu gotovog videa:
     s = prva sličica (poravnata), n = broj sličica. Grafika koju bi prekinula uvodna špica završi na njoj."""
     import spica
@@ -289,7 +365,7 @@ def plan(fx, speed, fps, sp_r=None, ukupno=None):
         if n < 2:
             notes.append(f"grafika {x['id']} preskočena: prekratka")
             continue
-        out.append({"id": x["id"], "s": k0 / fps, "k0": k0, "n": n, "p": x["p"]})
+        out.append({"id": x["id"], "s": k0 / fps, "k0": k0, "n": n, "p": x["p"], "stil": boje_stila(stil)})
     return out, notes
 
 
@@ -320,7 +396,7 @@ def pripremi(proj, g, W, H, fps, video=None, ispis=False):
     d = proj / "_tmp" / "grafika"
     d.mkdir(parents=True, exist_ok=True)
     p = g["p"]
-    tekst, mapa = ucitaj_html(p.get("html"), proj)
+    tekst, mapa = izvor(p, proj)
     pozadina = bool(p.get("pozadina"))
     var = p.get("varijable") or {}
     if isinstance(var, str):
@@ -340,7 +416,8 @@ def pripremi(proj, g, W, H, fps, video=None, ispis=False):
             raise Greska(f"grafika {g['id']} s pozadinom treba gotov video")
         _izvuci_pozadinu(video, g, fps, W, H, work / "pozadina.mp4")
         bg_hash = _sha_file(work / "pozadina.mp4")
-    key = _sha(tekst, var, [W, H, fps_arg(fps), g["n"], pozadina], bg_hash,
+    dodatno = {"stil": g.get("stil") or boje_stila(None), "lice": p.get("lice")}
+    key = _sha(tekst, var, dodatno, [W, H, fps_arg(fps), g["n"], pozadina], bg_hash,
                [[n, f.stat().st_size, int(f.stat().st_mtime)] for n, f in extra], VERZIJA_KOMADA, HF_VERZIJA)
     out = d / f"grafika_{key}{'.mp4' if pozadina else '.mov'}"
     if out.exists() and out.stat().st_size > 0:
@@ -351,10 +428,10 @@ def pripremi(proj, g, W, H, fps, video=None, ispis=False):
         shutil.copy2(FONTS_DIR / f, work / "fonts" / f)
     for n, f in extra:
         shutil.copy2(f, work / n)
-    page = tekst if je_cijela(tekst) else omotaj(tekst, W, H, fps, g["n"], pozadina, var)
+    page = tekst if je_cijela(tekst) else omotaj(tekst, W, H, fps, g["n"], pozadina, var, dodatno)
     if je_cijela(tekst):  # vlastita kompozicija: varijable i podaci ipak dostupni kao window.SHOFE
         shofe = {"sirina": W, "visina": H, "trajanje": round(g["n"] / float(fps), 4), "fps": float(fps),
-                 "varijable": var, "pozadina": pozadina}
+                 "varijable": var, "pozadina": pozadina, **dodatno}
         page = re.sub(r"(<head[^>]*>)", lambda m: m.group(1) + f"<script>window.SHOFE = {_js_json(shofe)};</script>",
                       page, count=1)
     (work / "index.html").write_text(page, encoding="utf-8")
@@ -526,13 +603,118 @@ def cmd_proba(mapa):
     print(f"Probna grafika: {dst} ({time.time() - t0:.1f} s)")
 
 
+def cmd_predlosci():
+    print("Gotovi predlošci HTML grafike (efekti.py projekt dodaj IME 0:12-0:15 --varijable '{…}'):")
+    for k, m in predlosci().items():
+        tr = m.get("trajanje") or []
+        print(f"\n  {k:<14} {m['opis']}" + (f"  [{tr[0]:g}–{tr[1]:g} s]" if len(tr) == 2 else "")
+              + ("  (s pozadinom)" if m.get("pozadina") else ""))
+        for n, v in m["varijable"].items():
+            print(f"      {n + (' *' if v.get('obavezno') else ''):<16} {v.get('opis', '')}")
+        print(f"      primjer: --varijable '{json.dumps(m.get('primjer', {}), ensure_ascii=False)}'")
+    print("\n  Svi: polozaj (gore | sredina | dolje | auto = mjesto bez lica), boja (#RRGGBB, zadano iz stila). "
+          "* = obavezno.")
+
+
+LICE_PROBE = {"x": 0.5, "y": 0.34, "h": 0.15}
+
+
+def _podloga(dst, W, H, lice=LICE_PROBE):
+    """Probna podloga: tamni gradijent + siva „glava" na mjestu lica (da se vidi gdje predložak sjeda)."""
+    import numpy as np
+    from PIL import Image, ImageDraw
+    k = np.linspace(0, 1, H)[:, None]
+    rgb = np.stack([58 + 40 * k, 84 + 20 * k, 110 - 30 * k], axis=-1).repeat(W, axis=1)
+    im = Image.fromarray(rgb.astype(np.uint8), "RGB")
+    d = ImageDraw.Draw(im)
+    fh = lice["h"] * H
+    cx, cy = lice["x"] * W, lice["y"] * H
+    d.ellipse([cx - fh * 0.42, cy - fh * 0.6, cx + fh * 0.42, cy + fh * 0.6], fill=(205, 170, 150))
+    d.rectangle([cx - fh * 0.9, cy + fh * 0.9, cx + fh * 0.9, H], fill=(60, 60, 70))
+    for y0 in (0.80, 0.86):   # titlovi
+        d.rounded_rectangle([W * 0.18, H * y0, W * 0.82, H * y0 + H * 0.045], radius=12, fill=(240, 240, 240))
+    im.save(dst)
+
+
+def cmd_pokazi(ime, mapa, varijable, velicina, trajanje, fps=30):
+    k = ime_predloska(ime)
+    if not k:
+        raise Greska(f"nema predloška '{ime}' (postoje: {', '.join(predlosci())})")
+    meta = predlosci()[k]
+    var = dict(meta.get("primjer") or {})
+    if varijable:
+        try:
+            var.update(json.loads(varijable))
+        except ValueError as ex:
+            raise Greska(f"--varijable nije JSON ({ex})")
+    var, gr = provjeri_varijable(k, var)
+    if gr:
+        raise Greska("; ".join(gr))
+    W, H = (int(x) for x in str(velicina).lower().split("x"))
+    mapa = Path(mapa or ".").resolve()
+    mapa.mkdir(parents=True, exist_ok=True)
+    tmp = mapa / "_tmp"
+    tmp.mkdir(exist_ok=True)
+    n = int(round(trajanje * fps))
+    _podloga(tmp / "podloga.png", W, H)
+    poz = bool(meta.get("pozadina"))
+    vid = tmp / "podloga.mp4"
+    subprocess.run([ffmpeg(), "-y", "-v", "error", "-loop", "1", "-i", str(tmp / "podloga.png"), "-frames:v", str(n),
+                    "-r", str(fps), "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", str(vid)],
+                   check=True, capture_output=True)
+    g = {"id": k, "s": 0.0, "n": n, "p": {"predlozak": k, "varijable": var, "pozadina": poz, "lice": LICE_PROBE},
+         "stil": boje_stila(None)}
+    f, _ = pripremi(mapa, g, W, H, fps, video=vid, ispis=True)
+    from PIL import Image, ImageDraw, ImageFont
+    js = [int(n * x) for x in (0.08, 0.35, 0.7)] + [n - 4]
+    slike = []
+    for j in js:
+        png = tmp / f"_p{j}.png"
+        if poz:
+            fc = f"[0:v]select='eq(n,{j})'"
+            ins = ["-i", str(f)]
+        else:
+            fc = f"[1:v]select='eq(n,{j})',setpts=PTS-STARTPTS[g];[0:v][g]overlay=0:0:format=auto"
+            ins = ["-i", str(tmp / "podloga.png"), "-i", str(f)]
+        subprocess.run([ffmpeg(), "-y", "-v", "error", *ins, "-filter_complex", fc, "-frames:v", "1", str(png)],
+                       check=True, capture_output=True)
+        slike.append(Image.open(png).convert("RGB"))
+    sw = 360 if H >= W else 480
+    sh = int(round(sw * H / W))
+    ploca = Image.new("RGB", (sw * 4 + 50, sh + 50), (24, 24, 26))
+    d = ImageDraw.Draw(ploca)
+    try:
+        font = ImageFont.truetype(str(FONTS_DIR / "Montserrat-ExtraBold.ttf"), 20)
+    except OSError:
+        font = None
+    for i, (im, j) in enumerate(zip(slike, js)):
+        ploca.paste(im.resize((sw, sh)), (10 + i * (sw + 10), 40))
+        d.text((10 + i * (sw + 10), 10), f"{k} · {j / fps:.2f} s", fill=(255, 255, 255), font=font)
+    dst = mapa / f"predlozak_{k}.png"
+    ploca.save(dst)
+    print(f"Predložak {k}: {dst}")
+    return dst
+
+
 def main():
     ap = argparse.ArgumentParser(description="HTML grafika (HyperFrames)")
-    ap.add_argument("naredba", help="instaliraj | provjera | proba")
-    ap.add_argument("mapa", nargs="?")
+    ap.add_argument("naredba", help="instaliraj | provjera | proba | predlosci | pokazi")
+    ap.add_argument("mapa", nargs="?", help="proba: mapa; pokazi: ime predloška")
+    ap.add_argument("mapa2", nargs="?", help="pokazi: mapa za sliku")
+    ap.add_argument("--varijable", default=None)
+    ap.add_argument("--velicina", default="1080x1920")
+    ap.add_argument("--trajanje", type=float, default=3.0)
     a = ap.parse_args()
     try:
-        if a.naredba == "instaliraj":
+        if a.naredba == "predlosci":
+            cmd_predlosci()
+        elif a.naredba in ("pokazi", "pokaži"):
+            if not a.mapa:
+                die("koji predložak? (python grafika.py predlosci)")
+            if not stanje()[0]:
+                die(stanje()[1])
+            cmd_pokazi(a.mapa, a.mapa2, a.varijable, a.velicina, a.trajanje)
+        elif a.naredba == "instaliraj":
             print(instaliraj())
         elif a.naredba == "provjera":
             ok, msg = stanje()
@@ -541,7 +723,7 @@ def main():
         elif a.naredba == "proba":
             cmd_proba(a.mapa)
         else:
-            die(f"nepoznata naredba '{a.naredba}' (instaliraj, provjera, proba)")
+            die(f"nepoznata naredba '{a.naredba}' (instaliraj, provjera, proba, predlosci, pokazi)")
     except Greska as ex:
         die(str(ex))
     except subprocess.TimeoutExpired:

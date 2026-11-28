@@ -1,0 +1,151 @@
+<!-- Shofe predlošci: zajednički CSS i JS (umeće se ispred svakog predloška). -->
+<style>
+#shofe{--s:min(var(--sirina),var(--visina));--boja:#FFC21A;--na-boji:#111;color:#111}
+.sf-blok{position:absolute;left:0;right:0;margin:0 auto;box-sizing:border-box}
+.sf-kartica{background:rgba(255,255,255,.97);color:#111;border-radius:calc(var(--s)*.036);
+ box-shadow:0 calc(var(--s)*.012) calc(var(--s)*.05) rgba(0,0,0,.38);padding:calc(var(--s)*.045) calc(var(--s)*.05)}
+.sf-tamna{background:rgba(14,14,16,.9);color:#fff;border-radius:calc(var(--s)*.036);
+ box-shadow:0 calc(var(--s)*.012) calc(var(--s)*.05) rgba(0,0,0,.45);padding:calc(var(--s)*.05) calc(var(--s)*.055)}
+.sf-oznaka{display:inline-block;background:var(--boja);color:var(--na-boji);font-weight:800;text-transform:uppercase;
+ letter-spacing:.06em;font-size:calc(var(--s)*.032);padding:.35em .75em;border-radius:999px;line-height:1.1}
+.sf-naslov{font-weight:900;line-height:1.05;font-size:calc(var(--s)*.085);overflow-wrap:break-word}
+.sf-tekst{font-weight:600;line-height:1.25;font-size:calc(var(--s)*.045);color:#333;overflow-wrap:break-word}
+.sf-anim{animation:var(--ul,sf-gore) var(--ul-t,.5s) cubic-bezier(.2,.9,.3,1.15) var(--kas,0s) both,
+ sf-van .3s ease-in calc(var(--trajanje) - .32s) forwards}
+@keyframes sf-gore{from{opacity:0;transform:translateY(28%) scale(.94)}to{opacity:1;transform:none}}
+@keyframes sf-pop{0%{opacity:0;transform:scale(.55)}70%{opacity:1;transform:scale(1.06)}100%{opacity:1;transform:none}}
+@keyframes sf-lijevo{from{opacity:0;transform:translateX(-22%)}to{opacity:1;transform:none}}
+@keyframes sf-van{from{opacity:1}to{opacity:0;transform:translateY(-4%) scale(.96)}}
+</style>
+<script>
+window.SF = (function () {
+  var S = window.SHOFE || {}, V = S.varijable || {}, stil = S.stil || {};
+  var W = S.sirina || 1080, H = S.visina || 1920, T = S.trajanje || 3;
+  var root = document.getElementById("shofe");
+  function v(k, d) { var x = V[k]; return (x === undefined || x === null || x === "") ? d : x; }
+  function svjetlina(hex) {
+    var m = /^#?([0-9a-f]{6})$/i.exec(String(hex || "").trim());
+    if (!m) return 0.6;
+    var n = parseInt(m[1], 16), c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(function (x) {
+      x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); });
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  }
+  var boja = String(v("boja", stil.isticanje || "#FFC21A"));
+  var naBoji = svjetlina(boja) > 0.35 ? "#111111" : "#FFFFFF";
+  root.style.setProperty("--boja", boja);
+  root.style.setProperty("--na-boji", naBoji);
+
+  function el(tag, cls, tekst, roditelj) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (tekst !== undefined && tekst !== null) e.textContent = String(tekst);
+    (roditelj || root).appendChild(e);
+    return e;
+  }
+  // Tekst mora stati: smanjuj slova dok element nije širi od roditelja i nema više od `redaka` redaka.
+  function stane(e, redaka, najmanje) {
+    var fs = parseFloat(getComputedStyle(e).fontSize), min = (najmanje || 0.35) * fs;
+    for (var i = 0; i < 40 && fs > min; i++) {
+      var lh = parseFloat(getComputedStyle(e).lineHeight) || fs * 1.2;
+      var preSir = e.scrollWidth > e.clientWidth + 1;
+      var preVis = redaka && e.scrollHeight > lh * (redaka + 0.45);
+      if (!preSir && !preVis) break;
+      fs *= 0.93; e.style.fontSize = fs + "px";
+    }
+    return fs;
+  }
+  // Položaj bloka po visini: gore / sredina / dolje / auto (mjesto gdje ne prekriva lice).
+  // Sigurne zone reela: ne u gornjih ~12 % (natpisi mreže), ne u donjih ~26 % (titlovi, opis, gumbi).
+  function smjesti(e, zadano) {
+    var p = String(v("polozaj", "auto")).toLowerCase(), usp = H > W;
+    var gornja = H * (usp ? 0.125 : 0.07), donja = H * (usp ? 0.735 : 0.80), h = e.offsetHeight;
+    var r = e.getBoundingClientRect(), rr = root.getBoundingClientRect();
+    var x0 = r.left - rr.left, x1 = x0 + r.width;
+    var mjesta = {gore: gornja, sredina: Math.max(gornja, (gornja + donja) / 2 - h / 2), dolje: Math.max(gornja, donja - h)};
+    var red = [zadano || "dolje", "dolje", "gore", "sredina"];
+    var izbor = mjesta[p] !== undefined ? p : null;
+    var lice = S.lice;
+    if (!izbor && !usp) {
+      // vodoravni video (YouTube): blok u stranu, u polovicu bez lica (bez lica: desno), okomito u sredini
+      var lx = lice && lice.h ? lice.x : 0.3, sir = Math.min(e.offsetWidth, W * 0.42);
+      e.style.width = sir + "px";
+      e.style.margin = "0";
+      e.style.left = (lx < 0.5 ? W * 0.97 - sir : W * 0.03) + "px";
+      e.style.right = "auto";
+      h = e.offsetHeight;
+      var pojas = donja - gornja;
+      if (h > pojas) { var zz = pojas / h; e.style.zoom = zz.toFixed(4); h = pojas; e.style.left = parseFloat(e.style.left) / zz + "px"; e.style.top = gornja / zz + "px"; }
+      else e.style.top = (gornja + (pojas - h) / 2) + "px";
+      e.dataset.polozaj = lx < 0.5 ? "desno" : "lijevo";
+      return e.dataset.polozaj;
+    }
+    if (!izbor && lice && lice.h) {
+      var fy0 = (lice.y - 0.85 * lice.h) * H, fy1 = (lice.y + 0.95 * lice.h) * H;
+      var fw = 1.5 * lice.h * H, fx0 = lice.x * W - fw / 2, fx1 = lice.x * W + fw / 2;
+      var najm = Infinity;
+      red.forEach(function (k) {
+        var t = mjesta[k], ov = Math.max(0, Math.min(t + h, fy1) - Math.max(t, fy0)) *
+          Math.max(0, Math.min(x1, fx1) - Math.max(x0, fx0));
+        if (ov < najm - 1) { najm = ov; izbor = k; }
+      });
+    }
+    izbor = izbor || (zadano || "dolje");
+    // ne stane nigdje bez lica: smanji blok u veći slobodni pojas (iznad ili ispod lica), najviše na 60 %
+    if (p === "auto" && lice && lice.h) {
+      var g0 = (lice.y - 0.85 * lice.h) * H, g1 = (lice.y + 0.95 * lice.h) * H, t = mjesta[izbor];
+      if (Math.min(t + h, g1) > Math.max(t, g0) + 1) {
+        var ispod = donja - g1 - H * 0.01, iznad = g0 - gornja - H * 0.01, slob = Math.max(ispod, iznad);
+        if (slob >= 0.6 * h) {
+          var z = Math.min(1, slob / h);
+          e.style.zoom = z.toFixed(4);
+          h = e.offsetHeight * z;
+          mjesta.dolje = donja - h; mjesta.gore = gornja;
+          izbor = ispod >= iznad ? "dolje" : "gore";
+          mjesta[izbor] = (izbor === "dolje" ? donja - h : gornja) / z;
+        }
+      }
+    }
+    e.style.top = mjesta[izbor] + "px";
+    e.dataset.polozaj = izbor;
+    return izbor;
+  }
+  // Hrvatski zapis broja: 1.200 / 2,5
+  function broj(x, dec) {
+    var s = Math.abs(x).toFixed(dec || 0).split("."), cijeli = s[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    return (x < 0 ? "−" : "") + cijeli + (s[1] ? "," + s[1] : "");
+  }
+  // "1.200" / "1200" / "2,5" / "2.5" / 350 → {vrijednost, decimala}
+  function citajBroj(x) {
+    if (typeof x === "number") return {vrijednost: x, decimala: (String(x).split(".")[1] || "").length};
+    var s = String(x).trim().replace(/\s/g, "").replace(/[^\d.,\-−]/g, "").replace("−", "-");
+    if (/,\d+$/.test(s)) s = s.replace(/\./g, "").replace(",", ".");
+    else if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, "");
+    var n = parseFloat(s);
+    return {vrijednost: isNaN(n) ? 0 : n, decimala: (s.split(".")[1] || "").length};
+  }
+  function popis(x) {
+    if (Array.isArray(x)) return x;
+    if (x === undefined || x === null || x === "") return [];
+    return String(x).split(/\s*[|\n]\s*/).filter(Boolean);
+  }
+  var gradnje = [], seek = [], izgradjeno = false, zadnje = null;
+  function pokreni(t) { seek.forEach(function (fn) { fn(t); }); }
+  function gradi(fn) { gradnje.push(fn); }
+  var fontovi = ["600 20px Montserrat", "800 20px Montserrat", "900 20px Montserrat", "400 20px Anton"];
+  window.__hf = window.__hf || {};
+  window.__hf.buildReady = window.__hf.buildReady || {};
+  var spremno = Promise.all(fontovi.map(function (f) { return document.fonts.load(f, "ČćŠšŽžĐđ0123"); }))
+    .catch(function () {})
+    .then(function () { gradnje.forEach(function (fn) { fn(); }); izgradjeno = true; pokreni(zadnje === null ? 0 : zadnje); });
+  window.__hf.buildReady.shofe = spremno;
+  window.addEventListener("hf-seek", function (e) {
+    zadnje = e.detail.time;
+    if (izgradjeno) pokreni(zadnje);
+  });
+  function uVremenu(fn) { seek.push(fn); }
+  function glatko(x) { x = Math.max(0, Math.min(1, x)); return 1 - Math.pow(1 - x, 3); }
+  return {S: S, W: W, H: H, T: T, root: root, boja: boja, naBoji: naBoji, v: v, el: el, stane: stane,
+          smjesti: smjesti, broj: broj, citajBroj: citajBroj, popis: popis, gradi: gradi, uVremenu: uVremenu,
+          glatko: glatko};
+})();
+</script>

@@ -480,3 +480,18 @@ Jedan unos po krugu, najnoviji na dnu.
 - PR #54.
 - Za Marka: ništa odmah; isprobat ćeš u Pregledu M5. Ako `INSTALIRAJ.bat` javi da HTML grafika nije spremna, javi mi ispis.
 - Sljedeće: M5.5 deset HTML predložaka (kartica, ključna rečenica, brojač, graf, popis, prije/poslije, komentar, mobitel, citat, poziv na akciju).
+
+## 2026-11-28 12:10 — M5.5 deset gotovih HTML predložaka
+- Živa specifikacija (rev 13) i plan efekata (rev 9) pročitani: bez promjena. Nema otvorenog PR-a agenta (#36 je Markov). Issues #7, #18, #25, #38, #44, #46 bez Markova odgovora.
+- Istraženo: sigurne zone reela (Ignite 2026: Reels 220 px gore / 420 px dolje, TikTok 108 / 320 px; BlitzCut: donjih 25–30 % bez teksta) i kako HyperFrames vrti CSS animacije, `hf-seek` i `buildReady`. Odluka i izvori u ODLUKE.md.
+- Novo: `shofe-montaza/predlosci/` — **kartica, ključna rečenica, brojač, graf, popis, prije/poslije, komentar, mobitel, citat, poziv na akciju** (+ zajednička osnova i `predlosci.json` s varijablama i primjerima).
+  - `efekti.py projekt dodaj brojac 0:12-0:15 --varijable '{"broj": "350", "jedinica": "eura"}'` (ili `--na "citat"`, ili `dodaj grafika --predlozak …`); krive/nedostajuće varijable odbijene s popisom. `grafika.py predlosci` (popis s primjerima), `grafika.py pokazi IME` (slika predloška u 4 trenutka, i `--velicina 1920x1080`).
+  - Boja = boja isticanja stila (ili `boja`); tekst se smanji dok ne stane; brojevi na hrvatski (1.200, 2,5); ulaz ~0,5 s, stavke jedna za drugom, izlaz zadnjih 0,3 s; brojač i vrijednosti grafa odbrojavaju po vremenu sličice.
+  - `polozaj: auto` (zadano): Shofe pri `dodaj` spremi lice sa srednje sličice (YuNet), predložak sjedne tamo gdje ga ne prekriva, između gornjih 12,5 % i 73,5 % visine (iznad titlova); ako ne stane, smanji se u slobodni pojas; u 16:9 ide u polovicu bez lica. Ručno: `gore`, `sredina`, `dolje`.
+  - Mobitel: video se smanji u okvir mobitela na podlozi boje stila i na kraju se vrati (način s pozadinom).
+  - Verzija 0.40.0. SKILL.md (tablica predložaka, kad koji, pravila teksta i gustoće), README (Grafika: tablica s primjerima naredbi), ODLUKE.md.
+- Provjera očima: svih 10 predložaka u 4 trenutka na probnoj podlozi s licem i titlovima (1080×1920) + kartica i graf u 1920×1080; popravljeno usput: broj u brojaču bio sitan (mjerenje redaka s „−" iz zamjenskog fonta), naslov mobitela sitan, navodnici citata preko teksta, graf preko lica (sad se smanji ispod lica). Na probnom klipu s nacrtanom osobom brojač sjedne točno ispod brade, broj odbrojava 0 → 347 → 350.
+- Testovi: novi `tests/test_predlosci_grafika.py` (9: popis i datoteke, primjeri prolaze provjeru, bez GSAP-a i mreže; imena i provjera varijabli; boja stila i lice u `window.SHOFE`; `efekti.py dodaj` (greške, alias „Prije/poslije", mobitel s pozadinom, `--bez-lica`, popis); `grafika.py predlosci`; pravi HyperFrames: svih 10 renderira, ulaze i izlaze, alfa nije preko lica ni izvan zone; boja Udarnog, brojanje, gore/dolje/auto; 16:9 u stranu; pravi render projekta + predmemorija). Lokalno svi zeleni.
+- PR #55.
+- Za Marka: ništa odmah; u Pregledu M5 probaj „na 0:05 kartica …", „kad kažem 350 eura neka se odbroji", „na kraju gumb Zaprati" i javi koji ti se izgled ne sviđa.
+- Sljedeće: M5.6 galerija efekata (jedan render sa svim efektima).
