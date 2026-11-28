@@ -11,7 +11,11 @@ U edit.json: {"tip": "iris", "od": kraj kadra A (s snimke), "do": početak kadra
 "parametri": {"trajanje": 0.6, "smjer": "lijevo", "lice": {...}}}. Rez se nađe po tim vremenima i
 nakon drugih izmjena (ako jedno od dva vremena još vrijedi).
 """
-from common import ffmpeg
+from pathlib import Path
+
+from common import ffmpeg, run
+
+VERZIJA_KOMADA = 1           # povećaj kad se promijeni izgled prijelaza → stari pripremljeni komadi ne vrijede
 
 # xfade = ugrađeni prijelaz ffmpega; "maska" = naša maska iz numpyja (iris prema licu, rolete);
 # "vrata" = dvije polovice starog kadra odu lijevo i desno (overlay)
@@ -143,8 +147,6 @@ def maska(x, j, W, H):
 
 def pripremi_maske(px, proj, W, H, frames=None):
     """PNG maske za prijelaze s maskom u _tmp/ (Pillow: radi i s č/ž u putanji na Windowsu)."""
-    from pathlib import Path
-
     from PIL import Image
     d = Path(proj) / "_tmp"
     d.mkdir(exist_ok=True)
@@ -212,22 +214,84 @@ def _spoj(x, ia, ib, im, fps, grade, za, zb, i, W):
             f"[pa{i}][pc{i}]overlay=0:0:format=auto:shortest=1,format=yuv420p[px{i}]"]
 
 
-def graf(px, prvi, vin, vout, W, H, fps, grade, zoom_a, zoom_b):
-    """Filteri: prijelazi preko glavne trake `vin` → `vout`. prvi = indeks prvog ulaza prijelaza;
-    zoom_a/zoom_b(x) = lanac zuma stila za kadar A/B (ili None)."""
-    g = []
-    cur = vin
-    eps = 0.5 / fps
-    k = prvi
-    for i, x in enumerate(px):
-        g += _spoj(x, k, k + 1, k + 2, fps, grade, zoom_a(x), zoom_b(x), i, W)
-        k += broj_ulaza(x)
-        g[-1] = g[-1].replace(f"[px{i}]", f",setpts=PTS-STARTPTS+{_f(x['s'])}/TB[px{i}]")
-        nxt = vout if i == len(px) - 1 else f"[pv{i}]"
-        g.append(f"{cur}[px{i}]overlay=0:0:eof_action=pass:repeatlast=0:"
-                 f"enable='between(t,{_f(x['s'] - eps)},{_f(x['e'] - eps)})'{nxt}")
-        cur = nxt
-    return g
+def _kljuc(x, cmd, src, W, H):
+    """Ključ predmemorije pripremljenog prijelaza: ista naredba, ista maska, ista snimka → isti komad."""
+    import hashlib
+    import json
+    try:
+        st = Path(src).stat()
+        sv = [st.st_size, int(st.st_mtime)]
+    except OSError:
+        sv = None
+    m = [x["tip"], x["n"], x["p"].get("lice"), W, H] if TIPOVI[x["tip"]]["xfade"] == "maska" else None
+    raw = json.dumps([[str(c) for c in cmd], m, sv, VERZIJA_KOMADA], sort_keys=True, ensure_ascii=False)
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:12]
+
+
+def pripremi(px, src, off, W, H, fps, grade, zoom_a, zoom_b, proj, ispis=False):
+    """Svaki prijelaz se renderira zasebno (svoja mala ffmpeg naredba: dva komada snimke + xfade/maska) u
+    _tmp/prijelaz_<ključ>.mp4, a svi zajedno idu u glavni prolaz kao **jedan** ulaz (concat). Tako glavni
+    prolaz ima jedan dekoder za sve prijelaze umjesto 2–3 po prijelazu (prije ~0,17 GB RAM-a po prijelazu kod
+    1080×1920), a nepromijenjen prijelaz se ne renderira ponovno. Vraća argumente ulaza za glavni prolaz."""
+    proj = Path(proj)
+    d = proj / "_tmp"
+    d.mkdir(exist_ok=True)
+    names, novi = [], 0
+    for x in px:
+        fc = _spoj(x, 0, 1, 2, fps, grade, zoom_a(x), zoom_b(x), 0, W)
+        fc[-1] = fc[-1].replace("[px0]", ",format=yuv420p[out]")
+        body = [*ulazi([x], src, off, fps), "-filter_complex", ";".join(fc), "-map", "[out]",
+                "-frames:v", str(x["n"]), "-an", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "10",
+                "-pix_fmt", "yuv420p", "-r", str(fps)]
+        name = f"prijelaz_{_kljuc(x, body, src, W, H)}.mp4"
+        names.append(name)
+        if (d / name).exists() and (d / name).stat().st_size > 0:
+            continue
+        pripremi_maske([x], proj, W, H)
+        tmp = d / ("_" + name)
+        run([ffmpeg(), "-y", "-v", "error", "-nostdin", *body, f"_tmp/{tmp.name}"], cwd=proj)
+        tmp.replace(d / name)
+        for old in d.glob(f"maska_{x['id']}_*.png"):
+            old.unlink()
+        novi += 1
+    keep = set(names)
+    for old in d.glob("prijelaz_*.mp4"):  # stari komadi (promijenjeni ili maknuti prijelazi)
+        if old.name not in keep:
+            old.unlink()
+    lst = d / "prijelazi.ffconcat"
+    lst.write_text("ffconcat version 1.0\n" + "".join(f"file '{n}'\n" for n in names), encoding="utf-8")
+    if ispis and novi:
+        print(f"Prijelazi: pripremljeno {novi} od {len(px)}")
+    return ["-threads", "1", "-f", "concat", "-safe", "0", "-i", "_tmp/prijelazi.ffconcat"]
+
+
+POMAK = 0.25                  # sličice: komad prijelaza ide ¼ sličice ranije (vidi vremena_expr)
+
+
+def sl_indeks(x, pre, fps):
+    """Koja sličica prijelaza x je u gotovom videu u trenutku `pre` (isto pravilo kao overlay u videu)."""
+    import math
+    return max(0, min(x["n"] - 1, math.floor((pre - x["s"]) * fps + POMAK + 1e-6)))
+
+
+def vremena_expr(px, fps):
+    """setpts izraz (u sekundama) za sličicu N spojenih komada: j-ta sličica prijelaza x je na x.s + j/fps,
+    pomaknuto ¼ sličice ranije. Overlay uz sličicu glavne trake uzme zadnju sličicu komada koja nije poslije
+    nje; s pomakom je to uvijek prava sličica, i kad rez (x.s) nije točno na sličici (pola sličice)."""
+    parts, c = [], 0
+    for x in px:
+        parts.append(f"between(N,{c},{c + x['n'] - 1})*({_f(x['s'] - POMAK / fps)}+(N-{c})/{fps})")
+        c += x["n"]
+    return "+".join(parts)
+
+
+def graf(px, ulaz, vin, vout, fps):
+    """Filteri: pripremljeni prijelazi (jedan ulaz `ulaz`, sve sličice prijelaza redom) preko glavne trake
+    `vin` → `vout`, svaki na svom mjestu u vremenu."""
+    d = POMAK / fps    # prozor = točno n sličica glavne trake, od prve sličice komada
+    en = "+".join(f"between(t,{_f(x['s'] - d)},{_f(x['e'] - d - 1e-4)})" for x in px)
+    return [f"[{ulaz}:v]setpts='({vremena_expr(px, fps)})/TB'[pxall]",
+            f"{vin}[pxall]overlay=0:0:eof_action=pass:repeatlast=0:enable='{en}'{vout}"]
 
 
 def u_prijelazu(px, pre):
@@ -237,7 +301,7 @@ def u_prijelazu(px, pre):
 def slika(x, pre, src, off, W, H, fps, grade, zoom_a, zoom_b, rep, png, proj="."):
     """Jedna sličica gotovog videa (vrijeme `pre`, prije brzine) usred prijelaza → ffmpeg naredba.
     rep = filteri iza prijelaza (efekti, titlovi) kao popis."""
-    j = max(0, min(x["n"] - 1, int(round((pre - x["s"]) * fps))))
+    j = sl_indeks(x, pre, fps)
     pripremi_maske([x], proj, W, H)
     fc = _spoj(x, 0, 1, 2, fps, grade, zoom_a, zoom_b, 0, W)
     fc[-1] = fc[-1].replace("[px0]", f",trim=start_frame={j}:end_frame={j + 1},setpts=PTS-STARTPTS+{pre:.4f}/TB"

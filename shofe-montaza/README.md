@@ -76,6 +76,8 @@ Efekti se traže riječima, kao i sve ostalo — Claude ih stavi na pravo mjesto
 
 Prijelaz ne produljuje i ne skraćuje video: pola je na kraju jednog kadra, pola na početku drugog, a sličice koje fale uzme iz snimke odmah uz rez (kao DaVinci). Zato titlovi, glazba i zvuk ostaju na istim mjestima, a govor na rezu ostaje čisti rez. Jedan do tri prijelaza po reelu su dovoljni — na svakom rezu izgledaju jeftino.
 
+Svaki prijelaz Shofe pripremi zasebno i zapamti ga, pa sljedeći render (npr. nakon „povećaj titlove") ne radi nepromijenjene prijelaze ponovno. Prijelazi više ne troše dodatnu memoriju: reel 1080×1920 sa 16 prijelaza treba oko 0,5 GB RAM-a, kao i bez njih (prije 2,7 GB).
+
 **Zvučni efekti** idu sami uz efekte: fijuk uz zamah (najglasniji točno na rezu), kratki fijuk uz klizanje, brisanje i vrata, „pop" uz iris, klikovi uz rolete, udarac uz trzaj i pad, okidač fotoaparata uz zamrzni i bljesak, zvuk koji raste uz vertigo i tiho kloparanje projektora uz stari film. Pretapanje, kroz crno, polagani zum i retro idu bez zvuka.
 
 - `koji zvukovi postoje` — popis i datoteka `zvukovi_pregled.wav` sa svim zvukovima jedan za drugim (poslušaj)

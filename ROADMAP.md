@@ -71,7 +71,9 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
 - M5.2 Prijelazi i zvučni efekti (podijeljeno):
   - [x] M5.2a Prijelazi na rezovima: iris (oko lica), rolete, vrata, brisanje, klizanje, zamah, pretapanje, kroz crno/bijelo, prolaz, pikseli; centrirani na rezu s ručkama, trajanje videa isto; `efekti.py rezovi` (#49)
   - [x] M5.2b Zvučni efekti (vlastita biblioteka, CC0) s pravilima glasnoće: zvuk uz prijelaze, trzaj, zamrzni, vertigo, film; samostalan zvuk; nikad glasniji od glasa (#50)
-  - [ ] M5.2c Prijelazi dalje: manje memorije po prijelazu (~0,3 GB kod 1080×1920), prijelazi u DaVinci timelineu (FCPXML transition, ako ih Resolve uvozi)
+  - M5.2c Prijelazi dalje (podijeljeno):
+    - [x] M5.2c1 Manje memorije: svaki prijelaz pripremljen zasebno (s predmemorijom), u glavnom prolazu jedan ulaz za sve; slika iz zasebnog otvaranja snimke (#PR)
+    - [ ] M5.2c2 Prijelazi u DaVinci timelineu (FCPXML transition, ako ih Resolve uvozi; inače oznaka na rezu)
 - [ ] M5.3 Claude bira efekte po tekstu: pravila u SKILL.md + `efekti.py predlozi`
 - [ ] M5.4 HyperFrames integracija: render odsječka s pozadinskim videom i umetanje natrag; provjera na Windowsu u CI-ju
 - [ ] M5.5 10 HTML predložaka (kartica, ključna rečenica, brojač, graf, popis, prije/poslije, komentar, mobitel, citat, poziv na akciju)
