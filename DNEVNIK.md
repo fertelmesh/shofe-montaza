@@ -435,5 +435,6 @@ Jedan unos po krugu, najnoviji na dnu.
 - Točnost: komad je pomaknut ¼ sličice, pa je svaka sličica prijelaza točno jednom na ekranu i kad rez pada na pola sličice; `--kadar` usred prijelaza koristi isto pravilo (prije `round`, mogao je uzeti susjednu sličicu).
 - Provjera očima: galerija 8 prijelaza (¼, ½, ¾) iz novog rendera 1080×1920 — iris, brisanje, vrata, rolete, zamah, pretapanje, pikseli, prolaz izgledaju kao prije.
 - Testovi: `test_prijelazi.py` — graf (jedan ulaz, jedan overlay), nova simulacija overlaya za rez na sličici i na pola sličice (svaka sličica j = 0…n-1 točno jednom, isto kao `sl_indeks`), novi pravi render: komadi imaju točno n sličica, u `graf.txt` nema xfadea, maske obrisane, drugi render ne dira komade i daje identičan video, promjena jednog prijelaza renderira samo njega. Postojeći testovi prijelaza (usred brisanja/irisa, `--kadar` = video) prolaze.
+- PR #51.
 - Za Marka: ništa novo za isprobati osim brzine — ako si primijetio da se laptop guši na reelu s puno prijelaza, sad bi trebalo biti bolje.
 - Sljedeće: M5.2c2 prijelazi u DaVinci timelineu.
