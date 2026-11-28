@@ -409,5 +409,5 @@ Jedan unos po krugu, najnoviji na dnu.
 - Izmjereno: svaki prijelaz ~0,3 GB RAM-a više kod 1080×1920 (isto na 0:02 i 0:52, ne raste s duljinom); najviše 16 po renderu. Smanjenje je M5.2c.
 - Testovi: novi `tests/test_prijelazi.py` (7: rez po oba/jednom vremenu; plan centriran, ručke, skraćenje uz kratak kadar, nestali rez; maske iris/rolete; svi xfade prijelazi postoje u ffmpegu; ulazi i graf se poklapaju; pravi render — isti broj sličica i trajanje zvuka kao bez prijelaza, izvan prijelaza ista slika, usred brisanja pola starog/pola novog prizora, iris: novi prizor oko lica, stari u kutu, `--kadar` = sličica videa, `pokazi`; vrata/rolete/zamah render, izrez prije prijelaza pomakne prijelaz s rezom, `vrati`, `makni sve`; greške naredbi).
 - Za Marka: probaj na pravom reelu „gdje su rezovi?", pa npr. „iris na drugom rezu" ili „kroz crno prije zadnje rečenice" i javi koji prijelazi ti se sviđaju, a koji su prebrzi/prespori. Zvuk uz prijelaze dolazi u sljedećem krugu.
-- PR #PR.
+- PR #49.
 - Sljedeće: M5.2b CC0 zvučni efekti s pravilima glasnoće.
