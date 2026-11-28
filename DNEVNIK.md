@@ -477,5 +477,6 @@ Jedan unos po krugu, najnoviji na dnu.
 - Provjera očima: probna kartica (Čćšžđ 350 eura) ulazi u 0,45 s, Montserrat Black, slova ispravna; „mobitel" s pozadinom: video se smanji na narančastu podlogu. Po sličicama: grafika točno na sličicama 30–89 i 135–194 (1–3 s, 4,5–6,5 s), izvan njih razlika 0,2/255 naspram videa bez grafike; zvuk bit-isti.
 - Brzina (ovdje, 2 CPU-a, bez GPU-a): kartica od 3 s u 1080×1920 = 17,8 s; reel s dvije grafike +31 s prvi put, +4 s drugi put (predmemorija).
 - Testovi: novi `tests/test_grafika.py` (9: omotač i window.SHOFE (i `</script>` u varijabli), HTML iz datoteke/teksta, vrijeme uz brzinu i špicu, graf, stanje bez instalacije, `efekti.py dodaj grafika` (greške, relativna putanja, preklapanje grafika, popis), umetanje lažnog prozirnog komada na točne sličice bez HyperFramesa, render bez HyperFramesa ne pada, pravi HyperFrames render oba načina + predmemorija + `--kadar` = video). CI: Node 22 + `grafika.py instaliraj` + `proba` na Linuxu i Windowsu, `SHOFE_GRAFIKA_TEST=1` (pravi test se ne smije preskočiti).
+- PR #54.
 - Za Marka: ništa odmah; isprobat ćeš u Pregledu M5. Ako `INSTALIRAJ.bat` javi da HTML grafika nije spremna, javi mi ispis.
 - Sljedeće: M5.5 deset HTML predložaka (kartica, ključna rečenica, brojač, graf, popis, prije/poslije, komentar, mobitel, citat, poziv na akciju).
