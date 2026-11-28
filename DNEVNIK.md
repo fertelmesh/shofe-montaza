@@ -462,5 +462,5 @@ Jedan unos po krugu, najnoviji na dnu.
 - Provjera očima: probni reel od 10 rečenica (savjet za klimu) → Shofe uzeo 5 (zamrzni „Marko iz Kutine“, rolete pred „Prvo“, guranje na „Najvažnije…“, film na „Nekad…“, trzaj na „200 eura“), odbio vertigo (2,6 s iza guranja), vrata (dosta prijelaza za 22 s) i pad (1,2 s iza trzaja). Render + `pokazi`: oznaka iznad lica, čitljiva; trzaj na licu. Na probnom razgovoru iz podcasta (49 s) samo jedan prijedlog („dvije godine“) — „Ja sam tada svirao“ ispravno nije ime.
 - Testovi: novi `tests/test_predlozi.py` (6: sva pravila i Shofeov odabir, trzaj točno na „200 eura“, prijelaz na rezu ispred „Prvo“, razmaci u planu; gustoća malo/puno; mirni stil + teme + trenuci (+1 unutar trenutka); hook, pjesma i postojeći efekt; CLI: odbija bez pregleda, Claudeove izmjene (oznaka, uzmi, tip; prijelaz → zum odbijen), bez dupliciranja, izričit P, dva `vrati`; render `--kadar` usred svakog primijenjenog efekta). Novi `tests/make_predlozi.py`.
 - Za Marka: na pravom reelu reci „dodaj efekte“ i javi koji ti efekti smetaju ili fale — po tome ću podesiti pravila i gustoću („više efekata“/„manje efekata“ već radi).
-- PR #PR.
+- PR #53.
 - Sljedeće: M5.4 HyperFrames integracija (render odsječka s pozadinskim videom i umetanje natrag).
