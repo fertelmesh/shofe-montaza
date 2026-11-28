@@ -80,7 +80,7 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
 - [x] M5.6 Galerija efekata (jedan render sa svim efektima) (#56)
 - M5.7 Izdvajanje osobe (permisivni model) (podijeljeno):
   - [x] M5.7a Maska osobe (MODNet, Apache-2.0, cv2.dnn na CPU-u) + efekt „tekst iza osobe" (`iza`) u prolazu grafike, galerija, `osoba.py pokazi` (#57)
-  - [x] M5.7b Zamjena pozadine: boja, slika, video ili zamućena pozadina iza osobe (`pozadina` efekt), uključujući HTML predloške iza osobe (`--iza`) (#PRBROJ)
+  - [x] M5.7b Zamjena pozadine: boja, slika, video ili zamućena pozadina iza osobe (`pozadina` efekt), uključujući HTML predloške iza osobe (`--iza`) (#58)
   - [ ] M5.7c Klon: ista osoba dvaput u kadru (komad iz drugog vremena preko maske) + provjera treperenja maske na Markovim klipovima
 - [ ] M5.8 Novi stilovi montaže i titlova + „stil iz uzorka"; titlovi stila Udarno (riječ u sredini kadra) ne smiju prekriti usta — kad je lice u sredini, riječ ide ispod lica (primijećeno u demu M3)
 - [ ] M5.9 Pregled M5: demo + issue
