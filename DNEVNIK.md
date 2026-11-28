@@ -422,5 +422,5 @@ Jedan unos po krugu, najnoviji na dnu.
 - Provjera: spektrogrami biblioteke (oblik fijuka, udarac ima i srednje frekvencije za mobitel — prvi pokušaj bio je gotovo sav bas, pa ga na mobitelu ne bi bilo; dodano „tijelo" i „krak"), spektrogram gotovog videa sa i bez zvukova (udarac na 1,00 s, fijuk s vrhom na rezu 2,47 s, uspon kroz vertigo, okidač na 6,00 s — izmjereno iz razlike: početak udarca 1,0005 s, okidača 6,0004 s). Render s 4 zvuka: +0,7 s.
 - Testovi: novi `tests/test_zvukovi.py` (9: biblioteka deterministička i bez pucketanja, imena/aliasi/datoteke, parovi i sidra, pjesma i preblizu, pravila razine (lokalno tiši govor, tišina, granica i kod +20 dB), graf; pravi render: razlika videa sa/bez zvukova — svaki zvuk na mjestu, čuje se i ≤ glas − 3 dB, vrh fijuka na rezu, `zvuk E1 ne/auto`, greške; vlastita datoteka preglasna + „puno glasnije" ostaje 3 dB ispod glasa; `zvukovi`). `test_efekti.py` i `test_prijelazi.py` prolaze.
 - Za Marka: na pravom reelu dodaj npr. „zamah na drugom rezu" i „trzaj na …" i javi jesu li zvukovi dobri, preglasni ili pretihi (`zvukovi su pretihi` = +3 dB). Ako želiš svoje snimljene zvukove, stavi .wav u mapu projekta. Poslušaj sve: „koji zvukovi postoje".
-- PR #PR.
+- PR #50.
 - Sljedeće: M5.2c prijelazi dalje (manje memorije, prijelazi u DaVinci timelineu).
