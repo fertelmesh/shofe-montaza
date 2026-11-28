@@ -67,6 +67,15 @@ Efekti se traže riječima, kao i sve ostalo — Claude ih stavi na pravo mjesto
 - `stari film od 1:00 do 1:10`, `retro / VHS na uvodu` — boja i tekstura starog filma ili VHS kasete
 - `koji efekti postoje`, `pokaži efekte`, `makni efekt E2`, `makni sve efekte`, `vrati kako je bilo`
 
+**Prijelazi** idu na rez između dva kadra: `iris na 0:12`, `rolete prije „drugi korak"`, `kroz crno na kraju priče`, `gdje su rezovi?`
+
+- `iris` — novi kadar se otvori u krugu oko lica · `rolete` — novi kadar se spusti kroz vodoravne rolete · `vrata` — stari kadar se otvori po sredini kao dvoja vrata
+- `brisanje`, `klizanje`, `zamah` (brzi zamah kamere s mutnim tragom) — lijevo, desno, gore ili dolje
+- `pretapanje`, `crno` (kroz crno), `bljesak` (kroz bijelo), `prolaz` (zum kroz rez), `pikseli`
+- trajanje po želji: `iris na 0:12, sporije` (0,2–1,5 s)
+
+Prijelaz ne produljuje i ne skraćuje video: pola je na kraju jednog kadra, pola na početku drugog, a sličice koje fale uzme iz snimke odmah uz rez (kao DaVinci). Zato titlovi, glazba i zvuk ostaju na istim mjestima, a zvuk na rezu ostaje čisti rez (zvukovi za prijelaze dolaze uskoro). Jedan do tri prijelaza po reelu su dovoljni — na svakom rezu izgledaju jeftino.
+
 Zumovi idu prema licu i lice ostaje na istom mjestu u kadru, pa titlovi i oznake ne skaču. Efekt je vezan za riječi, a ne za sekundu: kad kasnije nešto izrežeš, efekt ostaje na istoj rečenici. Dva zuma ne idu jedan preko drugog; stari film i retro mogu ići preko zuma. Render s efektima traje malo dulje (reel od 15 s sa sedam efekata otprilike dvostruko). U DaVinci timeline efekti ne idu (samo rezovi) — ako montiraš u DaVinciju, efekte tamo dodaj sam.
 
 ## Isječci za mreže
