@@ -70,7 +70,7 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
 - [x] M5.1 Sustav efekata u edit.json (`efekti: [{tip, od, do, parametri}]`) + ffmpeg efekti: zumovi (guranje, trzaj, pad, vertigo), zamrzni + oznaka, film/retro (#48)
 - M5.2 Prijelazi i zvučni efekti (podijeljeno):
   - [x] M5.2a Prijelazi na rezovima: iris (oko lica), rolete, vrata, brisanje, klizanje, zamah, pretapanje, kroz crno/bijelo, prolaz, pikseli; centrirani na rezu s ručkama, trajanje videa isto; `efekti.py rezovi` (#49)
-  - [ ] M5.2b CC0 zvučni efekti s pravilima glasnoće (zvuk uz prijelaze, trzaj, zamrzni; nikad glasniji od glasa)
+  - [x] M5.2b Zvučni efekti (vlastita biblioteka, CC0) s pravilima glasnoće: zvuk uz prijelaze, trzaj, zamrzni, vertigo, film; samostalan zvuk; nikad glasniji od glasa (#PR)
   - [ ] M5.2c Prijelazi dalje: manje memorije po prijelazu (~0,3 GB kod 1080×1920), prijelazi u DaVinci timelineu (FCPXML transition, ako ih Resolve uvozi)
 - [ ] M5.3 Claude bira efekte po tekstu: pravila u SKILL.md + `efekti.py predlozi`
 - [ ] M5.4 HyperFrames integracija: render odsječka s pozadinskim videom i umetanje natrag; provjera na Windowsu u CI-ju
