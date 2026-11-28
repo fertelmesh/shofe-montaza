@@ -11,9 +11,10 @@ U edit.json: {"tip": "iris", "od": kraj kadra A (s snimke), "do": početak kadra
 "parametri": {"trajanje": 0.6, "smjer": "lijevo", "lice": {...}}}. Rez se nađe po tim vremenima i
 nakon drugih izmjena (ako jedno od dva vremena još vrijedi).
 """
+import subprocess
 from pathlib import Path
 
-from common import ffmpeg, run
+from common import die, ffmpeg
 
 VERZIJA_KOMADA = 1           # povećaj kad se promijeni izgled prijelaza → stari pripremljeni komadi ne vrijede
 
@@ -249,7 +250,14 @@ def pripremi(px, src, off, W, H, fps, grade, zoom_a, zoom_b, proj, ispis=False):
             continue
         pripremi_maske([x], proj, W, H)
         tmp = d / ("_" + name)
-        run([ffmpeg(), "-y", "-v", "error", "-nostdin", *body, f"_tmp/{tmp.name}"], cwd=proj)
+        cmd = [str(c) for c in [ffmpeg(), "-y", "-v", "error", "-nostdin", *body, f"_tmp/{tmp.name}"]]
+        for pokusaj in range(2):  # ffmpeg koji jednom padne (rijetko, ovisno o niti) dobije još jednu priliku
+            r = subprocess.run(cmd, cwd=proj, capture_output=True, text=True, encoding="utf-8", errors="replace")
+            if r.returncode == 0 and tmp.exists():
+                break
+        else:
+            tail = "\n".join(r.stderr.strip().splitlines()[-15:])
+            die(f"prijelaz {x['id']} ({x['tip']}) nije pripremljen (ffmpeg, izlazni kod {r.returncode}):\n{tail}")
         tmp.replace(d / name)
         for old in d.glob(f"maska_{x['id']}_*.png"):
             old.unlink()
