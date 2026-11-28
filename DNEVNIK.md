@@ -450,3 +450,17 @@ Jedan unos po krugu, najnoviji na dnu.
 - PR #52.
 - Sljedeće: M5.3 Claude bira efekte po tekstu (pravila u SKILL.md + `efekti.py predlozi`).
 
+
+## 2026-11-28 09:25 — M5.3 Claude bira efekte po tekstu
+- Živa specifikacija (rev 13) i plan efekata (rev 9) pročitani: bez promjena. Nema otvorenog PR-a agenta (#36 je Markov). Issues #7, #18, #25, #38, #44, #46 bez Markova odgovora.
+- Istraženo: Submagic/Captions/OpusClip vežu zumove uz transkript i naglaske, pravila ne objavljuju; CapCutov vodič: 2–3 „prekida“ na 15–30 s, ne svakih pola sekunde. Odluka i izvori u ODLUKE.md.
+- Novo: `efekti.py projekt predlozi` (`predlozi.py`) čita gotov video (zadržane riječi s ispravcima, rezovi, teme i trenuci iz analiza.json) i predlaže: brojka + jedinica → trzaj na tim riječima, „ja sam Marko iz Kutine“ → zamrzni s imenom, „najvažnije/zapamti/nikad…“ → guranje, „čekaj/zamisli“ → vertigo, „i gotovo/eto ga“ → pad, „nekad/sjećam se“ → film, rez ispred „prvo/drugi korak/na kraju“ → rolete/vrata/klizanje, nova tema → zamah ili pretapanje (mirni stilovi), trenuci hook/poanta/smijeh → trzaj/guranje/pad.
+  - Gustoća: zum ≈ 1 na 8 s i ≥ 3 s razmaka, ista vrsta ne unutar 6 s, prijelaz ≈ 1 na 20 s, film/retro 1; ništa u pjesmi; zamrzni ne ispod hook naslova; postojeći efekti se poštuju. `--gustoca malo|puno`.
+  - `efekti_prijedlog.json/.txt`: P1, P2 … s razlogom, ocjenom, rečenicom; ✓ Shofe bi uzeo / ✗ zašto ne; cijeli tekst gotovog videa s vremenima.
+  - Claude pregleda svaki (tip unutar iste vrste, oznaka, uzmi) i stavi `pregledao_claude: true`; `predlozi primijeni` upiše sve u edit.json u **jednom** koraku povijesti (jedan `vrati`). Bez pregleda odbija; `primijeni P2,P5` = samo ti.
+  - SKILL.md: pravila za Claudea (ton, sporedne brojke, ime na oznaci, gustoća) + korak 7b u prvoj montaži (reel: efekti po zadanom; YouTube/podcast samo na traženje). README (Efekti po tekstu). Verzija 0.38.0.
+- Provjera očima: probni reel od 10 rečenica (savjet za klimu) → Shofe uzeo 5 (zamrzni „Marko iz Kutine“, rolete pred „Prvo“, guranje na „Najvažnije…“, film na „Nekad…“, trzaj na „200 eura“), odbio vertigo (2,6 s iza guranja), vrata (dosta prijelaza za 22 s) i pad (1,2 s iza trzaja). Render + `pokazi`: oznaka iznad lica, čitljiva; trzaj na licu. Na probnom razgovoru iz podcasta (49 s) samo jedan prijedlog („dvije godine“) — „Ja sam tada svirao“ ispravno nije ime.
+- Testovi: novi `tests/test_predlozi.py` (6: sva pravila i Shofeov odabir, trzaj točno na „200 eura“, prijelaz na rezu ispred „Prvo“, razmaci u planu; gustoća malo/puno; mirni stil + teme + trenuci (+1 unutar trenutka); hook, pjesma i postojeći efekt; CLI: odbija bez pregleda, Claudeove izmjene (oznaka, uzmi, tip; prijelaz → zum odbijen), bez dupliciranja, izričit P, dva `vrati`; render `--kadar` usred svakog primijenjenog efekta). Novi `tests/make_predlozi.py`.
+- Za Marka: na pravom reelu reci „dodaj efekte“ i javi koji ti efekti smetaju ili fale — po tome ću podesiti pravila i gustoću („više efekata“/„manje efekata“ već radi).
+- PR #53.
+- Sljedeće: M5.4 HyperFrames integracija (render odsječka s pozadinskim videom i umetanje natrag).
