@@ -149,7 +149,23 @@ Veliki natpis iza tebe, kao na naslovnici časopisa: ti stojiš ispred slova, a 
 - ne treba HyperFrames; 3 sekunde u 1080×1920 ovdje se računaju ~15 s, drugi put iz predmemorije odmah
 - da vidiš hoće li raditi na nekom klipu: „probaj tekst iza mene na ovoj snimci" (`python scripts\osoba.py pokazi klip.mp4 --t 0:03`) — lijevo maska (zeleno je pozadina), desno efekt
 
-Zamjena pozadine i klon (ista maska osobe) stižu u sljedećim krugovima.
+Titlovi i naslov ostaju ispred teksta.
+
+### Nova pozadina iza tebe
+
+Ista maska osobe, ali umjesto teksta Shofe zamijeni cijelu sobu iza tebe — bez zelenog platna.
+
+- „zamuti pozadinu" — tvoja soba ostane, ali mekano zamućena (kao portret na mobitelu); boja osobe ne curi u zamućenje, pa nema svijetlog ruba oko glave
+- „stavi me na tamnoplavu pozadinu" — jedna boja s blagim prijelazom (`--boja #1E3A5F`)
+- „iza mene neka bude slika ured.jpg" / „video more.mp4" — slika ili video pokrije cijeli kadar; kraći video se vrti u krug; uz malo zamućenja (`--zamuti 0.3`) izgleda prirodnije jer se svjetlo ne mora poklapati
+- može za dio videa („od 0:05 do 0:12") ili za cijeli reel; na početku i kraju dijela pozadina se pretopi
+- rub kose se očisti od stare pozadine i dobije malo svjetla nove, da ne izgleda izrezano; titlovi ostaju ispred
+- tekst iza osobe i grafika stoje ispred nove pozadine; kartica ili rečenica može i **iza tebe**: „rečenica *Čista klima, zdrav dom* gore iza mene" (`--iza`)
+- ako u tom dijelu nema osobe u kadru (ruke, uređaj), pozadina se ne mijenja i Shofe to kaže
+- traje ~0,45 s po sličici prvi put (3 sekunde ≈ 40–45 s ovdje na 2 jezgre; cijeli reel od 60 s ~15 min), drugi put iz predmemorije
+- probaj u galeriji efekata (broj „pozadina") i javi kako izgleda rub kose i ruke
+
+Klon (ista osoba dvaput u kadru) stiže u sljedećem krugu.
 
 ## Isječci za mreže
 

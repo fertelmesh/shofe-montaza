@@ -24,6 +24,9 @@ prijelazi.py) — upisuju se u edit.json `efekti`, render.py ih slaže ffmpegom 
                                     mobitel, citat, poziv; popis: python grafika.py predlosci)
   python efekti.py projekt dodaj iza 0:03-0:06 --tekst "SUNČANO" [--boja #FFC21A] [--polozaj auto|gore|sredina|dolje]
                                     veliki tekst iza osobe (osoba ispred slova; maska osobe: osoba.py, MODNet)
+  python efekti.py projekt dodaj pozadina 0:00-0:08 [--zamuti 0.5 | --boja #1E3A5F | --slika ured.jpg | --video more.mp4]
+                                    nova pozadina iza osobe (zadano zamućena; slika/video pokriju kadar, video u krug)
+  python efekti.py projekt dodaj kartica 0:03-0:06 --varijable '{…}' --iza   HTML predložak iza osobe
   python efekti.py projekt galerija [--samo prijelazi|kamera|boja|zvuk|grafika|trzaj,iris] [--od 0:05] [--brzo]
                                     svi efekti na istom komadu snimke u jednom videu → galerija.mp4/.png/.txt
 
@@ -64,6 +67,9 @@ TIPOVI = {
                 "opis": "HTML grafika preko videa (HyperFrames): kartica, brojka, popis … (--html, --pozadina)"},
     "iza": {"skupina": "grafika", "min": 0.5, "max": 15.0, "zadano": {"polozaj": "auto"},
             "opis": "veliki tekst iza osobe: osoba stoji ispred slova (--tekst, --boja, --polozaj)"},
+    "pozadina": {"skupina": "grafika", "min": 0.5, "max": 600.0, "zadano": {"vrsta": "zamuti"},
+                 "opis": "nova pozadina iza osobe: zamućena, boja, slika ili video (--zamuti, --boja, --slika, "
+                         "--video)"},
 }
 # prijelazi na rezovima (prijelazi.py): skupina "prijelaz", min/max = trajanje prijelaza
 for _k, _v in prijelazi.TIPOVI.items():
@@ -71,7 +77,10 @@ for _k, _v in prijelazi.TIPOVI.items():
                   "zadano": {"trajanje": _v["zadano"]}, "opis": _v["opis"]}
 ALIASI = dict(prijelazi.ALIASI)
 ALIASI.update({"html": "grafika", "kartica": "grafika", "zum": "trzaj", "punch": "trzaj", "push": "guranje", "zamrzni_kadar": "zamrzni", "freeze": "zamrzni",
-               "vhs": "retro", "tekst_iza": "iza", "iza_osobe": "iza", "tekst_iza_osobe": "iza", "text_behind": "iza", "zvucni_efekt": "zvuk", "sfx": "zvuk", "stari_film": "film", "zoom": "trzaj", "dolly": "vertigo", "pad_zuma": "pad"})
+               "vhs": "retro", "tekst_iza": "iza", "iza_osobe": "iza", "tekst_iza_osobe": "iza", "text_behind": "iza",
+               "nova_pozadina": "pozadina", "zamjena_pozadine": "pozadina", "green_screen": "pozadina",
+               "greenscreen": "pozadina", "zeleni_ekran": "pozadina", "zamuti": "pozadina", "blur": "pozadina",
+               "zamucenje": "pozadina", "zamućenje": "pozadina", "background": "pozadina", "zvucni_efekt": "zvuk", "sfx": "zvuk", "stari_film": "film", "zoom": "trzaj", "dolly": "vertigo", "pad_zuma": "pad"})
 SREDINA = (0.5, 0.38)      # bez lica: zum prema gornjoj trećini (tamo su lica u reelu)
 TRZAJ_T = 0.10             # s do punog zuma (trzaj)
 PAD_T = 0.45               # s od zuma do kadra (pad)
@@ -440,6 +449,8 @@ def cmd_popis(proj, words, edit, pj):
             extra.append(f"zum {x['p']['zum']:g}")
         if x["p"].get("lice"):
             extra.append({"iris": "oko lica", "grafika": "mjesto bez lica"}.get(x["tip"], "prema licu"))
+        if x["tip"] == "grafika" and x["p"].get("iza"):
+            extra.append("iza osobe")
         if x["tip"] == "grafika" and x["p"].get("predlozak"):
             v = x["p"].get("varijable") or {}
             glavno = next((str(v[k]) for k in ("naslov", "tekst", "broj", "prije") if v.get(k)), "")
@@ -449,6 +460,13 @@ def cmd_popis(proj, words, edit, pj):
         elif x["tip"] == "iza":
             extra.append(f"„{x['p'].get('tekst', '')}“ iza osobe" + (f", {x['p']['polozaj']}"
                                                                    if x["p"].get("polozaj", "auto") != "auto" else ""))
+        elif x["tip"] == "pozadina":
+            import osoba
+            pp = osoba.pozadina_parametri(x["p"])
+            extra.append({"zamuti": "zamućena", "boja": f"boja {pp['boja']}",
+                          "slika": f"slika {Path(str(x['p'].get('slika') or '')).name}",
+                          "video": f"video {Path(str(x['p'].get('video') or '')).name}"}[pp["vrsta"]]
+                         + (f", zamućenje {pp['zamuti']:g}" if pp["zamuti"] and pp["vrsta"] != "zamuti" else ""))
         elif x["tip"] == "grafika":
             h = str(x["p"].get("html") or "")
             extra.append("HTML u edit.json" if "<" in h else h)
@@ -495,10 +513,14 @@ def cmd_dodaj(proj, words, edit, pj, a):
         return dodaj_prijelaz(proj, words, edit, ref, label, pj, tip, a)
     if a.trajanje is not None or a.smjer is not None:
         die("--trajanje i --smjer idu uz prijelaze (python efekti.py projekt tipovi)")
-    if tip != "grafika" and (a.html is not None or a.pozadina or a.varijable is not None or a.predlozak):
-        die("--html, --predlozak, --pozadina i --varijable idu uz grafika")
-    if tip != "iza" and (a.tekst is not None or a.boja is not None or a.polozaj is not None):
-        die("--tekst, --boja i --polozaj idu uz iza (tekst iza osobe)")
+    if tip != "grafika" and (a.html is not None or a.pozadina or a.varijable is not None or a.predlozak or a.iza):
+        die("--html, --predlozak, --pozadina, --varijable i --iza idu uz grafika")
+    if tip != "iza" and (a.tekst is not None or a.polozaj is not None):
+        die("--tekst i --polozaj idu uz iza (tekst iza osobe)")
+    if tip not in ("iza", "pozadina") and a.boja is not None:
+        die("--boja ide uz iza (boja teksta) ili pozadina (boja pozadine)")
+    if tip != "pozadina" and (a.slika is not None or a.video is not None or a.zamuti is not None):
+        die("--slika, --video i --zamuti idu uz pozadina (nova pozadina iza osobe)")
     if a.na:
         import sadrzaj
         try:
@@ -545,6 +567,8 @@ def cmd_dodaj(proj, words, edit, pj, a):
         params["zvuk"] = zv
     if tip == "iza":
         params.update(iza_parametri(a))
+    if tip == "pozadina":
+        params.update(pozadina_parametri(proj, a))
     if tip == "grafika":
         params.update(grafika_parametri(proj, a))
         lice = None if (a.bez_lica or not params.get("predlozak")) else find_face(proj, (so + sd) / 2)
@@ -573,8 +597,8 @@ def cmd_dodaj(proj, words, edit, pj, a):
         die(f"{tip} može najviše {T['max']:g} s (dio je {d:.1f} s)")
     cur, _ = plan(edit2, cuts, pj["fps"], total)
     # grafike smiju jedna preko druge (kartica + strelica), ostali efekti iste vrste ne
-    clash = [y for y in cur if TIPOVI[y["tip"]]["skupina"] == T["skupina"] != "grafika"
-             and overlap((x["s"], x["e"]), (y["s"], y["e"]))]
+    clash = [y for y in cur if y["id"] != new["id"] and overlap((x["s"], x["e"]), (y["s"], y["e"]))
+             and (TIPOVI[y["tip"]]["skupina"] == T["skupina"] != "grafika" or y["tip"] == tip == "pozadina")]
     if clash and not a.zamijeni:
         y = clash[0]
         die(f"u tom dijelu već je {y['id']} ({y['tip']}); dva efekta iste vrste ne idu jedan preko drugog. "
@@ -595,6 +619,11 @@ def cmd_dodaj(proj, words, edit, pj, a):
     lice_txt = (" (mjesto bez lica)" if tip == "grafika" else " prema licu") if params.get("lice") else ""
     if tip == "iza":
         lice_txt = f" „{params['tekst']}“ iza osobe"
+    if tip == "pozadina":
+        lice_txt = {"zamuti": " (zamućena)", "boja": f" ({params.get('boja')})"}.get(
+            params["vrsta"], f" ({Path(str(params.get(params['vrsta']))).name})")
+    if tip == "grafika" and params.get("iza"):
+        lice_txt += " iza osobe"
     print(f"Dodan {new['id']}: {tip}{lice_txt}, {fmt_time(fa)}-{fmt_time(fb)} ({d:.1f} s) u sljedećem renderu.")
     print(f"Provjeri slike: python efekti.py {proj.name} pokazi {new['id']}")
 
@@ -621,6 +650,49 @@ def iza_parametri(a):
     return out
 
 
+def _datoteka_u_projektu(proj, f, sto, nastavci):
+    """Putanja slike/videa pozadine → tekst za edit.json (relativno na projekt kad je unutra)."""
+    p = Path(f.strip().strip('"'))
+    if not p.is_absolute():
+        p = proj / p if (proj / p).exists() or not p.exists() else p.resolve()
+    if not p.exists():
+        die(f"{sto} pozadine ne postoji: {f}")
+    if p.suffix.lower() not in nastavci:
+        die(f"{sto} pozadine: {', '.join(nastavci)} (ne {p.suffix or 'bez nastavka'})")
+    try:
+        return p.resolve().relative_to(proj.resolve()).as_posix()
+    except ValueError:
+        return str(p.resolve())
+
+
+def pozadina_parametri(proj, a):
+    """--zamuti [0–1] | --boja #RRGGBB | --slika put | --video put (+ --zamuti uz sliku/video) → parametri."""
+    import re
+
+    import osoba
+    vrste = [v for v, x in (("boja", a.boja), ("slika", a.slika), ("video", a.video)) if x is not None]
+    if len(vrste) > 1:
+        die("jedna pozadina: --boja ILI --slika ILI --video (uz --zamuti)")
+    out = {"vrsta": vrste[0] if vrste else "zamuti"}
+    if a.boja is not None:
+        if not re.fullmatch(r"#[0-9A-Fa-f]{6}", a.boja.strip()):
+            die("--boja: #RRGGBB, npr. #1E3A5F")
+        out["boja"] = a.boja.strip().upper()
+    if a.slika is not None:
+        out["slika"] = _datoteka_u_projektu(proj, a.slika, "slika", osoba.SLIKE)
+    if a.video is not None:
+        out["video"] = _datoteka_u_projektu(proj, a.video, "video", osoba.VIDEI)
+    if a.zamuti is not None:
+        if not 0.0 <= a.zamuti <= 1.0:
+            die("--zamuti: 0 (oštro) do 1 (jako zamućeno), npr. --zamuti 0.5")
+        if out["vrsta"] == "boja":
+            die("jednobojna pozadina se ne zamućuje (--zamuti ide uz sliku, video ili sam)")
+        out["zamuti"] = round(float(a.zamuti), 3)
+    elif out["vrsta"] == "zamuti":
+        out["zamuti"] = osoba.ZAMUTI
+    return out
+
+
 def grafika_parametri(proj, a):
     """--html (datoteka u projektu ili sam HTML) ili --predlozak, --varijable (JSON), --pozadina → parametri."""
     import json
@@ -643,6 +715,10 @@ def grafika_parametri(proj, a):
         out = {"predlozak": a.predlozak, "varijable": var}
         if a.pozadina or grafika.predlosci()[a.predlozak].get("pozadina"):
             out["pozadina"] = True
+        if a.iza:
+            if out.get("pozadina"):
+                die(f"{a.predlozak} mijenja cijeli kadar (s pozadinom), pa ne može iza osobe")
+            out["iza"] = True
         return out
     if not a.html:
         die("koja grafika? gotov predložak (dodaj kartica|brojac|… --varijable '{…}'; python grafika.py predlosci) "
@@ -669,6 +745,10 @@ def grafika_parametri(proj, a):
         out["varijable"] = v
     if a.pozadina:
         out["pozadina"] = True
+    if a.iza:
+        if a.pozadina:
+            die("--iza ne ide uz --pozadina (grafika s pozadinom mijenja cijeli kadar)")
+        out["iza"] = True
     return out
 
 
@@ -920,8 +1000,14 @@ def main():
     ap.add_argument("--predlozak", default=None, help="grafika: gotov predložak (python grafika.py predlosci)")
     ap.add_argument("--pozadina", action="store_true", help="grafika: HTML dobije taj dio videa kao <video>")
     ap.add_argument("--tekst", default=None, help="iza: tekst iza osobe (SUNČANO; dva retka: SUNČANI|PUT)")
-    ap.add_argument("--boja", default=None, help="iza: boja teksta #RRGGBB (zadano bijela)")
+    ap.add_argument("--boja", default=None,
+                    help="iza: boja teksta #RRGGBB (zadano bijela); pozadina: jednobojna pozadina")
     ap.add_argument("--polozaj", default=None, help="iza: auto (iznad glave) | gore | sredina | dolje")
+    ap.add_argument("--slika", default=None, help="pozadina: slika nove pozadine (jpg/png, u mapi projekta)")
+    ap.add_argument("--video", default=None, help="pozadina: video nove pozadine (mp4/mov; vrti se u krug)")
+    ap.add_argument("--zamuti", type=float, nargs="?", const=0.5, default=None,
+                    help="pozadina: zamućenje 0–1 (sam = zamućena snimka; uz --slika/--video malo dubine)")
+    ap.add_argument("--iza", action="store_true", help="grafika: HTML grafika iza osobe (osoba ispred)")
     ap.add_argument("--bez-lica", action="store_true", help="zum prema sredini, ne prema licu")
     ap.add_argument("--zamijeni", action="store_true", help="zamijeni efekt iste vrste na tom mjestu")
     ap.add_argument("--verzija", type=int, default=None, help="vremena iz reel_vN (zadano: zadnji render)")

@@ -35,8 +35,9 @@ SKUPINE = {"kamera": "kamera", "zum": "kamera", "zumovi": "kamera", "boja": "boj
            "prijelaz": "prijelaz", "prijelazi": "prijelaz", "grafika": "grafika", "predlosci": "grafika",
            "predlošci": "grafika", "html": "grafika"}
 OZNAKA_ZAMRZNI = "Ovo je oznaka"
-REDOSLIJED = ["guranje", "trzaj", "pad", "vertigo", "zamrzni", "film", "retro", "zvuk", "iza"]
+REDOSLIJED = ["guranje", "trzaj", "pad", "vertigo", "zamrzni", "film", "retro", "zvuk", "iza", "pozadina"]
 TEKST_IZA = "SHOFE"
+BOJA_POZADINE = "#1E3A5F"     # galerija: jednobojna pozadina najbolje pokaže rub osobe
 
 
 class Greska(Exception):
@@ -229,6 +230,8 @@ def naredba(vrsta, ime):
         return "dodaj zvuk 0:12 --zvuk udarac"
     if vrsta == "iza":
         return f'dodaj iza 0:12-0:15 --tekst "{TEKST_IZA}"'
+    if vrsta == "pozadina":
+        return f'dodaj pozadina 0:12-0:15 --boja "{BOJA_POZADINE}"   (ili --zamuti 0.5, --slika ured.jpg, --video more.mp4)'
 
     return f"dodaj {vrsta} 0:12-0:14"
 
@@ -359,6 +362,8 @@ def sastavi(proj, a):
             par["zvuk"] = "udarac"
         elif vrsta == "iza":
             par = {"tekst": TEKST_IZA}
+        elif vrsta == "pozadina":
+            par = {"vrsta": "boja", "boja": BOJA_POZADINE}
         elif vrsta == "grafika":
             m = grafika.predlosci()[ime]
             var, _ = grafika.provjeri_varijable(ime, m.get("primjer") or {})

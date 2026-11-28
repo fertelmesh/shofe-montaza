@@ -741,12 +741,13 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
         gx, _ = grafika.plan(fx, speed, fps, sp_r, stil=st)
         g_notes = []
 
-        def na_grafiku(png, t):  # HTML grafika preko slike (ista sličica kao u videu)
-            hit, note = grafika.za_sliku(proj, gx, t, W, H, fps)
-            if hit:
-                grafika.na_sliku(png, hit[0], hit[1], proj)
-            elif note:
-                g_notes.append(note)
+        def na_grafiku(png, t, cisto=None):  # HTML grafika preko slike (ista sličica kao u videu); pozadina prva
+            for dio in ([g for g in gx if g.get("tip") == "pozadina"], [g for g in gx if g.get("tip") != "pozadina"]):
+                hit, note = grafika.za_sliku(proj, dio, t, W, H, fps) if dio else (None, None)
+                if hit:
+                    grafika.na_sliku(png, hit[0], hit[1], proj, cisto=cisto)
+                elif note:
+                    g_notes.append(note)
         slike = stills_mode(pairs, proj, cuts, zr, factor, grade, subs, speed, W, H, total, izvor,
                             fx=fx, fps=fps, graf=na_grafiku if gx else None)
         for note in g_notes:
@@ -780,8 +781,18 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
         inputs += prijelazi.pripremi(px, src, off, W, H, fps, grade, za, zb, proj, ispis=ispis)
         g += prijelazi.graf(px, prvi, "[v1]", "[v1p]", fps)
         vmain = "[v1p]"
-    vtail = vmain + ",".join(efekti.freeze_chain(fx, fps) + efekti.video_chain(fx, W, H, fps, cmd_dir=proj)
-                             + [subs])
+    pre_subs = efekti.freeze_chain(fx, fps) + efekti.video_chain(fx, W, H, fps, cmd_dir=proj)
+    # efekti s maskom osobe (tekst iza osobe, nova pozadina, grafika --iza): ista slika bez titlova u zasebnu
+    # datoteku — maska osobe se računa iz nje (titlovi i natpisi u slici zbune model)
+    cisto = proj / "_tmp" / "grafika" / "cisto.mp4" if (grafika.treba_cisto(fx) and not kadar) else None
+    if cisto:
+        cisto.parent.mkdir(parents=True, exist_ok=True)
+        g.append(vmain + ",".join(pre_subs or ["null"]) + ",split=2[vpre][vcl]")
+        g.append("[vcl]" + (f"setpts=PTS/{speed}," if speed != 1.0 else "")
+                 + (f"scale={W // 2}:-2," if brzo else "") + "format=yuv420p[vcisto]")
+        vtail = "[vpre]" + subs
+    else:
+        vtail = vmain + ",".join(pre_subs + [subs])
     if speed != 1.0:
         vtail += f",setpts=PTS/{speed}"
     if brzo:
@@ -883,6 +894,9 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
            "-map", "[vout]", "-map", "[aout]", "-r", fps,
            "-c:v", "libx264", "-preset", preset, "-crf", crf, "-pix_fmt", "yuv420p", "-profile:v", "high",
            "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", rel]
+    if cisto:
+        cmd += ["-map", "[vcisto]", "-r", fps, "-c:v", "libx264", "-preset", "ultrafast", "-crf", "12",
+                "-pix_fmt", "yuv420p", cisto.relative_to(proj).as_posix()]
     if ispis:
         print(f"Renderiram {rel} ({st.get('naziv', edit.get('stil'))}, {n} rezova)...")
     run(cmd, cwd=proj)
@@ -896,15 +910,18 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     g_lines = []
     if gx:
         ok, msg = grafika.stanje()
-        if not ok and any(g.get("tip") != "iza" for g in gx):   # tekst iza osobe ne treba HyperFrames
-            bez = [g for g in gx if g.get("tip") != "iza"]
+        if not ok and any(grafika.treba_hyperframes(g) for g in gx):   # iza, pozadina: bez HyperFramesa
+            bez = [g for g in gx if grafika.treba_hyperframes(g)]
             fx_notes.append(f"grafika nije u videu ({len(bez)}): {msg}")
-            gx = [g for g in gx if g.get("tip") == "iza"]
+            gx = [g for g in gx if not grafika.treba_hyperframes(g)]
         if gx:
             try:
-                g_lines = grafika.umetni(proj, gx, out, W, H, fps, preset=preset, crf=crf, ispis=ispis)
+                g_lines = grafika.umetni(proj, gx, out, W, H, fps, preset=preset, crf=crf, ispis=ispis,
+                                         cisto=cisto if cisto and cisto.exists() else None)
             except (grafika.Greska, subprocess.TimeoutExpired) as ex:
                 fx_notes.append(f"grafika nije u videu: {ex}")
+    if cisto and cisto.exists():
+        cisto.unlink()
     # titlovi kao datoteka uz video (isto ime → YouTube, VLC i DaVinci ih nađu)
     srt = out.with_suffix(".srt")
     cues = titlovi.make_cues([dict(w, s=w["s"] / speed, e=w["e"] / speed) for w in ws], total / speed, fps)
@@ -1033,11 +1050,15 @@ def stills_mode(kadar, proj, cuts, zr, factor, grade, subs, speed, W, H, total, 
         if px:  # usred prijelaza: oba komada snimke + xfade, ista sličica kao u videu
             src, off = _src_of(proj, izvor)
             za, zb = _side_zoom(zr, factor, W, H, fps)
-            rep = efekti.video_chain(fx, W, H, fps, T=f"{pre:.4f}", cmd_dir=proj) + [subs]
-            run(prijelazi.slika(px, pre_src, src, off, W, H, fps, grade, za(px), zb(px), rep, png.name, proj),
-                cwd=proj)
+            rep = efekti.video_chain(fx, W, H, fps, T=f"{pre:.4f}", cmd_dir=proj)
+            run(prijelazi.slika(px, pre_src, src, off, W, H, fps, grade, za(px), zb(px), rep + [subs], png.name,
+                                proj), cwd=proj)
             if graf:
-                graf(png, t)
+                cist = proj / ("_cisto_" + png.name)
+                run(prijelazi.slika(px, pre_src, src, off, W, H, fps, grade, za(px), zb(px), rep or ["null"],
+                                    cist.name, proj), cwd=proj)
+                graf(png, t, cist)
+                cist.unlink(missing_ok=True)
             pngs.append(png)
             continue
         c = next((c for c in cuts if c["o"] <= pre_src < c["o"] + (c["b"] - c["a"])), cuts[-1])
@@ -1047,12 +1068,15 @@ def stills_mode(kadar, proj, cuts, zr, factor, grade, subs, speed, W, H, total, 
             chain.append(zoom_chain(factor, W, H))
         chain += [f"setpts=PTS-STARTPTS+{pre:.3f}/TB"]
         chain += efekti.video_chain(fx, W, H, fps, T=f"{pre:.4f}", cmd_dir=proj) if fx else []
-        chain += [subs]
         src, off = (Path(izvor["datoteka"]).resolve(), float(izvor["pomak"])) if izvor else ("source.mp4", 0.0)
         run([ffmpeg(), "-y", "-v", "error", "-ss", f"{max(0.0, src_t - off):.3f}", "-i", src, "-frames:v", "1",
-             "-vf", ",".join(chain), png.name], cwd=proj)
+             "-vf", ",".join(chain + [subs]), png.name], cwd=proj)
         if graf:
-            graf(png, t)
+            cist = proj / ("_cisto_" + png.name)     # ista slika bez titlova (maska osobe)
+            run([ffmpeg(), "-y", "-v", "error", "-ss", f"{max(0.0, src_t - off):.3f}", "-i", src, "-frames:v", "1",
+                 "-vf", ",".join(chain), cist.name], cwd=proj)
+            graf(png, t, cist)
+            cist.unlink(missing_ok=True)
         pngs.append(png)
     if len(pngs) > 1:
         tw = 360

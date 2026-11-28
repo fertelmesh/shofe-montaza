@@ -347,12 +347,13 @@ def plan(fx, speed, fps, sp_r=None, ukupno=None, stil=None):
     s = prva sličica (poravnata), n = broj sličica. Grafika koju bi prekinula uvodna špica završi na njoj."""
     import spica
     out, notes = [], []
-    gx = [x for x in fx if x["tip"] in ("grafika", "iza")]     # iza = tekst iza osobe (osoba.py), isti prolaz
+    gx = [x for x in fx if x["tip"] in OSOBA_TIPOVI + ("grafika",)]   # iza, pozadina: osoba.py, isti prolaz
     if len(gx) > MAX_GRAFIKA:
         notes.append(f"grafika je {len(gx)}; u videu je prvih {MAX_GRAFIKA}")
         gx = gx[:MAX_GRAFIKA]
     for x in gx:
         s, e = x["s"] / speed, x["e"] / speed
+        s0 = s                                              # vrijeme titlova (captions.ass, bez špice)
         if sp_r and sp_r.get("uvod") and s < sp_r["at"] - 1e-6 < e:
             e = sp_r["at"]
             notes.append(f"grafika {x['id']} skraćena: iza nje počinje špica")
@@ -365,8 +366,10 @@ def plan(fx, speed, fps, sp_r=None, ukupno=None, stil=None):
         if n < 2:
             notes.append(f"grafika {x['id']} preskočena: prekratka")
             continue
+        kraj = ukupno is not None and k0 + n >= int(round(ukupno * fps)) - 1
         out.append({"id": x["id"], "tip": x["tip"], "s": k0 / fps, "k0": k0, "n": n, "p": x["p"],
-                    "stil": boje_stila(stil), "fps": float(fps)})
+                    "stil": boje_stila(stil), "fps": float(fps), "s0": round(k0 / fps - (s - s0), 4),
+                    "do_kraja": bool(kraj)})
     return out, notes
 
 
@@ -471,39 +474,86 @@ def graf(gp, fps, Wo, Ho, W, H):
     return g_
 
 
-def umetni(proj, gx, out, W, H, fps, preset="veryfast", crf=18, ispis=True):
-    """Svaka grafika: HyperFrames komad (predmemorija), pa jedan ffmpeg prolaz koji ih položi preko gotovog
-    videa `out` (zvuk se samo kopira). Vraća popis linija za ispis."""
+OSOBA_TIPOVI = ("iza", "pozadina")      # efekti s maskom osobe (osoba.py), ne trebaju HyperFrames
+
+
+def treba_hyperframes(g):
+    return g.get("tip") not in OSOBA_TIPOVI
+
+
+def treba_cisto(fx):
+    """Ima li efekata s maskom osobe (render tada zapiše i sliku bez titlova, za masku)."""
+    return any(x["tip"] in OSOBA_TIPOVI or (x["tip"] == "grafika" and (x.get("p") or {}).get("iza")
+                                            and not (x.get("p") or {}).get("pozadina")) for x in fx or [])
+
+
+def _komad(proj, g, out, W, H, fps, ispis, napomene, cisto=None):
+    """Jedna grafika → (komad, nov) ili None (napomena). iza/pozadina iz osoba.py; grafika --iza: HyperFrames
+    komad pa osoba ispred grafike."""
+    import osoba
+    try:
+        if g.get("tip") == "iza":
+            return osoba.komad(proj, g, out, W, H, fps, ispis=ispis, cisto=cisto)
+        if g.get("tip") == "pozadina":
+            return osoba.komad_pozadine(proj, g, out, W, H, fps, ispis=ispis, cisto=cisto)
+    except osoba.Greska as ex:
+        napomene.append(f"! {'tekst iza osobe' if g['tip'] == 'iza' else 'pozadina'} {g['id']} nije u videu: {ex}")
+        return None
+    f, nov = pripremi(proj, g, W, H, fps, video=out, ispis=ispis)
+    if g["p"].get("iza") and not g["p"].get("pozadina"):
+        try:
+            f2, nov2 = osoba.komad_grafike_iza(proj, g, out, f, W, H, fps, ispis=ispis, cisto=cisto)
+            return f2, nov or nov2
+        except osoba.Greska as ex:
+            napomene.append(f"! grafika {g['id']} je preko osobe (ne iza): {ex}")
+    return f, nov
+
+
+def umetni(proj, gx, out, W, H, fps, preset="veryfast", crf=18, ispis=True, cisto=None):
+    """Svaka grafika: komad (HyperFrames ili maska osobe, predmemorija), pa ffmpeg prolaz koji ih položi preko
+    gotovog videa `out` (zvuk se samo kopira). Nova pozadina ide u prvi prolaz, sve ostalo u drugi, pa tekst i
+    grafika iza osobe stoje ispred nove pozadine. cisto = ista slika bez titlova (render), za masku osobe.
+    Vraća popis linija za ispis."""
     proj, out = Path(proj), Path(out)
     (proj / "_tmp" / "grafika").mkdir(parents=True, exist_ok=True)
-    from common import video_info
-    info = video_info(out)
-    Wo, Ho = info["w"], info["h"]
-    gp, novi, napomene = [], 0, []
-    for g in gx:
-        if g.get("tip") == "iza":          # tekst iza osobe: komad iz gotovog videa (maska osobe, bez HyperFramesa)
-            import osoba
-            try:
-                f, nov = osoba.komad(proj, g, out, W, H, fps, ispis=ispis)
-            except osoba.Greska as ex:
-                napomene.append(f"! tekst iza osobe {g['id']} nije u videu: {ex}")
+    faze = [[g for g in gx if g.get("tip") == "pozadina"], [g for g in gx if g.get("tip") != "pozadina"]]
+    svi, novi, napomene = [], 0, []
+    for faza in faze:
+        if not faza:
+            continue
+        gp = []
+        for g in faza:
+            r = _komad(proj, g, out, W, H, fps, ispis, napomene, cisto=cisto)
+            if r is None:
                 continue
-        else:
-            f, nov = pripremi(proj, g, W, H, fps, video=out, ispis=ispis)
-        k = broj_slicica(f)
-        if k < g["n"]:
-            raise Greska(f"grafika {g['id']}: HyperFrames dao {k} sličica, treba {g['n']}")
-        gp.append((g, f))
-        novi += nov
-    if not gp:
+            f, nov = r
+            k = broj_slicica(f)
+            if k < g["n"]:
+                raise Greska(f"grafika {g['id']}: komad ima {k} sličica, treba {g['n']}")
+            gp.append((g, f))
+            novi += nov
+        if gp:
+            _polozi(proj, gp, out, W, H, fps, preset, crf)
+            svi += gp
+    if not svi:
         return napomene
-    keep = {f.name for _, f in gp}
+    keep = {f.name for _, f in svi}
     for old in (proj / "_tmp" / "grafika").glob("grafika_*.*"):   # komadi maknutih ili promijenjenih grafika
         if old.name not in keep and not _u_manifestu(proj, old.name):
             old.unlink()
+    _zapisi_manifest(proj, out, svi, fps)
+    svi.sort(key=lambda x: x[0]["s"])
+    return [f"Grafika: {len(svi)} ({', '.join(g['id'] for g, _ in svi)}; renderirao {novi}, "
+            f"{len(svi) - novi} iz predmemorije)", *napomene]
+
+
+def _polozi(proj, gp, out, W, H, fps, preset, crf):
+    """Jedan ffmpeg prolaz: komadi gp preko gotovog videa out (zamijeni ga)."""
+    from common import filter_script_args, video_info
+    info = video_info(out)
+    Wo, Ho = info["w"], info["h"]
     fc = proj / "_tmp" / "graf_grafika.txt"
     fc.write_text(";\n".join(graf(gp, fps, Wo, Ho, W, H)), encoding="utf-8")
-    from common import filter_script_args
     tmp = out.with_name(out.stem + "_grafika" + out.suffix)
     ins = []
     for _, f in gp:
@@ -516,9 +566,6 @@ def umetni(proj, gx, out, W, H, fps, preset="veryfast", crf=18, ispis=True):
     if r.returncode != 0 or not tmp.exists():
         raise Greska(f"grafika nije umetnuta (ffmpeg, izlazni kod {r.returncode}):\n{r.stderr[-1500:]}")
     tmp.replace(out)
-    _zapisi_manifest(proj, out, gp, fps)
-    return [f"Grafika: {len(gp)} ({', '.join(g['id'] for g, _ in gp)}; renderirao {novi}, "
-            f"{len(gp) - novi} iz predmemorije)", *napomene]
 
 
 def _manifest_path(proj):
@@ -548,8 +595,8 @@ def za_sliku(proj, gx, t, W, H, fps):
     if not g:
         return None, None
     j = max(0, min(g["n"] - 1, math.floor((t - g["s"]) * fps + POMAK + 1e-6)))
-    if g.get("tip") == "iza":           # tekst iza osobe: maska iz same slike (na_sliku)
-        return (("iza", g), j), None
+    if g.get("tip") in OSOBA_TIPOVI:    # tekst iza osobe, nova pozadina: maska iz same slike (na_sliku)
+        return (("osoba", g), j), None
     if g["p"].get("pozadina"):
         try:
             m = json.loads(_manifest_path(proj).read_text(encoding="utf-8"))
@@ -565,15 +612,23 @@ def za_sliku(proj, gx, t, W, H, fps):
         f, _ = pripremi(proj, g, W, H, fps)
     except Greska as ex:
         return None, str(ex)
+    if g["p"].get("iza"):
+        return (("grafika_iza", g, f), j), None
     return (f, j), None
 
 
-def na_sliku(png, komad, j, cwd):
-    """Sličica j komada grafike preko PNG-a (ista veličina) → isti PNG. komad ('iza', g) = tekst iza osobe."""
-    if isinstance(komad, tuple) and komad[0] == "iza":
+def na_sliku(png, komad, j, cwd, cisto=None):
+    """Sličica j komada grafike preko PNG-a (ista veličina) → isti PNG. komad ('osoba', g) = tekst iza osobe ili
+    nova pozadina; ('grafika_iza', g, f) = HTML grafika iza osobe."""
+    if isinstance(komad, tuple):
         import osoba
+        g = komad[1]
+        fps = g.get("fps") or 30
         try:
-            return osoba.na_sliku(png, komad[1], j, komad[1].get("fps") or 30)
+            if komad[0] == "grafika_iza":
+                return osoba.grafika_iza_na_sliku(png, komad[2], j, cwd, g.get("s0", g["s"]) + j / float(fps), fps,
+                                                  cisto=cisto)
+            return osoba.na_sliku(png, g, j, fps, proj=cwd, cisto=cisto)
         except osoba.Greska:
             return False
     from PIL import Image
