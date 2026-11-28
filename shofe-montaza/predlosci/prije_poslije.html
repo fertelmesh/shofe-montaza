@@ -1,0 +1,37 @@
+<!-- Prije/poslije: dvije vrijednosti, strelica, nova vrijednost na boji. Varijable: prije*, poslije*, naslov, oznaka_prije, oznaka_poslije, polozaj, boja -->
+<style>
+.pz{width:min(88%,calc(var(--s)*1.05));text-align:center}
+.pz .sf-naslov{font-size:calc(var(--s)*.06);margin-bottom:calc(var(--s)*.035)}
+.pz .red{display:flex;align-items:stretch;gap:calc(var(--s)*.025)}
+.pz .str{flex:1;min-width:0;border-radius:calc(var(--s)*.026);padding:calc(var(--s)*.03) calc(var(--s)*.02);
+ display:flex;flex-direction:column;justify-content:center}
+.pz .a{background:#ECEDEF;color:#555;--ul:sf-lijevo;--kas:.25s}
+.pz .b{background:var(--boja);color:var(--na-boji);--ul:sf-pop;--kas:.85s}
+.pz .ozn{font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:calc(var(--s)*.03);opacity:.8}
+.pz .vr{font-weight:900;font-size:calc(var(--s)*.085);line-height:1.05;margin-top:calc(var(--s)*.01);
+ overflow-wrap:break-word}
+.pz .a .vr{position:relative;display:inline-block}
+.pz .a .vr:after{content:"";position:absolute;left:-4%;right:-4%;top:52%;height:calc(var(--s)*.009);background:#E5484D;
+ transform-origin:0 50%;animation:pz-crta .35s ease-out .6s both;border-radius:4px}
+.pz .strel{flex:none;align-self:center;width:calc(var(--s)*.07);height:calc(var(--s)*.07);--ul:sf-lijevo;--kas:.55s}
+.pz .strel svg{width:100%;height:100%}
+@keyframes pz-crta{from{transform:scaleX(0)}to{transform:none}}
+</style>
+<script>
+SF.gradi(function () {
+  var b = SF.el("div", "sf-blok sf-kartica sf-anim pz");
+  if (SF.v("naslov")) SF.stane(SF.el("div", "sf-naslov", SF.v("naslov"), b), 2);
+  var red = SF.el("div", "red", null, b);
+  var a = SF.el("div", "str a sf-anim", null, red);
+  SF.el("div", "ozn", SF.v("oznaka_prije", "Prije"), a);
+  var va = SF.el("div", "vr", SF.v("prije", "—"), SF.el("div", null, null, a));
+  var s = SF.el("div", "strel sf-anim", null, red);
+  s.innerHTML = '<svg viewBox="0 0 24 24"><path d="M3 12h15m-6-7 7 7-7 7" fill="none" stroke="#111" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var c = SF.el("div", "str b sf-anim", null, red);
+  SF.el("div", "ozn", SF.v("oznaka_poslije", "Poslije"), c);
+  var vb = SF.el("div", "vr", SF.v("poslije", "—"), c);
+  var fs = Math.min(SF.stane(va, 2), SF.stane(vb, 2));
+  va.style.fontSize = vb.style.fontSize = fs + "px";
+  SF.smjesti(b, "dolje");
+});
+</script>

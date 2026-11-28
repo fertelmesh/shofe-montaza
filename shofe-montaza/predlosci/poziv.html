@@ -1,0 +1,28 @@
+<!-- Poziv na akciju: tekst, gumb koji pulsira i strelica. Varijable: tekst, gumb, ime, polozaj, boja -->
+<style>
+.pv{width:min(84%,calc(var(--s)*.9));text-align:center}
+.pv .tx{font-weight:900;font-size:calc(var(--s)*.07);line-height:1.1;color:#fff;
+ text-shadow:0 calc(var(--s)*.006) calc(var(--s)*.025) rgba(0,0,0,.75),0 0 2px rgba(0,0,0,.8);overflow-wrap:break-word}
+.pv .gb{display:inline-flex;align-items:center;gap:.45em;margin-top:calc(var(--s)*.04);background:var(--boja);
+ color:var(--na-boji);font-weight:900;text-transform:uppercase;letter-spacing:.04em;font-size:calc(var(--s)*.062);
+ padding:.5em 1.1em;border-radius:999px;box-shadow:0 calc(var(--s)*.012) calc(var(--s)*.045) rgba(0,0,0,.45);
+ white-space:nowrap;--ul:sf-pop;--kas:.35s}
+.pv .gb .unutra{display:inline-flex;align-items:center;gap:.45em;animation:pv-puls .6s ease-in-out .95s 3 both}
+.pv .gb svg{width:.95em;height:.95em}
+.pv .im{margin-top:calc(var(--s)*.025);font-weight:800;font-size:calc(var(--s)*.042);color:#fff;
+ text-shadow:0 2px 10px rgba(0,0,0,.8);--ul:sf-gore;--kas:.6s}
+@keyframes pv-puls{0%,100%{transform:none}50%{transform:scale(1.08)}}
+</style>
+<script>
+SF.gradi(function () {
+  var b = SF.el("div", "sf-blok pv sf-anim");
+  if (SF.v("tekst", "Zaprati za još savjeta")) SF.stane(SF.el("div", "tx", SF.v("tekst", "Zaprati za još savjeta"), b), 3);
+  var g = SF.el("div", "gb sf-anim", null, b);
+  var u = SF.el("span", "unutra", null, g);
+  SF.el("span", null, SF.v("gumb", "Zaprati"), u);
+  var s = SF.el("span", null, null, u);
+  s.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 4v13m-6-6 6 6 6-6" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  if (SF.v("ime")) SF.el("div", "im sf-anim", SF.v("ime"), b);
+  SF.smjesti(b, "dolje");
+});
+</script>

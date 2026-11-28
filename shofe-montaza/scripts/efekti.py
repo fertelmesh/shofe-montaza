@@ -19,6 +19,9 @@ prijelazi.py) — upisuju se u edit.json `efekti`, render.py ih slaže ffmpegom 
   python efekti.py projekt predlozi primijeni [P1,P3]            upiše pregledane prijedloge u edit.json
   python efekti.py projekt dodaj grafika 0:12-0:15 --html grafika/kartica.html [--varijable '{"broj": "200"}']
   python efekti.py projekt dodaj grafika 0:20-0:24 --html mobitel.html --pozadina   HTML dobije taj dio videa
+  python efekti.py projekt dodaj brojac 0:12-0:15 --varijable '{"broj": "350", "jedinica": "eura"}'
+                                    gotov predložak (kartica, recenica, brojac, graf, popis, prije_poslije, komentar,
+                                    mobitel, citat, poziv; popis: python grafika.py predlosci)
 
 Parametri: --zum 1.3 (koliko zumira), --jacina 0.35 (vertigo), --oznaka "tekst" (zamrzni);
 prijelazi: --trajanje 0.5, --smjer lijevo|desno|gore|dolje (brisanje, klizanje). Prijelaz ne mijenja trajanje.
@@ -430,8 +433,14 @@ def cmd_popis(proj, words, edit, pj):
         elif "zum" in x["p"] and x["tip"] not in ("film", "retro"):
             extra.append(f"zum {x['p']['zum']:g}")
         if x["p"].get("lice"):
-            extra.append("oko lica" if x["tip"] == "iris" else "prema licu")
-        if x["tip"] == "grafika":
+            extra.append({"iris": "oko lica", "grafika": "mjesto bez lica"}.get(x["tip"], "prema licu"))
+        if x["tip"] == "grafika" and x["p"].get("predlozak"):
+            v = x["p"].get("varijable") or {}
+            glavno = next((str(v[k]) for k in ("naslov", "tekst", "broj", "prije") if v.get(k)), "")
+            extra.append(f"predložak {x['p']['predlozak']}" + (f" „{glavno[:40]}“" if glavno else ""))
+            if x["p"].get("pozadina"):
+                extra.append("s pozadinom")
+        elif x["tip"] == "grafika":
             h = str(x["p"].get("html") or "")
             extra.append("HTML u edit.json" if "<" in h else h)
             if x["p"].get("pozadina"):
@@ -449,7 +458,16 @@ def overlap(a, b):
 
 
 def cmd_dodaj(proj, words, edit, pj, a):
+    import grafika
     import uredi
+    if a.predlozak is not None:          # dodaj grafika … --predlozak brojac
+        k = grafika.ime_predloska(a.predlozak)
+        if not k:
+            die(f"nema predloška '{a.predlozak}' (postoje: {', '.join(grafika.predlosci())})")
+        a.predlozak = k
+    elif a.html is None and grafika.ime_predloska(a.tip):   # dodaj brojac … = predložak
+        a.predlozak = grafika.ime_predloska(a.tip)
+        a.tip = "grafika"
     try:
         tip = tip_of(a.tip)
     except ValueError as ex:
@@ -468,8 +486,8 @@ def cmd_dodaj(proj, words, edit, pj, a):
         return dodaj_prijelaz(proj, words, edit, ref, label, pj, tip, a)
     if a.trajanje is not None or a.smjer is not None:
         die("--trajanje i --smjer idu uz prijelaze (python efekti.py projekt tipovi)")
-    if tip != "grafika" and (a.html is not None or a.pozadina or a.varijable is not None):
-        die("--html, --pozadina i --varijable idu uz grafika")
+    if tip != "grafika" and (a.html is not None or a.pozadina or a.varijable is not None or a.predlozak):
+        die("--html, --predlozak, --pozadina i --varijable idu uz grafika")
     if a.na:
         import sadrzaj
         try:
@@ -516,6 +534,9 @@ def cmd_dodaj(proj, words, edit, pj, a):
         params["zvuk"] = zv
     if tip == "grafika":
         params.update(grafika_parametri(proj, a))
+        lice = None if (a.bez_lica or not params.get("predlozak")) else find_face(proj, (so + sd) / 2)
+        if lice:     # predložak sjeda tamo gdje ne prekriva lice
+            params["lice"] = lice
     if T["skupina"] == "kamera":
         lice = None if a.bez_lica else find_face(proj, so + 0.05)
         if lice:
@@ -558,16 +579,37 @@ def cmd_dodaj(proj, words, edit, pj, a):
     uredi.save_history(proj, f"efekt {tip} {opis}")
     save_json(proj / "edit.json", edit2)
     fa, fb = to_final(edit2, words, pj, x)
-    lice_txt = " prema licu" if params.get("lice") else ""
+    lice_txt = (" (mjesto bez lica)" if tip == "grafika" else " prema licu") if params.get("lice") else ""
     print(f"Dodan {new['id']}: {tip}{lice_txt}, {fmt_time(fa)}-{fmt_time(fb)} ({d:.1f} s) u sljedećem renderu.")
     print(f"Provjeri slike: python efekti.py {proj.name} pokazi {new['id']}")
 
 
 def grafika_parametri(proj, a):
-    """--html (datoteka u projektu ili sam HTML), --varijable (JSON), --pozadina → parametri grafike."""
+    """--html (datoteka u projektu ili sam HTML) ili --predlozak, --varijable (JSON), --pozadina → parametri."""
     import json
+
+    import grafika
+    if a.predlozak:
+        if a.html:
+            die("ili --html ili predložak, ne oboje")
+        var = {}
+        if a.varijable is not None:
+            try:
+                var = json.loads(a.varijable)
+            except ValueError as ex:
+                die(f"--varijable nije JSON ({ex}); primjer: python grafika.py predlosci")
+            if not isinstance(var, dict):
+                die("--varijable mora biti JSON objekt, npr. {\"broj\": \"200\"}")
+        var, gr = grafika.provjeri_varijable(a.predlozak, var)
+        if gr:
+            die("; ".join(gr) + f"\n(primjer: python grafika.py predlosci; slika: python grafika.py pokazi {a.predlozak})")
+        out = {"predlozak": a.predlozak, "varijable": var}
+        if a.pozadina or grafika.predlosci()[a.predlozak].get("pozadina"):
+            out["pozadina"] = True
+        return out
     if not a.html:
-        die("koja grafika? --html grafika/kartica.html (HTML datoteka u mapi projekta) ili --html '<div>…</div>'")
+        die("koja grafika? gotov predložak (dodaj kartica|brojac|… --varijable '{…}'; python grafika.py predlosci) "
+            "ili vlastiti --html grafika/kartica.html (u mapi projekta) ili --html '<div>…</div>'")
     h = a.html.strip()
     if "<" not in h:
         p = Path(h)
@@ -837,6 +879,7 @@ def main():
     ap.add_argument("--zvuk", default=None, help="zvuk uz efekt: ime (fijuk, udarac, …), ne, ili moj.wav")
     ap.add_argument("--html", default=None, help="grafika: HTML datoteka (u mapi projekta) ili sam HTML")
     ap.add_argument("--varijable", default=None, help="grafika: JSON s podacima za HTML (window.SHOFE.varijable)")
+    ap.add_argument("--predlozak", default=None, help="grafika: gotov predložak (python grafika.py predlosci)")
     ap.add_argument("--pozadina", action="store_true", help="grafika: HTML dobije taj dio videa kao <video>")
     ap.add_argument("--bez-lica", action="store_true", help="zum prema sredini, ne prema licu")
     ap.add_argument("--zamijeni", action="store_true", help="zamijeni efekt iste vrste na tom mjestu")

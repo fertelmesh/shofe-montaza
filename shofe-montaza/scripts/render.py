@@ -733,7 +733,7 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
                 pairs.append((t, ("file", sp_files[dio], max(0.0, off))))
             else:
                 pairs.append((t, ("main", m)))
-        gx, _ = grafika.plan(fx, speed, fps, sp_r)
+        gx, _ = grafika.plan(fx, speed, fps, sp_r, stil=st)
         g_notes = []
 
         def na_grafiku(png, t):  # HTML grafika preko slike (ista sličica kao u videu)
@@ -886,7 +886,7 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
     if sp_r:
         final = sp_r["ukupno"]
     # HTML grafika (HyperFrames): komadi preko gotovog videa u jednom dodatnom prolazu (zvuk se kopira)
-    gx, g_notes = grafika.plan(fx, speed, fps, sp_r, final)
+    gx, g_notes = grafika.plan(fx, speed, fps, sp_r, final, stil=st)
     fx_notes += g_notes
     g_lines = []
     if gx:

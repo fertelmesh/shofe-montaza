@@ -1,0 +1,47 @@
+<!-- Graf: stupci rastu jedan za drugim. Varijable: stupci* [{oznaka, vrijednost}], naslov, jedinica, istakni, polozaj, boja -->
+<style>
+.gf{width:min(88%,calc(var(--s)*1.05))}
+.gf .sf-naslov{font-size:calc(var(--s)*.06);margin-bottom:calc(var(--s)*.035)}
+.gf .stupci{display:flex;align-items:flex-end;gap:calc(var(--s)*.035);height:calc(var(--s)*.4)}
+.gf .st{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0}
+.gf .vr{font-weight:900;font-size:calc(var(--s)*.048);white-space:nowrap;margin-bottom:calc(var(--s)*.012)}
+.gf .stup{width:100%;background:#C9CDD3;border-radius:calc(var(--s)*.018) calc(var(--s)*.018) 4px 4px;
+ transform-origin:50% 100%;animation:gf-rast .7s cubic-bezier(.2,.8,.25,1) var(--kas) both}
+.gf .st.ist .stup{background:var(--boja)}
+.gf .ozn{font-weight:800;font-size:calc(var(--s)*.036);color:#333;margin-top:calc(var(--s)*.014);text-align:center;
+ line-height:1.15;width:100%;overflow-wrap:break-word}
+@keyframes gf-rast{from{transform:scaleY(0)}to{transform:none}}
+</style>
+<script>
+SF.gradi(function () {
+  var b = SF.el("div", "sf-blok sf-kartica sf-anim gf");
+  if (SF.v("naslov")) SF.stane(SF.el("div", "sf-naslov", SF.v("naslov"), b), 2);
+  var st = SF.popis(SF.v("stupci", [])).slice(0, 6).map(function (x, i) {
+    if (typeof x !== "object") { var p = String(x).split(":"); x = {oznaka: p.length > 1 ? p[0] : "", vrijednost: p[p.length - 1]}; }
+    return {oznaka: x.oznaka || "", n: SF.citajBroj(x.vrijednost)};
+  });
+  if (!st.length) st = [{oznaka: "", n: {vrijednost: 1, decimala: 0}}];
+  var max = Math.max.apply(null, st.map(function (x) { return x.n.vrijednost; })) || 1;
+  var ist = SF.v("istakni", st.length);           // 1 = prvi; zadano zadnji
+  var jed = SF.v("jedinica", ""), kor = Math.min(0.35, (SF.T * 0.4) / st.length);
+  var red = SF.el("div", "stupci", null, b), vrijednosti = [];
+  st.forEach(function (x, i) {
+    var s = SF.el("div", "st" + (String(i + 1) === String(ist) ? " ist" : ""), null, red);
+    s.style.setProperty("--kas", (0.3 + i * kor).toFixed(3) + "s");
+    var vr = SF.el("div", "vr", SF.broj(x.n.vrijednost, x.n.decimala) + (jed ? " " + jed : ""), s);
+    var stup = SF.el("div", "stup", null, s);
+    stup.style.height = Math.max(3, 100 * x.n.vrijednost / max) * 0.78 + "%";
+    if (x.oznaka) SF.el("div", "ozn", x.oznaka, s);
+    vrijednosti.push([vr, x, 0.3 + i * kor]);
+  });
+  vrijednosti.forEach(function (a) { SF.stane(a[0], 1); });
+  SF.smjesti(b, "dolje");
+  SF.uVremenu(function (t) {
+    vrijednosti.forEach(function (a) {
+      var k = SF.glatko((t - a[2]) / 0.7);
+      a[0].textContent = SF.broj(a[1].n.vrijednost * k, a[1].n.decimala) + (jed ? " " + jed : "");
+      a[0].style.opacity = Math.min(1, Math.max(0, (t - a[2]) / 0.2));
+    });
+  });
+});
+</script>

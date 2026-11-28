@@ -1,0 +1,26 @@
+<!-- Popis: stavke se kvačicom pojavljuju jedna za drugom. Varijable: stavke* [..], naslov, polozaj, boja -->
+<style>
+.pp{width:min(86%,calc(var(--s)*.95))}
+.pp .sf-naslov{font-size:calc(var(--s)*.062);margin-bottom:calc(var(--s)*.03)}
+.pp .stv{display:flex;align-items:flex-start;gap:calc(var(--s)*.03);margin:calc(var(--s)*.022) 0;--ul:sf-lijevo;--ul-t:.4s}
+.pp .kv{flex:none;width:calc(var(--s)*.07);height:calc(var(--s)*.07);border-radius:50%;background:var(--boja);
+ position:relative;margin-top:calc(var(--s)*.002)}
+.pp .kv:after{content:"";position:absolute;left:31%;top:17%;width:24%;height:44%;border:solid var(--na-boji);
+ border-width:0 calc(var(--s)*.011) calc(var(--s)*.011) 0;transform:rotate(45deg)}
+.pp .tx{font-weight:800;font-size:calc(var(--s)*.052);line-height:1.18;min-width:0;overflow-wrap:break-word}
+</style>
+<script>
+SF.gradi(function () {
+  var b = SF.el("div", "sf-blok sf-kartica sf-anim pp");
+  if (SF.v("naslov")) SF.stane(SF.el("div", "sf-naslov", SF.v("naslov"), b), 2);
+  var st = SF.popis(SF.v("stavke", ["Prva stavka", "Druga stavka", "Treća stavka"])).slice(0, 6);
+  var kor = Math.min(0.5, (SF.T * 0.5) / st.length);
+  st.forEach(function (x, i) {
+    var r = SF.el("div", "stv sf-anim", null, b);
+    r.style.setProperty("--kas", (0.35 + i * kor).toFixed(3) + "s");
+    SF.el("div", "kv", null, r);
+    SF.stane(SF.el("div", "tx", x, r), 2);
+  });
+  SF.smjesti(b, "dolje");
+});
+</script>

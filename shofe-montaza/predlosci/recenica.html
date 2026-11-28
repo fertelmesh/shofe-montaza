@@ -1,0 +1,25 @@
+<!-- Ključna rečenica: riječ po riječ, istaknute riječi na boji stila. Varijable: tekst*, naglasak, polozaj, boja -->
+<style>
+.rc{width:min(88%,calc(var(--s)*1.1));text-align:center;font-weight:900;text-transform:uppercase;
+ font-size:calc(var(--s)*.1);line-height:1.12;color:#fff;
+ text-shadow:0 calc(var(--s)*.006) calc(var(--s)*.02) rgba(0,0,0,.7),0 0 2px rgba(0,0,0,.8)}
+.rc .r{display:inline-block;margin:0 .12em .1em;--ul:sf-pop;--ul-t:.32s}
+.rc .r.ist{background:var(--boja);color:var(--na-boji);text-shadow:none;padding:0 .14em;border-radius:.12em;
+ box-shadow:0 calc(var(--s)*.008) calc(var(--s)*.03) rgba(0,0,0,.35)}
+</style>
+<script>
+SF.gradi(function () {
+  var b = SF.el("div", "sf-blok rc");
+  var rijeci = String(SF.v("tekst", "Ključna rečenica")).split(/\s+/).filter(Boolean);
+  var nag = SF.popis(SF.v("naglasak", "")).join(" ").toLowerCase().split(/\s+/)
+    .map(function (w) { return w.replace(/[^\p{L}\p{N}]/gu, ""); }).filter(Boolean);
+  var korak = Math.min(0.18, (SF.T * 0.45) / Math.max(1, rijeci.length));
+  rijeci.forEach(function (w, i) {
+    var cist = w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+    var r = SF.el("span", "r sf-anim" + (nag.indexOf(cist) >= 0 ? " ist" : ""), w, b);
+    r.style.setProperty("--kas", (0.05 + i * korak).toFixed(3) + "s");
+  });
+  SF.stane(b, 4);
+  SF.smjesti(b, "dolje");
+});
+</script>

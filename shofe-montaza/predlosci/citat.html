@@ -1,0 +1,31 @@
+<!-- Citat: tamna kartica, veliki navodnici u boji stila, tekst i autor. Varijable: tekst*, autor, polozaj, boja -->
+<style>
+.ct{width:min(86%,calc(var(--s)*.95));padding-top:calc(var(--s)*.13)}
+.ct .nav{position:absolute;left:calc(var(--s)*.05);top:calc(var(--s)*.03);font-family:'Anton',sans-serif;
+ color:var(--boja);font-size:calc(var(--s)*.24);line-height:.8;height:calc(var(--s)*.09);overflow:visible;
+ --ul:sf-pop;--kas:.2s}
+.ct .tx{font-weight:800;font-size:calc(var(--s)*.06);line-height:1.22;overflow-wrap:break-word}
+.ct .tx .r{display:inline-block;margin-right:.26em;--ul:sf-gore;--ul-t:.35s}
+.ct .au{display:flex;align-items:center;gap:calc(var(--s)*.02);margin-top:calc(var(--s)*.03);font-weight:600;
+ font-size:calc(var(--s)*.038);color:#D7D9DD;--ul:sf-lijevo}
+.ct .au:before{content:"";width:calc(var(--s)*.06);height:calc(var(--s)*.008);background:var(--boja);border-radius:9px}
+</style>
+<script>
+SF.gradi(function () {
+  var b = SF.el("div", "sf-blok sf-tamna sf-anim ct");
+  SF.el("div", "nav sf-anim", "\u201C", b);
+  var tx = SF.el("div", "tx", null, b);
+  var rijeci = String(SF.v("tekst", "Citat")).replace(/^[\s"„“”]+|[\s"„“”]+$/g, "").split(/\s+/);
+  var kor = Math.min(0.12, (SF.T * 0.4) / Math.max(1, rijeci.length));
+  rijeci.forEach(function (w, i) {
+    var r = SF.el("span", "r sf-anim", w + (i === rijeci.length - 1 ? "“" : ""), tx);
+    r.style.setProperty("--kas", (0.3 + i * kor).toFixed(3) + "s");
+  });
+  SF.stane(tx, 5);
+  if (SF.v("autor")) {
+    var a = SF.el("div", "au sf-anim", SF.v("autor"), b);
+    a.style.setProperty("--kas", (0.4 + rijeci.length * kor).toFixed(3) + "s");
+  }
+  SF.smjesti(b, "dolje");
+});
+</script>

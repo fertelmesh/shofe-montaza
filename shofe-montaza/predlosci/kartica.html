@@ -1,0 +1,20 @@
+<!-- Kartica: mali natpis, veliki naslov, kratki tekst. Varijable: naslov*, tekst, oznaka, polozaj, boja -->
+<style>
+.kt{width:min(86%,calc(var(--s)*.95))}
+.kt .sf-oznaka{margin-bottom:calc(var(--s)*.022)}
+.kt .sf-tekst{margin-top:calc(var(--s)*.02)}
+.kt .crta{position:absolute;left:0;top:14%;bottom:14%;width:calc(var(--s)*.014);background:var(--boja);
+ border-radius:0 6px 6px 0;transform-origin:50% 0;animation:kt-crta .45s ease-out .15s both}
+@keyframes kt-crta{from{transform:scaleY(0)}to{transform:none}}
+</style>
+<script>
+SF.gradi(function () {
+  var b = SF.el("div", "sf-blok sf-kartica sf-anim kt");
+  SF.el("div", "crta", null, b);
+  if (SF.v("oznaka")) SF.el("div", "sf-oznaka", SF.v("oznaka"), b);
+  var n = SF.el("div", "sf-naslov", SF.v("naslov", "Naslov"), b);
+  SF.stane(n, 3);
+  if (SF.v("tekst")) SF.stane(SF.el("div", "sf-tekst", SF.v("tekst"), b), 3);
+  SF.smjesti(b, "dolje");
+});
+</script>

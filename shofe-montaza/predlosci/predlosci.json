@@ -1,0 +1,114 @@
+{
+  "kartica": {
+    "naziv": "Kartica",
+    "opis": "bijela kartica s naslovom (i kratkim tekstom): tema, savjet, naziv proizvoda",
+    "trajanje": [2.5, 5],
+    "varijable": {
+      "naslov": {"obavezno": true, "opis": "glavni tekst, do ~6 riječi"},
+      "tekst": {"opis": "jedna kratka rečenica ispod"},
+      "oznaka": {"opis": "mali natpis iznad (SAVJET, KORAK 1)"}
+    },
+    "primjer": {"oznaka": "Savjet", "naslov": "Očisti filter svaka 3 mjeseca", "tekst": "Klima troši i do 15 % manje struje."}
+  },
+  "recenica": {
+    "naziv": "Ključna rečenica",
+    "opis": "velika rečenica riječ po riječ preko videa, istaknute riječi na boji stila",
+    "trajanje": [2, 4],
+    "varijable": {
+      "tekst": {"obavezno": true, "opis": "rečenica, do ~10 riječi"},
+      "naglasak": {"opis": "riječi koje se ističu (tekst ili popis)"}
+    },
+    "primjer": {"tekst": "Najskuplja klima je ona koju ne čistiš", "naglasak": "najskuplja"}
+  },
+  "brojac": {
+    "naziv": "Brojač",
+    "opis": "broj se odbroji do vrijednosti (cijena, ušteda, postotak, godine)",
+    "trajanje": [2.5, 4],
+    "varijable": {
+      "broj": {"obavezno": true, "opis": "konačna vrijednost: 350, 1.200, 2,5"},
+      "od": {"opis": "početna vrijednost (zadano 0)"},
+      "jedinica": {"opis": "eura, %, kWh, godina"},
+      "opis": {"opis": "kratko objašnjenje ispod"},
+      "predznak": {"opis": "+ ili − ispred broja"}
+    },
+    "primjer": {"broj": "350", "jedinica": "eura", "opis": "uštede godišnje", "predznak": "−"}
+  },
+  "graf": {
+    "naziv": "Graf",
+    "opis": "stupci rastu jedan za drugim (usporedba 2–6 vrijednosti)",
+    "trajanje": [3, 5],
+    "varijable": {
+      "stupci": {"obavezno": true, "vrsta": "popis", "opis": "[{\"oznaka\": \"Stara\", \"vrijednost\": 1200}, …] ili \"Stara:1200|Nova:350\""},
+      "naslov": {"opis": "naslov grafa"},
+      "jedinica": {"opis": "jedinica uz vrijednosti (€, kWh)"},
+      "istakni": {"opis": "koji stupac je u boji stila (1 = prvi; zadano zadnji)"}
+    },
+    "primjer": {"naslov": "Račun za struju zimi", "jedinica": "€", "stupci": [{"oznaka": "Peć", "vrijednost": 180}, {"oznaka": "Stara klima", "vrijednost": 120}, {"oznaka": "Nova klima", "vrijednost": 65}]}
+  },
+  "popis": {
+    "naziv": "Popis",
+    "opis": "stavke s kvačicama jedna za drugom (koraci, savjeti, što dobiješ)",
+    "trajanje": [3, 6],
+    "varijable": {
+      "stavke": {"obavezno": true, "vrsta": "popis", "opis": "2–6 kratkih stavki: [\"…\", \"…\"] ili \"a|b|c\""},
+      "naslov": {"opis": "naslov popisa"}
+    },
+    "primjer": {"naslov": "Prije ljeta provjeri", "stavke": ["Filtere", "Vanjsku jedinicu", "Odvod kondenzata"]}
+  },
+  "prije_poslije": {
+    "naziv": "Prije / poslije",
+    "opis": "stara vrijednost precrtana, strelica, nova vrijednost na boji stila",
+    "trajanje": [2.5, 4],
+    "varijable": {
+      "prije": {"obavezno": true, "opis": "npr. 180 €"},
+      "poslije": {"obavezno": true, "opis": "npr. 65 €"},
+      "naslov": {"opis": "što se uspoređuje"},
+      "oznaka_prije": {"opis": "zadano PRIJE"},
+      "oznaka_poslije": {"opis": "zadano POSLIJE"}
+    },
+    "primjer": {"naslov": "Mjesečni račun", "prije": "180 €", "poslije": "65 €"}
+  },
+  "komentar": {
+    "naziv": "Komentar",
+    "opis": "oblačić komentara gledatelja na koji odgovaraš (bez logotipa mreže)",
+    "trajanje": [2.5, 5],
+    "varijable": {
+      "tekst": {"obavezno": true, "opis": "tekst komentara (pravi komentar, ne izmišljen)"},
+      "ime": {"opis": "korisničko ime (zadano: gledatelj)"},
+      "oznaka": {"opis": "zadano: Odgovor na komentar"},
+      "svidanja": {"opis": "broj sviđanja, npr. 128"}
+    },
+    "primjer": {"ime": "ana_kutina", "tekst": "Koliko zapravo troši klima kad grije zimi?", "svidanja": "128"}
+  },
+  "mobitel": {
+    "naziv": "Mobitel",
+    "opis": "video se smanji u okvir mobitela na podlozi boje stila i na kraju se vrati (radi s --pozadina)",
+    "trajanje": [2.5, 6],
+    "pozadina": true,
+    "varijable": {
+      "naslov": {"opis": "tekst iznad mobitela"}
+    },
+    "primjer": {"naslov": "Ovako izgleda u aplikaciji"}
+  },
+  "citat": {
+    "naziv": "Citat",
+    "opis": "tamna kartica s navodnicima: rečenica gosta ili poznata izreka, s autorom",
+    "trajanje": [3, 6],
+    "varijable": {
+      "tekst": {"obavezno": true, "opis": "citat, do ~20 riječi"},
+      "autor": {"opis": "tko je to rekao"}
+    },
+    "primjer": {"tekst": "Najbolja svirka je ona u autu, kad nitko ne gleda.", "autor": "Ivan, gitara"}
+  },
+  "poziv": {
+    "naziv": "Poziv na akciju",
+    "opis": "na kraju videa: tekst + gumb koji pulsira (zaprati, spremi, pošalji prijatelju)",
+    "trajanje": [2.5, 4],
+    "varijable": {
+      "tekst": {"opis": "zadano: Zaprati za još savjeta"},
+      "gumb": {"opis": "tekst na gumbu (zadano: Zaprati)"},
+      "ime": {"opis": "ime profila ispod, npr. @sfklima"}
+    },
+    "primjer": {"tekst": "Spremi da ne zaboraviš", "gumb": "Spremi", "ime": "@sfklima"}
+  }
+}
