@@ -399,3 +399,15 @@ Jedan unos po krugu, najnoviji na dnu.
 - Za Marka: probaj „trzaj na …", „zamrzni na 0:05 i napiši tko je to", „stari film od … do …" na pravom reelu i javi koji efekti su ti preslabi/prejaki. U DaVinci timeline efekti ne idu (samo rezovi).
 - PR #48.
 - Sljedeće: M5.2 prijelazi (iris, rolete, vrata) i CC0 zvučni efekti s pravilima glasnoće.
+
+## 2026-11-28 00:10 — M5.2a prijelazi na rezovima
+- Živa specifikacija (rev 13) i plan efekata (rev 9) pročitani: bez promjena. Nema otvorenog PR-a agenta (#36 je Markov). Issues #7, #18, #25, #38, #44, #46 bez Markova odgovora.
+- M5.2 podijeljen: M5.2a prijelazi (ovaj krug), M5.2b CC0 zvučni efekti, M5.2c prijelazi dalje (memorija, DaVinci).
+- Novo: `prijelazi.py` + `efekti.py rezovi` (R1, R2 … s riječima oko reza) i `efekti.py dodaj TIP R2 | 0:12 | --na "citat"` (`--trajanje`, `--smjer`). 11 prijelaza: **iris** (krug se otvara oko lica novog kadra), **rolete** (7 traka), **vrata** (stari kadar se razdvoji po sredini), brisanje, klizanje, zamah (brzi pomak s mutnim tragom), pretapanje, crno, bljesak, prolaz (zum kroz rez), pikseli.
+- Prijelaz je centriran na rezu i **ne mijenja trajanje videa**: drugu polovicu svaki kadar uzme iz snimke odmah uz rez (ručke, kao DaVinci). Titlovi, zvuk, glazba, poglavlja i DaVinci ostaju isti; zvuk na rezu ostaje čisti rez. Prijelaz je vezan za rez (vremena snimke obje strane), pa ostaje na istom rezu kad se kasnije nešto izreže. Verzija 0.35.0. SKILL.md (kad i koliko prijelaza), README (odjeljak Prijelazi), ODLUKE.md.
+- Provjera očima: novi probni klip `tests/make_prijelazi_klip.py` (tri prizora različitih boja s brojevima 1/2/3). Pogledana galerija svih 11 prijelaza (prije, ¼, ½, ¾, iza). Pregledom popravljeno: `vrata` iz xfadea (vertopen) izgledala su kao mutna pruga → vlastita vrata iz dva `overlay`; `zamah` (hblur) bio je mutno pretapanje → klizanje + vodoravno razmazivanje; iris/rolete kao izraz po pikselu u ffmpegu trajali su 81 s za reel od 4 s → maske iz numpyja, 5,5 s.
+- Izmjereno: svaki prijelaz ~0,3 GB RAM-a više kod 1080×1920 (isto na 0:02 i 0:52, ne raste s duljinom); najviše 16 po renderu. Smanjenje je M5.2c.
+- Testovi: novi `tests/test_prijelazi.py` (7: rez po oba/jednom vremenu; plan centriran, ručke, skraćenje uz kratak kadar, nestali rez; maske iris/rolete; svi xfade prijelazi postoje u ffmpegu; ulazi i graf se poklapaju; pravi render — isti broj sličica i trajanje zvuka kao bez prijelaza, izvan prijelaza ista slika, usred brisanja pola starog/pola novog prizora, iris: novi prizor oko lica, stari u kutu, `--kadar` = sličica videa, `pokazi`; vrata/rolete/zamah render, izrez prije prijelaza pomakne prijelaz s rezom, `vrati`, `makni sve`; greške naredbi).
+- Za Marka: probaj na pravom reelu „gdje su rezovi?", pa npr. „iris na drugom rezu" ili „kroz crno prije zadnje rečenice" i javi koji prijelazi ti se sviđaju, a koji su prebrzi/prespori. Zvuk uz prijelaze dolazi u sljedećem krugu.
+- PR #49.
+- Sljedeće: M5.2b CC0 zvučni efekti s pravilima glasnoće.

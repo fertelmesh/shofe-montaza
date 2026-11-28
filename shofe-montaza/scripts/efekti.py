@@ -1,16 +1,20 @@
-"""Efekti (M5.1): zumovi, zamrznuti kadar s oznakom, film i retro — upisuju se u edit.json `efekti`,
-render.py ih slaže ffmpegom u istom prolazu kodiranja.
+"""Efekti (M5.1): zumovi, zamrznuti kadar s oznakom, film i retro; prijelazi na rezovima (M5.2a,
+prijelazi.py) — upisuju se u edit.json `efekti`, render.py ih slaže ffmpegom u istom prolazu kodiranja.
 
   python efekti.py projekt tipovi                               koji efekti postoje i što rade
   python efekti.py projekt dodaj trzaj 0:12-0:14                vremena iz gotovog videa (kao uredi.py)
   python efekti.py projekt dodaj guranje --na "najvažnije je" [--do "filter."]   po citatu iz transkripta
   python efekti.py projekt dodaj zamrzni 0:20-0:22 --oznaka "Ovo je Ivan"
   python efekti.py projekt dodaj film 0:30-0:36   |   retro   |   pad   |   vertigo
+  python efekti.py projekt rezovi                               rezovi gotovog videa (R1, R2 …) s riječima oko reza
+  python efekti.py projekt dodaj iris R3   |   dodaj rolete 0:12   |   dodaj vrata --na "a sad"   (prijelaz na rezu)
+  python efekti.py projekt dodaj brisanje R2 --smjer desno --trajanje 0.3
   python efekti.py projekt popis                                efekti s vremenima gotovog videa
   python efekti.py projekt makni E2   |   makni sve
   python efekti.py projekt pokazi E2                            slike efekta (početak, sredina, kraj) → efekt_E2.png
 
-Parametri: --zum 1.3 (koliko zumira), --jacina 0.35 (vertigo), --oznaka "tekst" (zamrzni).
+Parametri: --zum 1.3 (koliko zumira), --jacina 0.35 (vertigo), --oznaka "tekst" (zamrzni);
+prijelazi: --trajanje 0.5, --smjer lijevo|desno|gore|dolje (brisanje, klizanje). Prijelaz ne mijenja trajanje.
 Vremena se spremaju kao vremena izvornog videa (kao `izrezi`), pa efekt ostaje na istim riječima kad se
 kasnije nešto izreže. Zum ide prema licu (YuNet na prvoj sličici efekta), lice ostaje na istom mjestu u kadru.
 `python uredi.py projekt vrati` poništi i zadnju naredbu efekata.
@@ -19,6 +23,7 @@ import argparse
 import copy
 from pathlib import Path
 
+import prijelazi
 from common import die, ffmpeg, fmt_time, load_json, run, save_json
 
 # skupina "kamera": najviše jedan u isto vrijeme (zum na zum ne izgleda kao rez kamere)
@@ -38,8 +43,13 @@ TIPOVI = {
     "retro": {"skupina": "boja", "min": 0.5, "max": 600.0, "zadano": {},
               "opis": "VHS kaseta: razmaknute boje, jače boje, linije ekrana, šum"},
 }
-ALIASI = {"zum": "trzaj", "punch": "trzaj", "push": "guranje", "zamrzni_kadar": "zamrzni", "freeze": "zamrzni",
-          "vhs": "retro", "stari_film": "film", "zoom": "trzaj", "dolly": "vertigo", "pad_zuma": "pad"}
+# prijelazi na rezovima (prijelazi.py): skupina "prijelaz", min/max = trajanje prijelaza
+for _k, _v in prijelazi.TIPOVI.items():
+    TIPOVI[_k] = {"skupina": "prijelaz", "min": prijelazi.MIN_T, "max": prijelazi.MAX_T,
+                  "zadano": {"trajanje": _v["zadano"]}, "opis": _v["opis"]}
+ALIASI = dict(prijelazi.ALIASI)
+ALIASI.update({"zum": "trzaj", "punch": "trzaj", "push": "guranje", "zamrzni_kadar": "zamrzni", "freeze": "zamrzni",
+               "vhs": "retro", "stari_film": "film", "zoom": "trzaj", "dolly": "vertigo", "pad_zuma": "pad"})
 SREDINA = (0.5, 0.38)      # bez lica: zum prema gornjoj trećini (tamo su lica u reelu)
 TRZAJ_T = 0.10             # s do punog zuma (trzaj)
 PAD_T = 0.45               # s od zuma do kadra (pad)
@@ -62,6 +72,8 @@ def parametri(e):
         p["zum"] = max(1.0, min(ZUM_MAX, float(p["zum"])))
     if "jacina" in p:
         p["jacina"] = max(0.05, min(0.6, float(p["jacina"])))
+    if "trajanje" in p:
+        p["trajanje"] = prijelazi.trajanje(p, e["tip"])
     return p
 
 
@@ -92,6 +104,13 @@ def plan(edit, cuts, fps, total):
         except (KeyError, TypeError, ValueError) as ex:
             notes.append(f"efekt {eid} preskočen: {ex}")
             continue
+        if prijelazi.je_prijelaz(tip):
+            x, note = prijelazi.plan_jedan(eid, tip, e, parametri(dict(e, tip=tip)), cuts, fps)
+            if note:
+                notes.append(note)
+            if x:
+                out.append(x)
+            continue
         sp = out_span(od, do, cuts) if do > od else None
         if sp is None:
             notes.append(f"efekt {eid} ({tip}) preskočen: taj dio je izrezan")
@@ -107,6 +126,10 @@ def plan(edit, cuts, fps, total):
         out.append({"id": eid, "tip": tip, "s": s, "e": en, "p": parametri(dict(e, tip=tip))})
     out.sort(key=lambda x: x["s"])
     return out, notes
+
+
+def prijelaz_fx(fx):
+    return [x for x in fx if TIPOVI[x["tip"]]["skupina"] == "prijelaz"]
 
 
 def kamera_spans(fx):
@@ -362,8 +385,10 @@ def to_final(edit, words, pj, x):
 
 
 def cmd_tipovi():
-    print("Efekti (dodaj: python efekti.py projekt dodaj TIP 0:12-0:14):")
+    print("Efekti (dodaj: python efekti.py projekt dodaj TIP 0:12-0:14; prijelaz: dodaj TIP R3 ili 0:12):")
     for k, v in TIPOVI.items():
+        if v["skupina"] == "prijelaz" and k == next(iter(prijelazi.TIPOVI)):
+            print("Prijelazi na rezu (popis rezova: python efekti.py projekt rezovi; --trajanje 0.5, --smjer):")
         z = ", ".join(f"{a}={b}" for a, b in v["zadano"].items() if b != "")
         print(f"  {k:<8} {v['opis']}  [{v['min']:g}–{v['max']:g} s{'; ' + z if z else ''}]")
 
@@ -380,10 +405,14 @@ def cmd_popis(proj, words, edit, pj):
         extra = []
         if x["p"].get("oznaka"):
             extra.append(f"oznaka „{x['p']['oznaka']}“")
-        if "zum" in x["p"] and x["tip"] not in ("film", "retro"):
+        if TIPOVI[x["tip"]]["skupina"] == "prijelaz":
+            extra.append(f"prijelaz na rezu {fmt_time((a + b) / 2)}, {x['p']['trajanje']:.2f} s")
+            if x["p"].get("smjer"):
+                extra.append(x["p"]["smjer"])
+        elif "zum" in x["p"] and x["tip"] not in ("film", "retro"):
             extra.append(f"zum {x['p']['zum']:g}")
         if x["p"].get("lice"):
-            extra.append("prema licu")
+            extra.append("oko lica" if x["tip"] == "iris" else "prema licu")
         print(f"  {x['id']:<4} {fmt_time(a)}-{fmt_time(b)}  {x['tip']:<8} {', '.join(extra)}")
     for n in notes:
         print(f"  ! {n}")
@@ -400,6 +429,10 @@ def cmd_dodaj(proj, words, edit, pj, a):
     except ValueError as ex:
         die(str(ex))
     ref, label = uredi.reference_edit(proj, edit, a)
+    if TIPOVI[tip]["skupina"] == "prijelaz":
+        return dodaj_prijelaz(proj, words, edit, ref, label, pj, tip, a)
+    if a.trajanje is not None or a.smjer is not None:
+        die("--trajanje i --smjer idu uz prijelaze (python efekti.py projekt tipovi)")
     if a.na:
         import sadrzaj
         try:
@@ -478,6 +511,137 @@ def cmd_dodaj(proj, words, edit, pj, a):
     print(f"Provjeri slike: python efekti.py {proj.name} pokazi {new['id']}")
 
 
+# ---------------------------------------------------------------- prijelazi
+def rez_opis(words, cuts, k, n=3):
+    """Nekoliko riječi prije i iza reza k (kraj kadra k-1 | početak kadra k)."""
+    A, B = cuts[k - 1], cuts[k]
+    pre = [w["w"] for w in words if w["e"] <= A["b"] + 0.02 and w["s"] >= A["a"] - 0.02][-n:]
+    post = [w["w"] for w in words if w["s"] >= B["a"] - 0.02 and w["e"] <= B["b"] + 0.02][:n]
+    return f"…{' '.join(pre)} | {' '.join(post)}…"
+
+
+def rezovi_finalno(words, edit, pj):
+    """[(k, vrijeme reza u videu koji Marko gleda, cuts)] za `edit`."""
+    cuts, _ = _ref_cuts(words, edit, pj)
+    out = []
+    for k, _, _, t in prijelazi.granice(cuts):
+        out.append((k, to_final(edit, words, pj, {"s": t, "e": t})[0]))
+    return out, cuts
+
+
+def cmd_rezovi(proj, words, edit, pj, a):
+    import uredi
+    ref, label = uredi.reference_edit(proj, edit, a)
+    rz, cuts = rezovi_finalno(words, ref, pj)
+    if not rz:
+        print("Video nema rezova (jedan kadar): prijelaz nema gdje ići.")
+        return
+    cc, tt = _ref_cuts(words, edit, pj)
+    fx, _ = plan(edit, cc, pj["fps"], tt)
+    have = {x["rez"]: x for x in prijelaz_fx(fx)}
+    print(f"Rezovi ({label}); prijelaz: python efekti.py {proj.name} dodaj iris R1   (ili vrijeme 0:12)")
+    for k, t in rz:
+        x = have.get(k)
+        extra = f"   [{x['id']} {x['tip']}]" if x else ""
+        print(f"  R{k:<3} {fmt_time(t)}  {rez_opis(words, cuts, k)}{extra}")
+
+
+def dodaj_prijelaz(proj, words, edit, ref, label, pj, tip, a):
+    """Prijelaz na rezu: R3 (iz `rezovi`), vrijeme iz gotovog videa (najbliži rez unutar 1,5 s) ili --na citat
+    (rez ispred citirane riječi)."""
+    import re
+
+    import uredi
+    if a.zum is not None or a.jacina is not None or a.oznaka is not None:
+        die(f"{tip} je prijelaz: ima samo --trajanje (i --smjer za brisanje/klizanje)")
+    rz, cuts = rezovi_finalno(words, ref, pj)
+    if not rz:
+        die("video nema rezova (jedan kadar): prijelaz nema gdje ići")
+    k = None
+    if a.na:
+        import sadrzaj
+        try:
+            tr = sadrzaj.Transkript(words, uredi.corrected_forms(words, ref))
+            i, _ = sadrzaj.by_quote(tr, a.na, None, a.pojava)
+        except sadrzaj.Greska as ex:
+            die(str(ex))
+        ws = words[i]["s"]
+        cand = [(abs(cuts[kk]["a"] - ws), kk) for kk, _ in rz if cuts[kk]["a"] <= words[i]["e"]]
+        if not cand or min(cand)[0] > 1.5:
+            die(f"ispred „{a.na}“ nema reza (popis rezova: python efekti.py {proj.name} rezovi)")
+        k = min(cand)[1]
+        opis = f"ispred „{a.na}“"
+    else:
+        txt = " ".join(a.vremena).strip()
+        if not txt:
+            die(f"gdje? rez R3 (popis: python efekti.py {proj.name} rezovi), vrijeme 0:12 ili --na \"citat\"")
+        m = re.fullmatch(r"[rR](\d+)", txt)
+        if m:
+            k = int(m.group(1))
+            if k not in {kk for kk, _ in rz}:
+                die(f"nema reza R{k} (popis: python efekti.py {proj.name} rezovi)")
+            opis = f"R{k}"
+        else:
+            try:
+                t = uredi.parse_time(txt.split("-")[0])
+            except ValueError as ex:
+                die(str(ex))
+            dist, k = min((abs(tt - t), kk) for kk, tt in rz)
+            if dist > 1.5:
+                die(f"oko {fmt_time(t)} nema reza (najbliži je {dist:.1f} s dalje; popis: python efekti.py "
+                    f"{proj.name} rezovi)")
+            opis = f"rez u {fmt_time(dict(rz)[k])} ({label})"
+    params = {}
+    if a.trajanje is not None:
+        params["trajanje"] = round(max(prijelazi.MIN_T, min(prijelazi.MAX_T, a.trajanje)), 3)
+    if a.smjer is not None:
+        if not prijelazi.TIPOVI[tip].get("smjer"):
+            die(f"{tip} nema smjer (smjer imaju: brisanje, klizanje)")
+        sm = a.smjer.strip().lower()
+        if sm not in prijelazi.SMJEROVI:
+            die(f"smjer: {', '.join(prijelazi.SMJEROVI)}")
+        params["smjer"] = sm
+    if tip == "iris" and not a.bez_lica:   # krug se otvara oko lica u novom kadru
+        lice = find_face(proj, cuts[k]["a"] + 0.05)
+        if lice:
+            params["lice"] = lice
+    new = {"id": None, "tip": tip, "od": round(cuts[k - 1]["b"], 3), "do": round(cuts[k]["a"], 3),
+           "parametri": params, "naredba": f"{tip} {opis}"}
+    edit2 = copy.deepcopy(edit)
+    fxs = edit2.setdefault("efekti", [])
+    n = max((int(str(e.get("id", "E0"))[1:] or 0) for e in fxs if str(e.get("id", "")).startswith("E")),
+            default=0) + 1
+    new["id"] = f"E{n}"
+    cur_cuts, total = _ref_cuts(words, edit2, pj)
+    x, note = prijelazi.plan_jedan(new["id"], tip, new, parametri(new), cur_cuts, pj["fps"])
+    if not x:
+        die(note.replace(f"prijelaz {new['id']} ({tip}) preskočen: ", "") if note else "tog reza nema")
+    cur, _ = plan(edit2, cur_cuts, pj["fps"], total)
+    clash = [y for y in prijelaz_fx(cur) if overlap((x["s"], x["e"]), (y["s"], y["e"]))]
+    if clash and not a.zamijeni:
+        y = clash[0]
+        die(f"na tom rezu već je {y['id']} ({y['tip']}). Zamijeni ga: dodaj … --zamijeni, ili makni {y['id']}")
+    if clash:
+        gone = {y["id"] for y in clash}
+        edit2["efekti"] = [e for e in fxs if e.get("id") not in gone]
+        print(f"Zamijenjen: {', '.join(sorted(gone))}")
+        fxs = edit2["efekti"]
+    fxs.append(new)
+    fxs.sort(key=lambda e: float(e["od"]))
+    if a.proba:
+        print(f"(proba) dodao bih {new['id']} {tip}: {opis}")
+        return
+    uredi.save_history(proj, f"prijelaz {tip} {opis}")
+    save_json(proj / "edit.json", edit2)
+    fa, fb = to_final(edit2, words, pj, x)
+    if note:
+        print(f"  ! {note}")
+    lice_txt = " oko lica" if params.get("lice") else ""
+    print(f"Dodan {new['id']}: prijelaz {tip}{lice_txt} na rezu {fmt_time((fa + fb) / 2)} "
+          f"({x['p']['trajanje']:.2f} s, {fmt_time(fa)}-{fmt_time(fb)}) u sljedećem renderu.")
+    print(f"Provjeri slike: python efekti.py {proj.name} pokazi {new['id']}")
+
+
 def cmd_makni(proj, edit, ids):
     import uredi
     fxs = edit.get("efekti") or []
@@ -506,9 +670,13 @@ def cmd_pokazi(proj, words, edit, pj, eid):
         die(f"nema efekta {eid} u videu (popis: python efekti.py {proj.name} popis)")
     sp = float(edit.get("brzina") or 1.0)
     d = x["e"] - x["s"]
-    pts = [x["s"] + 0.5 / pj["fps"], x["s"] + min(0.25, d / 3), x["s"] + d / 2, x["e"] - 1.5 / pj["fps"]]
-    if x["s"] > 0.3:
-        pts.insert(0, x["s"] - 0.2)
+    if TIPOVI[x["tip"]]["skupina"] == "prijelaz":   # prije, četvrtina, sredina, tri četvrtine, iza
+        pts = [max(0.0, x["s"] - 0.2), x["s"] + d / 4, x["s"] + d / 2, x["s"] + 3 * d / 4,
+               min(total - 1.0 / pj["fps"], x["e"] + 0.1)]
+    else:
+        pts = [x["s"] + 0.5 / pj["fps"], x["s"] + min(0.25, d / 3), x["s"] + d / 2, x["e"] - 1.5 / pj["fps"]]
+        if x["s"] > 0.3:
+            pts.insert(0, x["s"] - 0.2)
     times = [to_final(edit, words, pj, {"s": t, "e": t})[0] for t in pts]
     res = render.render(proj, edit, kadar=",".join(f"{t:.3f}" for t in times), ispis=False)
     pngs = res["slike"]
@@ -521,18 +689,20 @@ def cmd_pokazi(proj, words, edit, pj, eid):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Efekti: zumovi, zamrzni + oznaka, film, retro")
+    ap = argparse.ArgumentParser(description="Efekti: zumovi, zamrzni + oznaka, film, retro, prijelazi")
     ap.add_argument("projekt")
-    ap.add_argument("naredba", help="tipovi | dodaj | popis | makni | pokazi")
-    ap.add_argument("tip", nargs="?", help="za dodaj: guranje, trzaj, pad, vertigo, zamrzni, film, retro; "
-                                           "za makni/pokazi: E1 (ili 'sve')")
-    ap.add_argument("vremena", nargs="*", help="dio gotovog videa, npr. 0:12-0:14")
+    ap.add_argument("naredba", help="tipovi | dodaj | popis | rezovi | makni | pokazi")
+    ap.add_argument("tip", nargs="?", help="za dodaj: guranje, trzaj, pad, vertigo, zamrzni, film, retro ili "
+                                           "prijelaz (iris, rolete, vrata, …); za makni/pokazi: E1 (ili 'sve')")
+    ap.add_argument("vremena", nargs="*", help="dio gotovog videa, npr. 0:12-0:14; prijelaz: R3 ili 0:12")
     ap.add_argument("--na", help="doslovni citat iz transkripta umjesto vremena")
     ap.add_argument("--do", help="citat: kraj dijela (iza --na)")
     ap.add_argument("--pojava", type=int, default=None)
     ap.add_argument("--zum", type=float, default=None, help="koliko zumira (1.0–2.0)")
     ap.add_argument("--jacina", type=float, default=None, help="vertigo: koliko se pozadina rasteže (0.05–0.6)")
     ap.add_argument("--oznaka", default=None, help="zamrzni: tekst oznake")
+    ap.add_argument("--trajanje", type=float, default=None, help="prijelaz: trajanje u s (0.2–1.5)")
+    ap.add_argument("--smjer", default=None, help="brisanje/klizanje: lijevo, desno, gore, dolje")
     ap.add_argument("--bez-lica", action="store_true", help="zum prema sredini, ne prema licu")
     ap.add_argument("--zamijeni", action="store_true", help="zamijeni efekt iste vrste na tom mjestu")
     ap.add_argument("--verzija", type=int, default=None, help="vremena iz reel_vN (zadano: zadnji render)")
@@ -552,6 +722,8 @@ def main():
     edit = load_json(proj / "edit.json")
     if nar == "popis":
         cmd_popis(proj, words, edit, pj)
+    elif nar == "rezovi":
+        cmd_rezovi(proj, words, edit, pj, a)
     elif nar == "dodaj":
         if not a.tip:
             die("koji efekt? (python efekti.py projekt tipovi)")
@@ -565,7 +737,7 @@ def main():
             die("koji? npr. pokazi E2")
         cmd_pokazi(proj, words, edit, pj, a.tip)
     else:
-        die(f"nepoznata naredba '{a.naredba}' (tipovi, dodaj, popis, makni, pokazi)")
+        die(f"nepoznata naredba '{a.naredba}' (tipovi, dodaj, popis, rezovi, makni, pokazi)")
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ import shutil
 from pathlib import Path
 
 import efekti
+import prijelazi
 import spica
 import titlovi
 import verzije
@@ -17,6 +18,7 @@ from common import (FONTS_DIR, GRADES, die, ffmpeg, filter_script_args, fmt_time
                     load_style, norm_word, run)
 
 ZOOM = {"nema": None, "blago": (1.08, 1.6), "jako": (1.16, 0.7)}
+MAX_PRIJELAZA = 16          # svaki prijelaz = 2–3 kratka ulaza u ffmpeg i ~0,3 GB RAM-a kod 1080×1920
 POS_FRAC = {"dolje": 0.24, "gore": 0.20}
 
 
@@ -607,6 +609,23 @@ def zoom_chain(factor, W, H):
     return f"scale=w='trunc(iw*{factor}/2)*2':h=-2:flags=bicubic,crop={W}:{H}:(iw-{W})/2:(ih-{H})*0.38"
 
 
+def _src_of(proj, izvor):
+    """Snimka za kratke komade (prijelazi): (datoteka, pomak njene 0 s u vremenu source.mp4)."""
+    if izvor:
+        return Path(izvor["datoteka"]).resolve(), float(izvor["pomak"])
+    return Path(proj) / "source.mp4", 0.0
+
+
+def _side_zoom(zr, factor, W, H, fps):
+    """Zum stila za kadar A (prije reza) i B (iza reza) prijelaza: isti kao na glavnoj traci."""
+    def on(t):
+        return any(a <= t < b for a, b in zr)
+
+    za = lambda x: zoom_chain(factor, W, H) if zr and on(x["t"] - 0.5 / fps) else None  # noqa: E731
+    zb = lambda x: zoom_chain(factor, W, H) if zr and on(x["t"] + 0.5 / fps) else None  # noqa: E731
+    return za, zb
+
+
 # ---------------------------------------------------------------- glavno
 def learn_vocabulary(proj, edit, words):
     """Rječnik uči iz ispravaka teksta u ovoj verziji; greška u rječniku nikad ne ruši render."""
@@ -678,6 +697,12 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
         if not (fdir / f.name).exists():
             shutil.copy2(f, fdir / f.name)
     fx, fx_notes = efekti.plan(edit, cuts, fps, total)
+    px = efekti.prijelaz_fx(fx)
+    if len(px) > MAX_PRIJELAZA:
+        fx_notes.append(f"prijelaza je {len(px)}; u videu je prvih {MAX_PRIJELAZA} (ostali preskočeni)")
+        drop = {x["id"] for x in px[MAX_PRIJELAZA:]}
+        fx = [x for x in fx if x["id"] not in drop]
+        px = px[:MAX_PRIJELAZA]
     if izvor:  # drugi izvor (uspravni isječak podcasta): lice iz source.mp4 tu ne vrijedi → zum prema sredini
         for x in fx:
             x["p"].pop("lice", None)
@@ -715,15 +740,6 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
         en = "+".join(f"between(t,{s:.4f},{e - eps:.4f})" for s, e in zr)
         g.append(f"[zs]{zoom_chain(factor, W, H)}[zz]")
         g.append(f"[base][zz]overlay=0:0:enable='{en}'[v1]")
-    vtail = "[v1]" + ",".join(efekti.freeze_chain(fx, fps) + efekti.video_chain(fx, W, H, fps, cmd_dir=proj)
-                              + [subs])
-    if speed != 1.0:
-        vtail += f",setpts=PTS/{speed}"
-    if brzo:
-        vtail += f",scale={W // 2}:-2"
-    vlab, alab = ("[vout0]", "[aout0]") if sp_r else ("[vout]", "[aout]")
-    g.append(vtail + f",format=yuv420p{vlab}")
-
     n = len(cuts)
     inputs = list(src_in)
     parts = song_out_parts(edit, cuts)
@@ -735,6 +751,24 @@ def render(proj, edit_raw, izlaz=None, brzo=False, kvaliteta="dobra", kadar=None
         if not mp.exists():
             die(f"glazba ne postoji: {music}")
         inputs += ["-stream_loop", "-1", "-i", mp]
+
+    vmain = "[v1]"
+    if px:  # prijelazi na rezovima: dva kratka komada snimke po prijelazu, xfade, preko glavne trake
+        src, off = _src_of(proj, izvor)
+        prvi = sum(1 for x in inputs if str(x) == "-i")
+        inputs += prijelazi.ulazi(px, src, off, fps)
+        prijelazi.pripremi_maske(px, proj, W, H)
+        za, zb = _side_zoom(zr, factor, W, H, fps)
+        g += prijelazi.graf(px, prvi, "[v1]", "[v1p]", W, H, fps, grade, za, zb)
+        vmain = "[v1p]"
+    vtail = vmain + ",".join(efekti.freeze_chain(fx, fps) + efekti.video_chain(fx, W, H, fps, cmd_dir=proj)
+                             + [subs])
+    if speed != 1.0:
+        vtail += f",setpts=PTS/{speed}"
+    if brzo:
+        vtail += f",scale={W // 2}:-2"
+    vlab, alab = ("[vout0]", "[aout0]") if sp_r else ("[vout]", "[aout]")
+    g.append(vtail + f",format=yuv420p{vlab}")
 
     def measure(lines, label, name):
         """Zvučni graf bez slike → momentarne glasnoće (EBU R128) u vremenu gotovog videa (prije brzine)."""
@@ -938,6 +972,15 @@ def stills_mode(kadar, proj, cuts, zr, factor, grade, subs, speed, W, H, total, 
             continue
         pre = min(max(src_spec[1] * speed, 0), total - 0.01)
         pre_src = efekti.still_time(fx, pre) if fx else pre   # zamrznuti kadar: prva sličica efekta
+        px = prijelazi.u_prijelazu(efekti.prijelaz_fx(fx), pre_src) if fx else None
+        if px:  # usred prijelaza: oba komada snimke + xfade, ista sličica kao u videu
+            src, off = _src_of(proj, izvor)
+            za, zb = _side_zoom(zr, factor, W, H, fps)
+            rep = efekti.video_chain(fx, W, H, fps, T=f"{pre:.4f}", cmd_dir=proj) + [subs]
+            run(prijelazi.slika(px, pre_src, src, off, W, H, fps, grade, za(px), zb(px), rep, png.name, proj),
+                cwd=proj)
+            pngs.append(png)
+            continue
         c = next((c for c in cuts if c["o"] <= pre_src < c["o"] + (c["b"] - c["a"])), cuts[-1])
         src_t = c["a"] + (pre_src - c["o"])
         chain = [grade]
