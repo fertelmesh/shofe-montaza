@@ -492,6 +492,6 @@ Jedan unos po krugu, najnoviji na dnu.
   - Verzija 0.40.0. SKILL.md (tablica predložaka, kad koji, pravila teksta i gustoće), README (Grafika: tablica s primjerima naredbi), ODLUKE.md.
 - Provjera očima: svih 10 predložaka u 4 trenutka na probnoj podlozi s licem i titlovima (1080×1920) + kartica i graf u 1920×1080; popravljeno usput: broj u brojaču bio sitan (mjerenje redaka s „−" iz zamjenskog fonta), naslov mobitela sitan, navodnici citata preko teksta, graf preko lica (sad se smanji ispod lica). Na probnom klipu s nacrtanom osobom brojač sjedne točno ispod brade, broj odbrojava 0 → 347 → 350.
 - Testovi: novi `tests/test_predlosci_grafika.py` (9: popis i datoteke, primjeri prolaze provjeru, bez GSAP-a i mreže; imena i provjera varijabli; boja stila i lice u `window.SHOFE`; `efekti.py dodaj` (greške, alias „Prije/poslije", mobitel s pozadinom, `--bez-lica`, popis); `grafika.py predlosci`; pravi HyperFrames: svih 10 renderira, ulaze i izlaze, alfa nije preko lica ni izvan zone; boja Udarnog, brojanje, gore/dolje/auto; 16:9 u stranu; pravi render projekta + predmemorija). Lokalno svi zeleni.
-- PR #PR.
+- PR #55.
 - Za Marka: ništa odmah; u Pregledu M5 probaj „na 0:05 kartica …", „kad kažem 350 eura neka se odbroji", „na kraju gumb Zaprati" i javi koji ti se izgled ne sviđa.
 - Sljedeće: M5.6 galerija efekata (jedan render sa svim efektima).

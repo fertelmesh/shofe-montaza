@@ -76,7 +76,7 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
     - [x] M5.2c2 Prijelazi u DaVinci timelineu: FCPXML transition (Cross Dissolve) na istom rezu s ručkama + oznaka koji je prijelaz i kako ga dobiti u DaVinciju; ostali efekti kao oznake (#52)
 - [x] M5.3 Claude bira efekte po tekstu: pravila u SKILL.md + `efekti.py predlozi` (#53)
 - [x] M5.4 HyperFrames integracija: render odsječka s pozadinskim videom i umetanje natrag; provjera na Windowsu u CI-ju (#54)
-- [x] M5.5 10 HTML predložaka (kartica, ključna rečenica, brojač, graf, popis, prije/poslije, komentar, mobitel, citat, poziv na akciju) (#PR)
+- [x] M5.5 10 HTML predložaka (kartica, ključna rečenica, brojač, graf, popis, prije/poslije, komentar, mobitel, citat, poziv na akciju) (#55)
 - [ ] M5.6 Galerija efekata (jedan render sa svim efektima)
 - [ ] M5.7 Izdvajanje osobe (permisivni model): tekst iza osobe, zamjena pozadine, klon
 - [ ] M5.8 Novi stilovi montaže i titlova + „stil iz uzorka"; titlovi stila Udarno (riječ u sredini kadra) ne smiju prekriti usta — kad je lice u sredini, riječ ide ispod lica (primijećeno u demu M3)
