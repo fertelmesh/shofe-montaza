@@ -87,7 +87,7 @@ Svaki prijelaz Shofe pripremi zasebno i zapamti ga, pa sljedeći render (npr. na
 
 Zvuk efekta je uvijek tiši od glasa: Shofe prvo izmjeri koliko glasno govoriš (i oko samog efekta, ako tamo govoriš tiše) i stavi zvuk ispod toga — fijuk otprilike 9 dB tiše, projektor 20 dB. I kad tražiš „glasnije", zvuk ostaje barem 3 dB ispod glasa. Za vrijeme pjesme benda nema zvučnih efekata. Zvukove smo napravili sami (sintetizirani u Shofeu), pa ih smiješ koristiti bilo gdje, i u plaćenim objavama.
 
-Zumovi idu prema licu i lice ostaje na istom mjestu u kadru, pa titlovi i oznake ne skaču. Efekt je vezan za riječi, a ne za sekundu: kad kasnije nešto izrežeš, efekt ostaje na istoj rečenici. Dva zuma ne idu jedan preko drugog; stari film i retro mogu ići preko zuma. Render s efektima traje malo dulje (reel od 15 s sa sedam efekata otprilike dvostruko). U DaVinci timeline efekti i zvučni efekti ne idu (samo rezovi) — ako montiraš u DaVinciju, efekte tamo dodaj sam.
+Zumovi idu prema licu i lice ostaje na istom mjestu u kadru, pa titlovi i oznake ne skaču. Efekt je vezan za riječi, a ne za sekundu: kad kasnije nešto izrežeš, efekt ostaje na istoj rečenici. Dva zuma ne idu jedan preko drugog; stari film i retro mogu ići preko zuma. Render s efektima traje malo dulje (reel od 15 s sa sedam efekata otprilike dvostruko). **U DaVinciju:** prijelazi su u timelineu pravi prijelazi (Cross Dissolve na istom rezu, iste duljine), a na svakom rezu s prijelazom je oznaka koji je prijelaz bio u Shofeu i koji DaVincijev daje isti izgled (npr. iris → Effects > Video Transitions > Iris > Oval Iris, rolete → Wipe > Venetian Blind Wipe, vrata → Motion > Barn Door) — povuci ga na rez preko pretapanja ako želiš isto. Ostali efekti (zumovi, zamrzni, stari film, retro) i zvučni efekti u timelineu su samo **oznake** cijelom duljinom efekta („Efekt E1: trzaj“) — ondje ih dodaješ sam.
 
 ## Isječci za mreže
 
@@ -161,7 +161,7 @@ Reci „napravi i engleske titlove" (ili „prevedi titlove na engleski"). Claud
 
 ## DaVinci Resolve
 
-Uz svaki video Shofe napravi i **timeline za DaVinci**: `reel_v3.mp4` → `reel_v3.fcpxml` (+ `reel_v3.srt`). U njemu su tvoje **originalne snimke** s mobitela s istim rezovima kao u Shofeovu videu, isto kadriranje i zumovi, glazba na zasebnoj traci i oznake (stil, naslov, zumovi). Zvuk i boja su neobrađeni — to doradiš sam. Radi i s besplatnim DaVincijem (verzija 18 ili novija).
+Uz svaki video Shofe napravi i **timeline za DaVinci**: `reel_v3.mp4` → `reel_v3.fcpxml` (+ `reel_v3.srt`). U njemu su tvoje **originalne snimke** s mobitela s istim rezovima kao u Shofeovu videu, isto kadriranje i zumovi, glazba na zasebnoj traci, prijelazi (kao pretapanje) i oznake (stil, naslov, zumovi, prijelazi, efekti). Zvuk i boja su neobrađeni — to doradiš sam. Radi i s besplatnim DaVincijem (verzija 18 ili novija).
 
 1. U DaVinciju otvori novi projekt (u postavkama projekta stavi 30 fps i rezoluciju videa, npr. 1080×1920 za reel).
 2. **File > Import > Timeline** → odaberi `reel_v3.fcpxml` (ostavi uključeno „Automatically import source clips into media pool").
