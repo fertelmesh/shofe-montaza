@@ -15,6 +15,8 @@ prijelazi.py) — upisuju se u edit.json `efekti`, render.py ih slaže ffmpegom 
   python efekti.py projekt zvukovi                              zvučni efekti (biblioteka) → zvukovi_pregled.wav
   python efekti.py projekt dodaj zvuk 0:12 --zvuk udarac        samo zvuk na tom mjestu (ili --zvuk moj.wav)
   python efekti.py projekt zvuk E2 fijuk | ne | auto            drugi zvuk uz efekt E2 / bez zvuka / zadani
+  python efekti.py projekt predlozi [--gustoca malo|puno]        Shofe predloži efekte po tekstu (predlozi.py)
+  python efekti.py projekt predlozi primijeni [P1,P3]            upiše pregledane prijedloge u edit.json
 
 Parametri: --zum 1.3 (koliko zumira), --jacina 0.35 (vertigo), --oznaka "tekst" (zamrzni);
 prijelazi: --trajanje 0.5, --smjer lijevo|desno|gore|dolje (brisanje, klizanje). Prijelaz ne mijenja trajanje.
@@ -775,7 +777,7 @@ def cmd_pokazi(proj, words, edit, pj, eid):
 def main():
     ap = argparse.ArgumentParser(description="Efekti: zumovi, zamrzni + oznaka, film, retro, prijelazi")
     ap.add_argument("projekt")
-    ap.add_argument("naredba", help="tipovi | dodaj | popis | rezovi | makni | pokazi | zvuk | zvukovi")
+    ap.add_argument("naredba", help="tipovi | dodaj | popis | rezovi | makni | pokazi | zvuk | zvukovi | predlozi")
     ap.add_argument("tip", nargs="?", help="za dodaj: guranje, trzaj, pad, vertigo, zamrzni, film, retro ili "
                                            "prijelaz (iris, rolete, vrata, …); za makni/pokazi: E1 (ili 'sve')")
     ap.add_argument("vremena", nargs="*", help="dio gotovog videa, npr. 0:12-0:14; prijelaz: R3 ili 0:12")
@@ -793,6 +795,8 @@ def main():
     ap.add_argument("--verzija", type=int, default=None, help="vremena iz reel_vN (zadano: zadnji render)")
     ap.add_argument("--trenutno", action="store_true", help="vremena prema trenutnom edit.json")
     ap.add_argument("--proba", action="store_true")
+    ap.add_argument("--gustoca", default=None, help="predlozi: malo | normalno | puno")
+    ap.add_argument("--bez-pregleda", action="store_true", help="predlozi primijeni: bez Claudeova pregleda")
     a = ap.parse_args()
     proj = Path(a.projekt).resolve()
     nar = a.naredba.lower()
@@ -808,7 +812,12 @@ def main():
     pj = load_json(proj / "project.json")
     words = load_json(proj / "transcript.json")["words"]
     edit = load_json(proj / "edit.json")
-    if nar == "popis":
+    if nar in ("predlozi", "predloži", "prijedlog"):
+        import predlozi
+        if a.tip:
+            a.vremena = [a.tip, *a.vremena]
+        predlozi.cmd(proj, words, edit, pj, a)
+    elif nar == "popis":
         cmd_popis(proj, words, edit, pj)
     elif nar == "rezovi":
         cmd_rezovi(proj, words, edit, pj, a)
@@ -829,7 +838,7 @@ def main():
             die("koji? npr. pokazi E2")
         cmd_pokazi(proj, words, edit, pj, a.tip)
     else:
-        die(f"nepoznata naredba '{a.naredba}' (tipovi, dodaj, popis, rezovi, makni, pokazi, zvuk, zvukovi)")
+        die(f"nepoznata naredba '{a.naredba}' (tipovi, dodaj, popis, rezovi, makni, pokazi, zvuk, zvukovi, predlozi)")
 
 
 if __name__ == "__main__":

@@ -67,6 +67,16 @@ Efekti se traže riječima, kao i sve ostalo — Claude ih stavi na pravo mjesto
 - `stari film od 1:00 do 1:10`, `retro / VHS na uvodu` — boja i tekstura starog filma ili VHS kasete
 - `koji efekti postoje`, `pokaži efekte`, `makni efekt E2`, `makni sve efekte`, `vrati kako je bilo`
 
+**Efekti po tekstu:** reci `dodaj efekte` (ili `napravi ga dinamičnije`, `više efekata`, `manje efekata`) i Shofe sam pročita što govoriš i predloži efekte, a Claude svaki provjeri prije nego ga stavi. Kod prve montaže reela to radi sam, osim ako kažeš da ne želiš efekte.
+
+- brojka ili cijena („200 eura", „30 posto") → trzaj točno na tim riječima
+- predstavljanje („ja sam Marko iz Kutine", „ovo je Ivan") → zamrzni kadar s imenom
+- „najvažnije", „zapamti", „nikad", „trik" → polagani zum kroz rečenicu
+- „čekaj", „zamisli", „nevjerojatno" → vertigo · „i gotovo", „eto ga" → pad · „nekad", „sjećam se" → stari film
+- „prvo", „drugi korak", „na kraju" na rezu → rolete / vrata / klizanje · nova tema → zamah (ili pretapanje u mirnom stilu)
+
+Nije previše: najviše jedan zum na ~8 sekundi (barem 3 s razmaka), jedan prijelaz na ~20 sekundi, ništa za vrijeme pjesme. Claude makne ono što ne paše uz smisao (npr. vertigo uz tužnu priču) i provjeri ime na oznaci. Svi dodani efekti su jedan korak: `vrati` ih makne sve odjednom, a `makni efekt E2` samo jedan. Popis prijedloga s razlozima je u `efekti_prijedlog.txt` u mapi projekta.
+
 **Prijelazi** idu na rez između dva kadra: `iris na 0:12`, `rolete prije „drugi korak"`, `kroz crno na kraju priče`, `gdje su rezovi?`
 
 - `iris` — novi kadar se otvori u krugu oko lica · `rolete` — novi kadar se spusti kroz vodoravne rolete · `vrata` — stari kadar se otvori po sredini kao dvoja vrata
