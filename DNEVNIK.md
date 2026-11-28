@@ -509,3 +509,19 @@ Jedan unos po krugu, najnoviji na dnu.
 - PR #56.
 - Za Marka: na pravom reelu reci „pokaži sve efekte" i javi po broju što ti se ne sviđa („7 je prejak", „iris sporiji") — to je ujedno „Gotovo kad" za modul 5.
 - Sljedeće: M5.7 izdvajanje osobe (permisivni model): tekst iza osobe, zamjena pozadine, klon.
+
+## 2026-11-28 16:40 — M5.7a izdvajanje osobe + tekst iza osobe
+- Živa specifikacija (rev 13) i plan efekata (rev 9) pročitani: bez promjena. Nema otvorenog PR-a agenta (#36 je Markov). Issues #7, #18, #25, #38, #44, #46 bez Markova odgovora.
+- M5.7 podijeljen: a) maska osobe + tekst iza osobe, b) zamjena pozadine (i HTML predlošci iza osobe), c) klon.
+- Istraženo i probano: MODNet (Apache-2.0) naspram PP-HumanSeg, MediaPipe Selfie, U²-Net, RVM (GPL); uzet MODNet — službeni ONNX s GitHub izdanja HivisionIDPhotos, radi u OpenCV-u (cv2.dnn) bez novog paketa, mekan rub kose. Odluka, alternative i izvori u ODLUKE.md.
+- Novo: `osoba.py` (model se skine sam prvi put, 26 MB, sha256; `provjera`, `preuzmi`, `pokazi slika|video` → maska + efekt na jednoj slici) i efekt **`iza`**: `efekti.py projekt dodaj iza 0:01-0:04 --tekst "SUNČANO" [--boja #FFC21A] [--polozaj auto|gore|sredina|dolje]`.
+  - Tekst (Anton, velika slova, bijela s mekanom sjenom) stoji iza osobe: maska po sličici (384 px, zaglađivanje susjednih maski protiv treperenja), `auto` stavi ~40 % visine slova iza glave unutar sigurne zone reela; kod krupnog kadra pomakne/smanji tekst dok ga osoba ne prekriva više od 45 %. Ulazi odozdo 0,35 s, utiša se zadnjih 0,25 s.
+  - Ide u isti dodatni prolaz kao HTML grafika, ali ne treba HyperFrames (bez njega se ostale grafike preskoče, tekst iza osobe ostaje). Maske i komad u predmemoriji. `pokazi E1` / `--kadar` pokazuju točno; u galeriji efekata kao „SHOFE"; DaVinci: oznaka.
+  - `doctor.py`: `[--] osoba` dok model nije skinut, `--popravi` ga skine. CI skida model (predmemorija modela v3) i s `SHOFE_OSOBA_TEST=1` pravi test ne smije preskočiti.
+  - Verzija 0.42.0. SKILL.md (Text behind the person), README (Tekst iza osobe), ODLUKE.md.
+- Provjera očima: 5 pravih portreta (javni primjeri, nisu u repou) + probni reel 1080×1920 s pomakom kamere kroz cijeli render: glava i kosa ispred slova, rub čist, Č ispravan, tekst ulazi i izlazi. Kod jako krupnih portreta (glava od vrha kadra) tekst ostaje većim dijelom iza glave — za takav kadar efekt nije dobar (SKILL.md: predložiti širi kadar ili `gore`).
+- Brzina (ovdje, 2 CPU-a): 3 s efekta u 1080×1920 ~15 s prvi put, drugi put <1 s; reel od 8 s s efektom 31 s ukupno.
+- Testovi: novi `tests/test_osoba.py` (7: retci i sloj teksta (č ć š ž đ, boja, veličina), mjesto iza glave/bez osobe/ručno/krupni kadar, animacija i slaganje (osoba ispred teksta), veličina modela i stanje, `efekti.py dodaj iza` (greške, alias, popis), umetanje na točne sličice s lažnim maskirom (izvan efekta isto, lice netaknuto, zvuk isti, predmemorija, bez teksta napomena), pravi MODNet: render bez HyperFramesa + `--kadar`). Galerija: `iza` u skupini grafika (11). Lokalno svi zeleni.
+- PR #57.
+- Za Marka: kad stigneš, probaj „na početku napiši SUNČANO iza mene" na reelu gdje imaš malo prostora iznad glave i javi treperi li rub kose.
+- Sljedeće: M5.7b zamjena pozadine (boja, slika, video, zamućenje) i HTML predlošci iza osobe.

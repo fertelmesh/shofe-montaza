@@ -69,7 +69,7 @@ def test_odabir_efekata():
     # imena, aliasi i predlošci; redoslijed galerije, ne redoslijed upita
     assert galerija.odaberi("brojač, Iris,zoom") == [("trzaj", "trzaj"), ("iris", "iris"), ("grafika", "brojac")]
     assert galerija.odaberi("vhs grafika")[0] == ("retro", "retro")
-    assert len(galerija.odaberi("grafika")) == 10
+    assert len(galerija.odaberi("grafika")) == 11      # 10 predložaka + tekst iza osobe
     with pytest.raises(galerija.Greska, match="nepoznat"):
         galerija.odaberi("trzaj,nepostoji")
     with pytest.raises(galerija.Greska, match="bez-grafike"):

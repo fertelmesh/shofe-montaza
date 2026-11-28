@@ -139,6 +139,18 @@ Jednom treba instalirati Node.js i HyperFrames — `INSTALIRAJ.bat` to sada radi
 
 Boja grafike je boja tvog stila (žuta u Sunčanom, zelena u Udarnom…), a može i druga („kartica u narančastoj"). Grafika sama sjedne tamo gdje ne prekriva lice ni titlove (gore/dolje; na YouTube videu sa strane), a možeš reći i „kartica gore". Slova č ć š ž đ i brojevi na hrvatski način (1.200 eura, 2,5 %). Sliku predloška bez projekta: `python scripts\grafika.py pokazi brojac`.
 
+### Tekst iza osobe
+
+Veliki natpis iza tebe, kao na naslovnici časopisa: ti stojiš ispred slova, a glava ti malo zalazi u njih. Shofe na svakoj sličici izreže osobu iz pozadine (model MODNet, besplatan, radi na tvom laptopu; prvi put se skine sam, 26 MB) i tekst stavi između pozadine i tebe.
+
+- „na početku napiši SUNČANO iza mene", „od 0:02 do 0:05 tekst *SUNČANI PUT* iza glave", „isto, ali u žutoj"
+- tekst uđe odozdo i na kraju se utiša; sam sjedne iznad glave, u dio kadra koji Instagram i TikTok ne prekrivaju
+- najbolje izgleda na mirnom kadru s malo prostora iznad glave (npr. prve 2–3 sekunde reela); kod jako krupnog kadra tekst se smanji ili spusti da se čita
+- ne treba HyperFrames; 3 sekunde u 1080×1920 ovdje se računaju ~15 s, drugi put iz predmemorije odmah
+- da vidiš hoće li raditi na nekom klipu: „probaj tekst iza mene na ovoj snimci" (`python scripts\osoba.py pokazi klip.mp4 --t 0:03`) — lijevo maska (zeleno je pozadina), desno efekt
+
+Zamjena pozadine i klon (ista maska osobe) stižu u sljedećim krugovima.
+
 ## Isječci za mreže
 
 Iz dulje snimke (epizoda podcasta, dulji YouTube video) Shofe predloži kratke isječke od 20 do 60 sekundi:

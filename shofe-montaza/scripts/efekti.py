@@ -22,6 +22,8 @@ prijelazi.py) — upisuju se u edit.json `efekti`, render.py ih slaže ffmpegom 
   python efekti.py projekt dodaj brojac 0:12-0:15 --varijable '{"broj": "350", "jedinica": "eura"}'
                                     gotov predložak (kartica, recenica, brojac, graf, popis, prije_poslije, komentar,
                                     mobitel, citat, poziv; popis: python grafika.py predlosci)
+  python efekti.py projekt dodaj iza 0:03-0:06 --tekst "SUNČANO" [--boja #FFC21A] [--polozaj auto|gore|sredina|dolje]
+                                    veliki tekst iza osobe (osoba ispred slova; maska osobe: osoba.py, MODNet)
   python efekti.py projekt galerija [--samo prijelazi|kamera|boja|zvuk|grafika|trzaj,iris] [--od 0:05] [--brzo]
                                     svi efekti na istom komadu snimke u jednom videu → galerija.mp4/.png/.txt
 
@@ -60,6 +62,8 @@ TIPOVI = {
              "opis": "samo zvučni efekt na tom mjestu, bez slike (--zvuk ime ili --zvuk moj.wav)"},
     "grafika": {"skupina": "grafika", "min": 0.3, "max": 30.0, "zadano": {"pozadina": False},
                 "opis": "HTML grafika preko videa (HyperFrames): kartica, brojka, popis … (--html, --pozadina)"},
+    "iza": {"skupina": "grafika", "min": 0.5, "max": 15.0, "zadano": {"polozaj": "auto"},
+            "opis": "veliki tekst iza osobe: osoba stoji ispred slova (--tekst, --boja, --polozaj)"},
 }
 # prijelazi na rezovima (prijelazi.py): skupina "prijelaz", min/max = trajanje prijelaza
 for _k, _v in prijelazi.TIPOVI.items():
@@ -67,7 +71,7 @@ for _k, _v in prijelazi.TIPOVI.items():
                   "zadano": {"trajanje": _v["zadano"]}, "opis": _v["opis"]}
 ALIASI = dict(prijelazi.ALIASI)
 ALIASI.update({"html": "grafika", "kartica": "grafika", "zum": "trzaj", "punch": "trzaj", "push": "guranje", "zamrzni_kadar": "zamrzni", "freeze": "zamrzni",
-               "vhs": "retro", "zvucni_efekt": "zvuk", "sfx": "zvuk", "stari_film": "film", "zoom": "trzaj", "dolly": "vertigo", "pad_zuma": "pad"})
+               "vhs": "retro", "tekst_iza": "iza", "iza_osobe": "iza", "tekst_iza_osobe": "iza", "text_behind": "iza", "zvucni_efekt": "zvuk", "sfx": "zvuk", "stari_film": "film", "zoom": "trzaj", "dolly": "vertigo", "pad_zuma": "pad"})
 SREDINA = (0.5, 0.38)      # bez lica: zum prema gornjoj trećini (tamo su lica u reelu)
 TRZAJ_T = 0.10             # s do punog zuma (trzaj)
 PAD_T = 0.45               # s od zuma do kadra (pad)
@@ -442,6 +446,9 @@ def cmd_popis(proj, words, edit, pj):
             extra.append(f"predložak {x['p']['predlozak']}" + (f" „{glavno[:40]}“" if glavno else ""))
             if x["p"].get("pozadina"):
                 extra.append("s pozadinom")
+        elif x["tip"] == "iza":
+            extra.append(f"„{x['p'].get('tekst', '')}“ iza osobe" + (f", {x['p']['polozaj']}"
+                                                                   if x["p"].get("polozaj", "auto") != "auto" else ""))
         elif x["tip"] == "grafika":
             h = str(x["p"].get("html") or "")
             extra.append("HTML u edit.json" if "<" in h else h)
@@ -490,6 +497,8 @@ def cmd_dodaj(proj, words, edit, pj, a):
         die("--trajanje i --smjer idu uz prijelaze (python efekti.py projekt tipovi)")
     if tip != "grafika" and (a.html is not None or a.pozadina or a.varijable is not None or a.predlozak):
         die("--html, --predlozak, --pozadina i --varijable idu uz grafika")
+    if tip != "iza" and (a.tekst is not None or a.boja is not None or a.polozaj is not None):
+        die("--tekst, --boja i --polozaj idu uz iza (tekst iza osobe)")
     if a.na:
         import sadrzaj
         try:
@@ -534,6 +543,8 @@ def cmd_dodaj(proj, words, edit, pj, a):
         params["oznaka"] = a.oznaka.strip()
     if zv:
         params["zvuk"] = zv
+    if tip == "iza":
+        params.update(iza_parametri(a))
     if tip == "grafika":
         params.update(grafika_parametri(proj, a))
         lice = None if (a.bez_lica or not params.get("predlozak")) else find_face(proj, (so + sd) / 2)
@@ -582,8 +593,32 @@ def cmd_dodaj(proj, words, edit, pj, a):
     save_json(proj / "edit.json", edit2)
     fa, fb = to_final(edit2, words, pj, x)
     lice_txt = (" (mjesto bez lica)" if tip == "grafika" else " prema licu") if params.get("lice") else ""
+    if tip == "iza":
+        lice_txt = f" „{params['tekst']}“ iza osobe"
     print(f"Dodan {new['id']}: {tip}{lice_txt}, {fmt_time(fa)}-{fmt_time(fb)} ({d:.1f} s) u sljedećem renderu.")
     print(f"Provjeri slike: python efekti.py {proj.name} pokazi {new['id']}")
+
+
+def iza_parametri(a):
+    """--tekst (obavezno), --boja #RRGGBB, --polozaj auto|gore|sredina|dolje → parametri teksta iza osobe."""
+    import re
+
+    import osoba
+    t = (a.tekst or "").strip()
+    if not t:
+        die('koji tekst? npr. dodaj iza 0:03-0:06 --tekst "SUNČANO" (dva retka: --tekst "SUNČANI|PUT")')
+    if len(t) > osoba.MAX_TEKST:
+        die(f"tekst iza osobe je za jednu do tri riječi (najviše {osoba.MAX_TEKST} znakova)")
+    out = {"tekst": t}
+    if a.boja is not None:
+        if not re.fullmatch(r"#[0-9A-Fa-f]{6}", a.boja.strip()):
+            die("--boja: #RRGGBB, npr. #FFC21A")
+        out["boja"] = a.boja.strip().upper()
+    if a.polozaj is not None:
+        if a.polozaj.lower() not in osoba.POLOZAJI:
+            die(f"--polozaj: {', '.join(osoba.POLOZAJI)}")
+        out["polozaj"] = a.polozaj.lower()
+    return out
 
 
 def grafika_parametri(proj, a):
@@ -884,6 +919,9 @@ def main():
     ap.add_argument("--varijable", default=None, help="grafika: JSON s podacima za HTML (window.SHOFE.varijable)")
     ap.add_argument("--predlozak", default=None, help="grafika: gotov predložak (python grafika.py predlosci)")
     ap.add_argument("--pozadina", action="store_true", help="grafika: HTML dobije taj dio videa kao <video>")
+    ap.add_argument("--tekst", default=None, help="iza: tekst iza osobe (SUNČANO; dva retka: SUNČANI|PUT)")
+    ap.add_argument("--boja", default=None, help="iza: boja teksta #RRGGBB (zadano bijela)")
+    ap.add_argument("--polozaj", default=None, help="iza: auto (iznad glave) | gore | sredina | dolje")
     ap.add_argument("--bez-lica", action="store_true", help="zum prema sredini, ne prema licu")
     ap.add_argument("--zamijeni", action="store_true", help="zamijeni efekt iste vrste na tom mjestu")
     ap.add_argument("--verzija", type=int, default=None, help="vremena iz reel_vN (zadano: zadnji render)")
