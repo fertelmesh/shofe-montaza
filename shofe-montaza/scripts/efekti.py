@@ -22,6 +22,8 @@ prijelazi.py) — upisuju se u edit.json `efekti`, render.py ih slaže ffmpegom 
   python efekti.py projekt dodaj brojac 0:12-0:15 --varijable '{"broj": "350", "jedinica": "eura"}'
                                     gotov predložak (kartica, recenica, brojac, graf, popis, prije_poslije, komentar,
                                     mobitel, citat, poziv; popis: python grafika.py predlosci)
+  python efekti.py projekt galerija [--samo prijelazi|kamera|boja|zvuk|grafika|trzaj,iris] [--od 0:05] [--brzo]
+                                    svi efekti na istom komadu snimke u jednom videu → galerija.mp4/.png/.txt
 
 Parametri: --zum 1.3 (koliko zumira), --jacina 0.35 (vertigo), --oznaka "tekst" (zamrzni);
 prijelazi: --trajanje 0.5, --smjer lijevo|desno|gore|dolje (brisanje, klizanje). Prijelaz ne mijenja trajanje.
@@ -864,7 +866,8 @@ def cmd_pokazi(proj, words, edit, pj, eid):
 def main():
     ap = argparse.ArgumentParser(description="Efekti: zumovi, zamrzni + oznaka, film, retro, prijelazi")
     ap.add_argument("projekt")
-    ap.add_argument("naredba", help="tipovi | dodaj | popis | rezovi | makni | pokazi | zvuk | zvukovi | predlozi")
+    ap.add_argument("naredba", help="tipovi | dodaj | popis | rezovi | makni | pokazi | zvuk | zvukovi | predlozi | "
+                                    "galerija")
     ap.add_argument("tip", nargs="?", help="za dodaj: guranje, trzaj, pad, vertigo, zamrzni, film, retro ili "
                                            "prijelaz (iris, rolete, vrata, …); za makni/pokazi: E1 (ili 'sve')")
     ap.add_argument("vremena", nargs="*", help="dio gotovog videa, npr. 0:12-0:14; prijelaz: R3 ili 0:12")
@@ -888,11 +891,21 @@ def main():
     ap.add_argument("--proba", action="store_true")
     ap.add_argument("--gustoca", default=None, help="predlozi: malo | normalno | puno")
     ap.add_argument("--bez-pregleda", action="store_true", help="predlozi primijeni: bez Claudeova pregleda")
+    ap.add_argument("--samo", default=None, help="galerija: skupine (kamera, boja, zvuk, prijelazi, grafika) ili efekti")
+    ap.add_argument("--od", default=None, help="galerija: komad od tog vremena gotovog videa (0:05)")
+    ap.add_argument("--brzo", action="store_true", help="galerija: brzi pregled u pola rezolucije")
+    ap.add_argument("--bez-grafike", action="store_true", help="galerija: bez HTML predložaka")
     a = ap.parse_args()
     proj = Path(a.projekt).resolve()
     nar = a.naredba.lower()
     if nar == "tipovi":
         cmd_tipovi()
+        return
+    if nar in ("galerija", "galerija_efekata", "svi"):
+        import galerija
+        if a.tip and not a.samo:          # efekti.py projekt galerija prijelazi
+            a.samo = ",".join([a.tip, *a.vremena])
+        galerija.cmd(proj, a)
         return
     if nar in ("zvukovi", "zvucni"):
         cmd_zvukovi(proj if proj.is_dir() else Path.cwd())
@@ -929,7 +942,8 @@ def main():
             die("koji? npr. pokazi E2")
         cmd_pokazi(proj, words, edit, pj, a.tip)
     else:
-        die(f"nepoznata naredba '{a.naredba}' (tipovi, dodaj, popis, rezovi, makni, pokazi, zvuk, zvukovi, predlozi)")
+        die(f"nepoznata naredba '{a.naredba}' (tipovi, dodaj, popis, rezovi, makni, pokazi, zvuk, zvukovi, predlozi, "
+            "galerija)")
 
 
 if __name__ == "__main__":

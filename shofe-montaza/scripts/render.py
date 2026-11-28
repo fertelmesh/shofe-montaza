@@ -508,6 +508,11 @@ def write_ass(path, ws, st, edit, W, H, total, spoj=(), fx=()):
     fx_ev = efekti.ass_events(fx, W, H) if fx else []
     if fx_ev:  # oznake zamrznutih kadrova (efekti.py)
         styles += efekti.ass_styles(st, W, H)
+    natpisi = edit.get("galerija_natpisi")
+    if natpisi:  # galerija efekata (galerija.py): ime efekta gore u kadru
+        import galerija
+        styles += galerija.ass_styles(st, W, H)
+        fx_ev = fx_ev + galerija.ass_events(natpisi, st, W, H)
     hl_c = ass_color(st["boja_isticanja"])
     acc_c = ass_color(st["boja_naglaska"])
     pop = st.get("pop", 1.0)
