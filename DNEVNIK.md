@@ -447,6 +447,6 @@ Jedan unos po krugu, najnoviji na dnu.
 - Provjera očima: usporedna slika Shofeova pretapanja i pretapanja iz timelinea (izračunato iz originalne snimke po vremenima iz `.fcpxml`) na 10/30/50/70/90 % — iste sličice, isti udjeli; rolete u timelineu kao pretapanje (očekivano). Po sličicama: Shofeovo pretapanje je linearno od sličice 65 do 82, prijelaz u timelineu ima isti raspon (offset 65, 18 sličica).
 - Testovi: novi `tests/test_davinci_prijelazi.py` (5: prijelaz između pravih kadrova, centriran, isto mjesto i duljina kao u Shofeovu videu, kadrovi bez rupa, uid, bez prijelaza zvuka, ručke u snimci, oznake prijelaza i efekata sa zvukovima; DTD 1.10 + ispis `davinci.py`; slika usred pretapanja iz timelinea = Shofeov video (srednja razlika < 10/255); skraćenje i rez kad snimke uz rez nema; brzina 1,25 i bez efekata).
 - Za Marka: na reelu s prijelazom otvori `reel_vN.fcpxml` u DaVinciju i javi vidi li se pretapanje na rezu (i je li iste duljine); ako ne, Shofe će prijelaze ostaviti samo kao oznake.
-- PR #PRBROJ.
+- PR #52.
 - Sljedeće: M5.3 Claude bira efekte po tekstu (pravila u SKILL.md + `efekti.py predlozi`).
 

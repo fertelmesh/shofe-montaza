@@ -73,7 +73,7 @@ Markovi zahtjevi iz GitHub issues idu na vrh, u odjeljak „Hitno".
   - [x] M5.2b Zvučni efekti (vlastita biblioteka, CC0) s pravilima glasnoće: zvuk uz prijelaze, trzaj, zamrzni, vertigo, film; samostalan zvuk; nikad glasniji od glasa (#50)
   - M5.2c Prijelazi dalje (podijeljeno):
     - [x] M5.2c1 Manje memorije: svaki prijelaz pripremljen zasebno (s predmemorijom), u glavnom prolazu jedan ulaz za sve; slika iz zasebnog otvaranja snimke (#51)
-    - [x] M5.2c2 Prijelazi u DaVinci timelineu: FCPXML transition (Cross Dissolve) na istom rezu s ručkama + oznaka koji je prijelaz i kako ga dobiti u DaVinciju; ostali efekti kao oznake (#PRBROJ)
+    - [x] M5.2c2 Prijelazi u DaVinci timelineu: FCPXML transition (Cross Dissolve) na istom rezu s ručkama + oznaka koji je prijelaz i kako ga dobiti u DaVinciju; ostali efekti kao oznake (#52)
 - [ ] M5.3 Claude bira efekte po tekstu: pravila u SKILL.md + `efekti.py predlozi`
 - [ ] M5.4 HyperFrames integracija: render odsječka s pozadinskim videom i umetanje natrag; provjera na Windowsu u CI-ju
 - [ ] M5.5 10 HTML predložaka (kartica, ključna rečenica, brojač, graf, popis, prije/poslije, komentar, mobitel, citat, poziv na akciju)
